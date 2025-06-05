@@ -1,0 +1,30 @@
+{
+    "name": "nwidart/cargadocumentos",
+    "description": "",
+    "authors": [
+        {
+            "name": "Nicolas Widart",
+            "email": "n.widart@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {
+
+            }
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\CargaDocumentos\\": "app/",
+            "Modules\\CargaDocumentos\\Database\\Factories\\": "database/factories/",
+            "Modules\\CargaDocumentos\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\CargaDocumentos\\Tests\\": "tests/"
+        }
+    }
+}
