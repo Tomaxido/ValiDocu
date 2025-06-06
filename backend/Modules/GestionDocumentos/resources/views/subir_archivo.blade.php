@@ -2,7 +2,7 @@
 <html>
 <head><title>Subir Documento</title></head>
 <body>
-    <h1>Subir PetoDF</h1>
+    <h1>Subir PDF</h1>
     @if(session('success'))
         <p style="color: green;">{{ session('success') }}</p>
     @endif

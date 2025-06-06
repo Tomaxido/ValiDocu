@@ -1,5 +1,5 @@
 {
-    "name": "nwidart/cargadocumentos",
+    "name": "nwidart/gestiondocumentos",
     "description": "",
     "authors": [
         {
@@ -17,14 +17,14 @@
     },
     "autoload": {
         "psr-4": {
-            "Modules\\CargaDocumentos\\": "app/",
-            "Modules\\CargaDocumentos\\Database\\Factories\\": "database/factories/",
-            "Modules\\CargaDocumentos\\Database\\Seeders\\": "database/seeders/"
+            "Modules\\GestionDocumentos\\": "app/",
+            "Modules\\GestionDocumentos\\Database\\Factories\\": "database/factories/",
+            "Modules\\GestionDocumentos\\Database\\Seeders\\": "database/seeders/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Modules\\CargaDocumentos\\Tests\\": "tests/"
+            "Modules\\GestionDocumentos\\Tests\\": "tests/"
         }
     }
 }

@@ -1,13 +1,13 @@
 <?php
 
-namespace Modules\CargaDocumentos\Providers;
+namespace Modules\GestionDocumentos\Providers;
 
 use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Route;
 
 class RouteServiceProvider extends ServiceProvider
 {
-    protected string $name = 'CargaDocumentos';
+    protected string $name = 'GestionDocumentos';
 
     /**
      * Called before routes are registered.

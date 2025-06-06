@@ -1,0 +1,11 @@
+{
+    "name": "GestionDocumentos",
+    "alias": "gestiondocumentos",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\GestionDocumentos\\Providers\\CargaDocumentosServiceProvider"
+    ],
+    "files": []
+}
