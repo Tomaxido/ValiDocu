@@ -1,18 +1,78 @@
-import { useParams } from 'react-router-dom';
+import { useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { getDocumentGroupById } from "../../utils/api";
+import type { DocumentGroup, Document } from "../../utils/interfaces";
+import PdfViewer from "./PDFViewer2"; // o como se llame tu path real
+import "./Grupo.css";
 
 export default function Grupo() {
-  const { grupoId } = useParams();
+  const { grupoId } = useParams<{ grupoId: string }>();
+  const [group, setGroup] = useState<DocumentGroup | null>(null);
+  const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  useEffect(() => {
+    if (grupoId) {
+      getDocumentGroupById(grupoId).then((g) => {
+        setGroup(g);
+        if (g.documents.length > 0) setSelectedDoc(g.documents[0]);
+        if (g.documents.length > 0) {
+          setSelectedDoc(g.documents[0]);
+        }
+      });
+    }
+    
+  }, [grupoId]);
+
+  if (!group) return <p>Cargando grupo...</p>;
 
   return (
-    <div>
-      <h2>Grupo: {grupoId}</h2>
+    <div className="grupo-layout">
+      <aside className={`grupo-sidebar ${sidebarOpen ? "open" : "collapsed"}`}>
+        <button className="toggle-sidebar" onClick={() => setSidebarOpen(!sidebarOpen)}>
+          {sidebarOpen ? "◀" : "▶"}
+        </button>
+        {sidebarOpen && (
+          <>
+            <br></br>
+            <h3>Grupo: {group.name}</h3>
+            <h3>Listado de Documentos</h3>
+            <ul>
+              <p>Añadir documento (+)</p>
+              {group.documents.map((doc) => (
+                <li key={doc.id}>
+                  <button
+                    onClick={() => setSelectedDoc(doc)}
+                    className={selectedDoc?.id === doc.id ? "active" : ""}
+                  >
+                    {doc.filename}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </aside>
 
-      {/* Aquí podrías cargar los documentos desde backend o mockearlos */}
-      <ul>
-        <li>Documento 1.pdf</li>
-        <li>Documento 2.pdf</li>
-        <li>Documento 3.pdf</li>
-      </ul>
+      <div className="grupo-content">
+        {selectedDoc ? (
+          <div className="viewer-grid">
+            <div className="pdf-viewer">
+              <div className="pdf-viewer">
+                {selectedDoc && <PdfViewer url={`http://localhost:8000/${selectedDoc.filepath}`} />
+}
+              </div>
+            </div>
+            <div className="doc-info">
+              <h3>{selectedDoc.filename}</h3>
+              <p><strong>MIME:</strong> {selectedDoc.mime_type}</p>
+              <p><strong>Subido:</strong> {new Date(selectedDoc.created_at).toLocaleString()}</p>
+            </div>
+          </div>
+        ) : (
+          <p>Selecciona un documento para ver su contenido.</p>
+        )}
+      </div>
     </div>
   );
 }

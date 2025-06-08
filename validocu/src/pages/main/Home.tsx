@@ -1,17 +1,23 @@
 import './Home.css';
 import { Link } from 'react-router-dom';
 import { FolderIcon, Search, Settings2 } from 'lucide-react';
-
-const folders = [
-  { id: 1,  name: 'Colab Notebooks' },
-  { id: 2, name: 'cosas' },
-  { id: 3, name: 'Epson iPrint' },
-  { id: 4, name: 'Fotos' },
-  { id: 5, name: 'Lvp' },
-  { id: 6, name: 'School Planner' },
-];
+import { useEffect, useState } from "react";
+import { getDocumentGroups } from "../../utils/api";
+import type { DocumentGroup } from "../../utils/interfaces";
 
 export default function Home() {
+  const [documentGroups, setDocumentGroups] = useState<DocumentGroup[] | null>(null);
+
+	useEffect(() => {
+		const fun = async () => {
+			setDocumentGroups(await getDocumentGroups());
+		};
+		fun();
+	}, []);
+
+	if (documentGroups === null) {
+		return <p>Cargando...</p>;
+	}
   return (
     <div className="home-container">
       {/* Header */}
@@ -36,15 +42,15 @@ export default function Home() {
 
       {/* Folder Grid */}
       <div className="folder-grid">
-        {folders.map((folder, idx) => (
+        {documentGroups.map((group, idx) => (
           <Link
-            to={`/grupos/${folder.id}`}
+            to={`/grupos/${group.id}`}
             key={idx}
             className="folder-card"
             style={{ textDecoration: 'none', color: 'inherit' }}
           >
             <FolderIcon size={24} />
-            <span>{folder.name}</span>
+            <span>{group.name}</span>
           </Link>
         ))}
       </div>

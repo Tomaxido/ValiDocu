@@ -17,3 +17,7 @@ async function getJSON(url: string): Promise<any> {
 export async function getDocumentGroups(): Promise<DocumentGroup[]> {
     return await getJSON("/api/v1/documents") as DocumentGroup[];
 }
+
+export async function getDocumentGroupById(id: string | number): Promise<DocumentGroup> {
+  return await getJSON(`/api/v1/documents/${id}`) as DocumentGroup;
+}
