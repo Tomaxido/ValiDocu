@@ -1,0 +1,44 @@
+.layout-wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: 100%;
+  background-color: #f5f5f5;
+}
+
+.layout-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #150934;
+  color: white;
+  padding: 16px 24px;
+  box-shadow: 0 2px 5px rgb(21, 9, 52);
+  
+}
+
+.layout-header .logo {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.layout-nav a {
+  margin-left: 20px;
+  text-decoration: none;
+  color: white;
+  font-size: 14px;
+}
+
+.layout-nav a:hover {
+  text-decoration: underline;
+}
+
+.layout-content {
+  flex: 1;
+  padding: 24px;
+  width: 100vw; /* <- fuerza el ancho completo de la ventana */
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden; /* <- previene scroll lateral */
+  background-color: #f5f5f5;
+}
