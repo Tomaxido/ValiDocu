@@ -58,11 +58,9 @@ export default function Grupo() {
         {selectedDoc ? (
           <div className="viewer-grid">
             <div className="pdf-viewer">
-              <div className="pdf-viewer">
-                {selectedDoc && <PdfViewer url={`http://localhost:8000/${selectedDoc.filepath}`} />
-}
-              </div>
+              <PdfViewer url={`http://localhost:8000/secure-pdf/${selectedDoc.filepath.split('/').pop()}`} />
             </div>
+
             <div className="doc-info">
               <h3>{selectedDoc.filename}</h3>
               <p><strong>MIME:</strong> {selectedDoc.mime_type}</p>

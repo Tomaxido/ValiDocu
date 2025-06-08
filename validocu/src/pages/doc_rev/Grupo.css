@@ -54,11 +54,13 @@
   text-align: left;
   cursor: pointer;
   border-radius: 4px;
+  color: black;
 }
 
 .grupo-sidebar button.active {
   background-color: #d6d6ff;
   font-weight: bold;
+  color: black;
 }
 
 .grupo-content {

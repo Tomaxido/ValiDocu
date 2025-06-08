@@ -20,6 +20,9 @@ const PdfViewer: React.FC<PdfViewerProps> = ({ url }) => {
   const viewerRef = useRef<HTMLDivElement>(null);
   const [pdfImages, setPdfImages] = useState<string[]>([]);
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+
   // Cargar PDF automáticamente si se pasa por props
   useEffect(() => {
     const loadPdf = async () => {
@@ -41,6 +44,7 @@ const PdfViewer: React.FC<PdfViewerProps> = ({ url }) => {
 
     loadPdf();
   }, [url]);
+
 
   // Render actual
   useEffect(() => {
@@ -119,10 +123,6 @@ const PdfViewer: React.FC<PdfViewerProps> = ({ url }) => {
             <div className="pdf-display">
               <canvas className='pdf-canvas' ref={canvasRef}></canvas>
             </div>
-          </div>
-          <div className="vertical-divider"></div>
-          <div className="right-pane">
-            <p>Aquí podís añadir info adicional si querís.</p>
           </div>
         </div>
       )}
