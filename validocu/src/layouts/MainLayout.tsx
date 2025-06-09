@@ -10,13 +10,15 @@ export default function MainLayout({ children }: Props) {
   return (
     <div className="layout-wrapper">
       <header className="layout-header">
-        <img src={logo} alt="Logo" className="logo" />
+        <a href="/" className="logo-link">
+          <img src={logo} alt="Logo" className="logo" />
+        </a>
 
 
         <nav className="layout-nav">
-          <a href="#">Inicio</a>
-          <a href="#">Documentos</a>
-          <a href="#">Perfil</a>
+          <a href="/">Inicio</a>
+          <a href="/">Documentos</a>
+          <a href="/">Perfil</a>
         </nav>
       </header>
 

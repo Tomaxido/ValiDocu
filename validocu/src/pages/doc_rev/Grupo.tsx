@@ -1,9 +1,10 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { getDocumentGroupById, uploadDocumentsToGroup  } from "../../utils/api";
+import { getDocumentGroupById, uploadDocumentsToGroup, deleteDocuments  } from "../../utils/api";
 import type { DocumentGroup, Document } from "../../utils/interfaces";
-import UploadModal from "./UploadModal"; // cambia el path según tu estructura
-import PdfViewer from "./PDFViewer2"; // o como se llame tu path real
+import UploadModal from "./UploadModal"; 
+import DeletedModal from "./DeletedModal"; 
+import PdfViewer from "./PDFViewer2"; 
 import "./Grupo.css";
 import { baseURL } from "../../utils/api";
 
@@ -13,6 +14,8 @@ export default function Grupo() {
 	const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
 	const [sidebarOpen, setSidebarOpen] = useState(true);
 	const [isModalOpen, setIsModalOpen] = useState(false);
+	const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+
 
 	useEffect(() => {
 		if (grupoId) {
@@ -40,8 +43,22 @@ export default function Grupo() {
 		} catch (err: any) {
 			alert("Error al subir: " + err.message);
 		}
-		};
+	};
+		
+	const handleDeleteDocuments = async (ids: number[]) => {
+		if (!grupoId) return;
 
+		try {
+			await deleteDocuments(ids);
+			const updatedGroup = await getDocumentGroupById(grupoId);
+			setGroup(updatedGroup);
+			setSelectedDoc(updatedGroup.documents[0] || null);
+		} catch (err: any) {
+			alert("Error al eliminar documentos: " + err.message);
+		}
+	};
+
+			
 
 
 	return (
@@ -77,6 +94,9 @@ export default function Grupo() {
 						);
 					})}
 				</ul>
+				<p>
+					<button onClick={() => setDeleteModalOpen(true)}>🗑 Eliminar documentos</button>
+				</p>
 			</>
 			)}
 		</aside>
@@ -117,7 +137,12 @@ export default function Grupo() {
 			onClose={() => setIsModalOpen(false)}
 			onUpload={handleFileUpload}
 		/>
-		</div>
-		
+		<DeletedModal
+			isOpen={deleteModalOpen}
+			onClose={() => setDeleteModalOpen(false)}
+			documents={group.documents}
+			onDelete={handleDeleteDocuments}
+		/>
+		</div>	
 	);
 }
