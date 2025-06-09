@@ -42,10 +42,10 @@ export default function Home() {
 
       {/* Folder Grid */}
       <div className="folder-grid">
-        {documentGroups.map((group, idx) => (
+        {documentGroups.map(group => (
           <Link
             to={`/grupos/${group.id}`}
-            key={idx}
+            key={group.id}
             className="folder-card"
             style={{ textDecoration: 'none', color: 'inherit' }}
           >
