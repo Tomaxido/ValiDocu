@@ -18,8 +18,24 @@
   color: black;
   border: none;
   border-radius: 6px;
-  cursor: pointer;
   box-shadow: 0 0 4px rgba(0, 0, 0, 0.1);
+}
+
+.add-group-btn {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  background: white;
+  color: black;
+  border: none;
+  border-radius: 6px;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1em;
+  transition: background 0.2s;
+}
+
+.add-group-btn:hover {
+  background: #f0f0f0;
 }
 
 .home-filters {
@@ -70,12 +86,22 @@
   gap: 10px;
   padding: 16px;
   background: white;
+  color: black;
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  cursor: pointer;
   transition: background 0.2s;
 }
 
 .folder-card:hover {
   background: #f0f0f0;
+}
+
+.modal-input {
+  flex: 1;
+  padding: 0.25em 0.5em;
+  border-radius: 4px;
+  outline: none;
+  background: white;
+  color: black;
+  font-size: 14px;
 }

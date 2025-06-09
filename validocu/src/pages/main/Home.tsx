@@ -1,12 +1,15 @@
 import './Home.css';
-import { Link } from 'react-router-dom';
-import { FolderIcon, Search, Settings2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { FolderIcon, PlusIcon, Search, Settings2 } from 'lucide-react';
 import { useEffect, useState } from "react";
-import { getDocumentGroups } from "../../utils/api";
+import { createGroup, getDocumentGroups } from "../../utils/api";
 import type { DocumentGroup } from "../../utils/interfaces";
+import NewGroupModal from './NewGroupModal';
 
 export default function Home() {
+  const navigate = useNavigate();
   const [documentGroups, setDocumentGroups] = useState<DocumentGroup[] | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
 	useEffect(() => {
 		const fun = async () => {
@@ -14,6 +17,15 @@ export default function Home() {
 		};
 		fun();
 	}, []);
+
+  const handleFileUpload = async (groupName: string, files: FileList) => {
+    try {
+      await createGroup(groupName, files);
+			setDocumentGroups(await getDocumentGroups());
+    } catch (err: any) {
+      alert("Error al subir: " + err.message);
+    }
+  };
 
 	if (documentGroups === null) {
 		return <p>Cargando...</p>;
@@ -40,18 +52,27 @@ export default function Home() {
         <button className="filter-btn">Fuente</button>
       </div>
 
+      {/* Botón de nuevo grupo */}
+      <button onClick={() => setIsModalOpen(true)} className="add-group-btn">
+        <PlusIcon size={24}/> Agregar grupo
+      </button>
+
+      <NewGroupModal
+        isOpen={isModalOpen}
+				onClose={() => setIsModalOpen(false)}
+        onUpload={handleFileUpload}
+      />
+
       {/* Folder Grid */}
       <div className="folder-grid">
         {documentGroups.map(group => (
-          <Link
-            to={`/grupos/${group.id}`}
+          <button
+            onClick={() => navigate(`/grupos/${group.id}`)}
             key={group.id}
             className="folder-card"
-            style={{ textDecoration: 'none', color: 'inherit' }}
           >
-            <FolderIcon size={24} />
-            <span>{group.name}</span>
-          </Link>
+            <FolderIcon size={24} /> {group.name}
+          </button>
         ))}
       </div>
     </div>
