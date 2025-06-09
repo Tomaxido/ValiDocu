@@ -21,3 +21,21 @@ export async function getDocumentGroups(): Promise<DocumentGroup[]> {
 export async function getDocumentGroupById(id: string | number): Promise<DocumentGroup> {
   return await getJSON(`/api/v1/documents/${id}`) as DocumentGroup;
 }
+
+export async function uploadDocumentsToGroup(grupoId: string | number, files: FileList): Promise<void> {
+  const formData = new FormData();
+
+  for (const file of Array.from(files)) {
+    formData.append("documents[]", file);
+  }
+
+  const res = await fetch(`${baseURL}/api/v1/documents/${grupoId}`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData?.message || "Error al subir documentos");
+  }
+}
