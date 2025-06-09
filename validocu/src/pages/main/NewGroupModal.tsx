@@ -17,6 +17,10 @@ export default function NewGroupModal({ isOpen, onClose, onUpload }: Readonly<Pr
     setFileList((prev) => [...prev, ...files]);
   };
 
+  const removeFile = (index: number) => {
+    setFileList((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async () => {
     if (!groupName || fileList.length === 0) return;
     const dt = new DataTransfer();
@@ -34,6 +38,14 @@ export default function NewGroupModal({ isOpen, onClose, onUpload }: Readonly<Pr
           Nombre <input type="text" onChange={e => setGroupName(e.target.value)} className="modal-input" />
         </label>
         <input type="file" multiple onChange={handleFiles} />
+        <ul>
+          {fileList.map((file, i) => (
+            <li key={file.name}>
+              {file.name}
+              <button onClick={() => removeFile(i)} style={{ marginLeft: "8px" }}>❌</button>
+            </li>
+          ))}
+        </ul>
         <div className="modal-buttons">
           <button onClick={onClose}>Cancelar</button>
           <button onClick={handleSubmit} disabled={fileList.length === 0}>Subir</button>

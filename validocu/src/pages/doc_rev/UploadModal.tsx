@@ -22,12 +22,9 @@ export default function UploadModal({ isOpen, onClose, onUpload }: Readonly<Prop
 
   const handleSubmit = () => {
     if (fileList.length === 0) return;
-
-    // Convertir el array a FileList
     const dt = new DataTransfer();
     fileList.forEach(file => dt.items.add(file));
     onUpload(dt.files);
-
     setFileList([]);
     onClose();
   };
