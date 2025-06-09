@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import logo from "../assets/ValiDocu_1.png";
 import './MainLayout.css';
 
 interface Props {
@@ -9,7 +10,8 @@ export default function MainLayout({ children }: Props) {
   return (
     <div className="layout-wrapper">
       <header className="layout-header">
-        <div className="logo">📄 ValiDocu</div>
+        <img src={logo} alt="Logo" className="logo" />
+
 
         <nav className="layout-nav">
           <a href="#">Inicio</a>

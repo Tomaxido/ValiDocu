@@ -55,20 +55,26 @@ export default function Grupo() {
 				<h3>Grupo: {group.name}</h3>
 				<h3>Listado de Documentos</h3>
 				<ul>
-				<p>
-					<button onClick={() => setIsModalOpen(true)}>+ Añadir documento</button>
-				</p>
+					<p><button onClick={() => setIsModalOpen(true)}>+ Añadir documento</button></p>
+					{group.documents.map((doc) => {
+						const statusClass =
+						doc.status === 1
+							? "validado"
+							: doc.status === 2
+							? "rechazado"
+							: "sin-procesar";
 
-				{group.documents.map((doc) => (
-					<li key={doc.id}>
-					<button
-						onClick={() => setSelectedDoc(doc)}
-						className={selectedDoc?.id === doc.id ? "active" : ""}
-					>
-						{doc.filename}
-					</button>
-					</li>
-				))}
+						return (
+						<li key={doc.id} className={`doc-item ${statusClass}`}>
+							<button
+							onClick={() => setSelectedDoc(doc)}
+							className={selectedDoc?.id === doc.id ? "active" : ""}
+							>
+							{doc.filename}
+							</button>
+						</li>
+						);
+					})}
 				</ul>
 			</>
 			)}
@@ -77,17 +83,31 @@ export default function Grupo() {
 		<div className="grupo-content">
 			{selectedDoc ? (
 			<div className="viewer-grid">
-				<div className="pdf-viewer">
-				<PdfViewer url={`http://localhost:8000/secure-pdf/${selectedDoc.filepath.split('/').pop()}`} />
-				</div>
-
-				<div className="doc-info">
-				<h3>{selectedDoc.filename}</h3>
-				<p><strong>MIME:</strong> {selectedDoc.mime_type}</p>
-				<p><strong>Subido:</strong> {new Date(selectedDoc.created_at).toLocaleString()}</p>
-				</div>
+			<div className="pdf-viewer">
+				<PdfViewer
+				url={`http://localhost:8000/secure-pdf/${selectedDoc.filepath.split("/").pop()}`}
+				/>
 			</div>
-			) : (
+
+			<div className="doc-info">
+				<h3>{selectedDoc.filename}</h3>
+
+				<p>
+				<strong>Estado:</strong>{" "}
+				{selectedDoc.status === 1
+					? "✅ Validado"
+					: selectedDoc.status === 2
+					? "❌ Rechazado"
+					: "🕓 Sin Revisar"}
+				</p>
+
+				<p>
+				<strong>Subido:</strong>{" "}
+				{new Date(selectedDoc.created_at).toLocaleString()}
+				</p>
+			</div>
+			</div>
+		)  : (
 			<p>Selecciona un documento para ver su contenido.</p>
 			)}
 		</div>

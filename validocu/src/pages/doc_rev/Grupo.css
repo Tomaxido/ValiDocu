@@ -89,6 +89,42 @@
   border-radius: 8px;
   height: fit-content;
 }
+
+
+.doc-item {
+  padding: 4px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+
+.doc-item.validado {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.doc-item.rechazado {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.doc-item.sin-procesar {
+  background-color: #fff3cd;
+  color: #ffbf00;
+}
+
+.doc-item button {
+  all: unset;
+  cursor: pointer;
+  display: block;
+  width: 100%;
+  font-weight: bold;
+}
+
+.doc-item button.active {
+  text-decoration: underline;
+}
+
+
 .modal-backdrop {
   position: fixed;
   top: 0;
@@ -113,4 +149,16 @@
   margin-top: 15px;
   display: flex;
   justify-content: space-between;
+}
+.modal ul {
+  list-style: none;
+  padding: 0;
+  max-height: 150px;
+  overflow-y: auto;
+  margin-top: 10px;
+}
+.modal li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
