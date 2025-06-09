@@ -6,7 +6,7 @@ import type { DocumentGroup } from "./interfaces";
 // }
 
 // TODO: arreglar
-let baseURL = "http://localhost:8000";
+export const baseURL = "http://localhost:8000";
 
 
 async function getJSON(url: string): Promise<any> {
@@ -48,3 +48,16 @@ export async function uploadDocumentsToGroup(grupoId: string | number, files: Fi
 
 	await post(`/api/v1/documents/${grupoId}`, formData);
 }
+export async function deleteDocuments(ids: number[]): Promise<void> {
+  for (const id of ids) {
+    const res = await fetch(`${baseURL}/api/v1/documents/file/${id}`, {
+      method: "DELETE",
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData?.message || `Error al eliminar documento ${id}`);
+    }
+  }
+}
+

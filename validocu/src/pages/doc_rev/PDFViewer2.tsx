@@ -20,15 +20,13 @@ const PdfViewer: React.FC<PdfViewerProps> = ({ url }) => {
   const viewerRef = useRef<HTMLDivElement>(null);
   const [pdfImages, setPdfImages] = useState<string[]>([]);
 
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-
   // Cargar PDF automáticamente si se pasa por props
   useEffect(() => {
     const loadPdf = async () => {
       if (!url) return;
       setIsLoading(true);
       try {
+        console.log(url);
         const loadingTask = pdfjsLib.getDocument(url);
         const loadedPdf = await loadingTask.promise;
         setPdf(loadedPdf);

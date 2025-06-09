@@ -1,9 +1,10 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { getDocumentGroupById, uploadDocumentsToGroup } from "../../utils/api";
+import { baseURL, getDocumentGroupById, uploadDocumentsToGroup, deleteDocuments } from "../../utils/api";
 import type { DocumentGroup, Document } from "../../utils/interfaces";
-import UploadModal from "./UploadModal"; // cambia el path según tu estructura
-import PdfViewer from "./PDFViewer2"; // o como se llame tu path real
+import UploadModal from "./UploadModal"; 
+import DeleteModal from "./DeleteModal"; 
+import PdfViewer from "./PDFViewer2"; 
 import "./Grupo.css";
 
 export default function Grupo() {
@@ -12,6 +13,8 @@ export default function Grupo() {
 	const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
 	const [sidebarOpen, setSidebarOpen] = useState(true);
 	const [isModalOpen, setIsModalOpen] = useState(false);
+	const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+
 
 	useEffect(() => {
 		if (grupoId) {
@@ -40,63 +43,105 @@ export default function Grupo() {
 			alert("Error al subir: " + err.message);
 		}
 	};
+		
+	const handleDeleteDocuments = async (ids: number[]) => {
+		if (!grupoId) return;
 
+		try {
+			await deleteDocuments(ids);
+			const updatedGroup = await getDocumentGroupById(grupoId);
+			setGroup(updatedGroup);
+			setSelectedDoc(updatedGroup.documents[0] || null);
+		} catch (err: any) {
+			alert("Error al eliminar documentos: " + err.message);
+		}
+	};
+
+			
 
 
 	return (
 		<div className="grupo-layout">
-			<aside className={`grupo-sidebar ${sidebarOpen ? "open" : "collapsed"}`}>
-				<button className="toggle-sidebar" onClick={() => setSidebarOpen(!sidebarOpen)}>
-					{sidebarOpen ? "◀" : "▶"}
-				</button>
-				{sidebarOpen && (
-					<>
-						<br></br>
-						<h3>Grupo: {group.name}</h3>
-						<h3>Listado de Documentos</h3>
-						<ul>
-							<p>
-								<button onClick={() => setIsModalOpen(true)}>+ Añadir documento</button>
-							</p>
+		<aside className={`grupo-sidebar ${sidebarOpen ? "open" : "collapsed"}`}>
+			<button className="toggle-sidebar" onClick={() => setSidebarOpen(!sidebarOpen)}>
+			{sidebarOpen ? "◀" : "▶"}
+			</button>
+			{sidebarOpen && (
+			<>
+				<br></br>
+				<h3>Grupo: {group.name}</h3>
+				<h3>Listado de Documentos</h3>
+				<ul>
+					<p><button onClick={() => setIsModalOpen(true)}>+ Añadir documento</button></p>
+					{group.documents.map((doc) => {
+						const statusClass =
+						doc.status === 1
+							? "validado"
+							: doc.status === 2
+							? "rechazado"
+							: "sin-procesar";
 
-							{group.documents.map((doc) => (
-								<li key={doc.id}>
-									<button
-										onClick={() => setSelectedDoc(doc)}
-										className={selectedDoc?.id === doc.id ? "active" : ""}
-									>
-										{doc.filename}
-									</button>
-								</li>
-							))}
-						</ul>
-					</>
-				)}
-			</aside>
+						return (
+						<li key={doc.id} className={`doc-item ${statusClass}`}>
+							<button
+							onClick={() => setSelectedDoc(doc)}
+							className={selectedDoc?.id === doc.id ? "active" : ""}
+							>
+							{doc.filename}
+							</button>
+						</li>
+						);
+					})}
+				</ul>
+				<p>
+					<button onClick={() => setDeleteModalOpen(true)}>🗑 Eliminar documentos</button>
+				</p>
+			</>
+			)}
+		</aside>
 
-			<div className="grupo-content">
-				{selectedDoc ? (
-					<div className="viewer-grid">
-						<div className="pdf-viewer">
-							<PdfViewer url={`http://localhost:8000/secure-pdf/${selectedDoc.filepath.split('/').pop()}`} />
-						</div>
-
-						<div className="doc-info">
-							<h3>{selectedDoc.filename}</h3>
-							<p><strong>MIME:</strong> {selectedDoc.mime_type}</p>
-							<p><strong>Subido:</strong> {new Date(selectedDoc.created_at).toLocaleString()}</p>
-						</div>
-					</div>
-				) : (
-					<p>Selecciona un documento para ver su contenido.</p>
-				)}
+		<div className="grupo-content">
+			{selectedDoc ? (
+			<div className="viewer-grid">
+			<div className="pdf-viewer">
+				<PdfViewer
+				url={`${baseURL}/secure-pdf/${selectedDoc.filepath.split("/").pop()}`}
+				/>
 			</div>
-			<UploadModal
-				isOpen={isModalOpen}
-				onClose={() => setIsModalOpen(false)}
-				onUpload={handleFileUpload}
-			/>
-		</div>
 
+			<div className="doc-info">
+				<h3>{selectedDoc.filename}</h3>
+
+				<p>
+				<strong>Estado:</strong>{" "}
+				{selectedDoc.status === 1
+					? "✅ Validado"
+					: selectedDoc.status === 2
+					? "❌ Rechazado"
+					: "🕓 Sin Revisar"}
+				</p>
+
+				<p>
+				<strong>Subido:</strong>{" "}
+				{new Date(selectedDoc.created_at).toLocaleString()}
+				</p>
+			</div>
+			</div>
+		)  : (
+			<p>Selecciona un documento para ver su contenido.</p>
+			)}
+		</div>
+		<UploadModal
+			isOpen={isModalOpen}
+			onClose={() => setIsModalOpen(false)}
+			onUpload={handleFileUpload}
+		/>
+		<DeleteModal
+			isOpen={deleteModalOpen}
+			onClose={() => setDeleteModalOpen(false)}
+			documents={group.documents}
+			onDelete={handleDeleteDocuments}
+		/>
+		</div>	
 	);
 }
