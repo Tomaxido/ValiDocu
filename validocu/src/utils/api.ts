@@ -6,7 +6,7 @@ import type { DocumentGroup } from "./interfaces";
 // }
 
 // TODO: arreglar
-let baseURL = "http://localhost:8000";
+export const baseURL = "http://backend.test";
 
 
 async function getJSON(url: string): Promise<any> {

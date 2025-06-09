@@ -4,6 +4,7 @@ import { getDocumentGroupById } from "../../utils/api";
 import type { DocumentGroup, Document } from "../../utils/interfaces";
 import PdfViewer from "./PDFViewer2"; // o como se llame tu path real
 import "./Grupo.css";
+import { baseURL } from "../../utils/api";
 
 export default function Grupo() {
   const { grupoId } = useParams<{ grupoId: string }>();
@@ -58,7 +59,7 @@ export default function Grupo() {
         {selectedDoc ? (
           <div className="viewer-grid">
             <div className="pdf-viewer">
-              <PdfViewer url={`http://localhost:8000/secure-pdf/${selectedDoc.filepath.split('/').pop()}`} />
+              <PdfViewer url={`${baseURL}/secure-pdf/${selectedDoc.filepath.split('/').pop()}`} />
             </div>
 
             <div className="doc-info">

@@ -1,6 +1,6 @@
 /* Contenedor principal */
 .viewer-container {
-  width: 100%;
+  width: 80%;
   height: 100vh;
   padding: 16px;
   box-sizing: border-box;
@@ -55,12 +55,9 @@
   flex: 1;
   display: flex;
   width: 100%;
-  min-height: 100%;
-  border: 1px solid #999;
-  border-radius: 4px;
+  height: 100%;
   box-sizing: border-box;
   overflow-y: visible;
-
 }
 
 
@@ -76,14 +73,12 @@
 .pdf-pane {
   flex: 1;
   padding: 0;
-  overflow: hidden;
   height: 100%;
 }
 
 .pdf-canvas {
   width: 100%;
-  height: auto;
-  border: 1px solid #999;
+  height: 100%;
 }
 
 
@@ -93,6 +88,7 @@
   align-items: center;      /* Centra verticalmente */
   justify-content: center;  /* Centra horizontalmente (opcional, por si también lo quieres) */
   height: 100%;
+  border: 1px solid #999;
   border-radius: 4px;
   overflow-y: auto;
 }
