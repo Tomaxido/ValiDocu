@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 from uuid import uuid4
 
 from fpdf import FPDF
@@ -38,7 +39,16 @@ def guardar_json(
 
 
 def main() -> None:
-    cantidad = 20  # O la cantidad que quieras
+    # Por defecto solo 1 contrato
+    cantidad = 1
+
+    # Si se pasa un argumento (ej: python generador_de_contratos.py 10), úsalo como cantidad
+    if len(sys.argv) > 1:
+        try:
+            cantidad = int(sys.argv[1])
+        except ValueError:
+            print("El argumento debe ser un número entero, se usará 1 contrato por defecto.")
+
     for i in range(cantidad):
         plantilla_contrato, D = EstructurasContrato.random_structure()
         contrato = plantilla_contrato.format(**D)

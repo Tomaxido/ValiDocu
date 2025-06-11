@@ -35,4 +35,5 @@
   
 * instalar librerias con `pip install -r requirements.txt`
 
-* Correr codigo con `python generador_de_contratos.py`
+* Correr codigo con `python generador_de_contratos.py {cantidad_de_contratos}`.
+  Por ejemplo `python generador_de_contratos.py 15`  genera 15 contratos
