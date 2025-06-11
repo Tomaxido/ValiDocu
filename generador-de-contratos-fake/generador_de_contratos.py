@@ -1,6 +1,7 @@
 from fpdf import FPDF
 import os
 from estructuras_de_contratos import EstructurasContrato
+from uuid import uuid4
 
 def guardar_pdf(texto: str, nombre_archivo: str, carpeta: str = 'contratos') -> None:
     os.makedirs(carpeta, exist_ok=True)
@@ -16,7 +17,7 @@ def main() -> None:
     cantidad = 20  # O la cantidad que quieras
     for i in range(cantidad):
         contrato, nombre = EstructurasContrato.random_structure()
-        nombre_pdf = f"contrato_{i+1}.pdf"
+        nombre_pdf = f"{uuid4()}_{i+1}.pdf"
         guardar_pdf(contrato, nombre_pdf)
         print(f"Contrato generado: {nombre_pdf}")
 
