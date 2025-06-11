@@ -343,15 +343,15 @@ El presente instrumento se firma mediante el uso de firma electrónica avanzada 
     def random_structure() -> Tuple[str, str]:
         estructuras: List[Callable[[], Tuple[str, str]]] = [
             EstructurasContrato.estructura_contrato_mutuo,
-            # EstructurasContrato.estructura_1,
-            # EstructurasContrato.estructura_2,
-            # EstructurasContrato.estructura_3,
-            # EstructurasContrato.estructura_4,
-            # EstructurasContrato.estructura_5,
-            # EstructurasContrato.estructura_6,
-            # EstructurasContrato.estructura_7,
-            # EstructurasContrato.estructura_8,
-            # EstructurasContrato.estructura_9,
-            # EstructurasContrato.estructura_10,
+            EstructurasContrato.estructura_1,
+            EstructurasContrato.estructura_2,
+            EstructurasContrato.estructura_3,
+            EstructurasContrato.estructura_4,
+            EstructurasContrato.estructura_5,
+            EstructurasContrato.estructura_6,
+            EstructurasContrato.estructura_7,
+            EstructurasContrato.estructura_8,
+            EstructurasContrato.estructura_9,
+            EstructurasContrato.estructura_10,
         ]
         return random.choice(estructuras)()
