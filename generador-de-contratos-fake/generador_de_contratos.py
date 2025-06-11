@@ -11,10 +11,16 @@ def guardar_pdf(texto: str, nombre_archivo: str, carpeta: str = "contratos") -> 
     os.makedirs(carpeta, exist_ok=True)
     pdf = FPDF()
     pdf.add_page()
+    # ¡Agrega una fuente TTF que soporte español!
+    pdf.add_font("DejaVu", "", "DejaVuSans.ttf")
+    pdf.set_font("DejaVu", size=12)
     pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.set_font("Arial", size=12)
     for linea in texto.split('\n'):
-        pdf.multi_cell(0, 10, linea)
+        if linea.strip() == "":
+            pdf.ln(8)  # Espacio entre párrafos
+        else:
+            # Limita largo de líneas, por si acaso
+            pdf.multi_cell(0, 10, linea, new_x="LEFT", new_y="NEXT")
     pdf.output(os.path.join(carpeta, nombre_archivo))
 
 def guardar_json(
