@@ -28,12 +28,13 @@ class EstructurasContrato:
     def generar_diccionario_base() -> Dict[str, str]:
         nombre_persona = fake.name()
         nombre_empresa = fake.company()
+        puntos = random.choice([True, False])
         return dict(
             nombre_persona=nombre_persona,
-            rut_persona=EstructurasContrato.generar_rut(),
+            rut_persona=EstructurasContrato.generar_rut(puntos=puntos),
             direccion=fake.address().replace('\n', ', '),
             nombre_empresa=nombre_empresa,
-            rut_empresa=EstructurasContrato.generar_rut(),
+            rut_empresa=EstructurasContrato.generar_rut(puntos=puntos),
             firma_persona=nombre_persona,
             firma_empresa=nombre_empresa,
         )
