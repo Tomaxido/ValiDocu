@@ -176,7 +176,7 @@ TERCERO: CARACTERÍSTICAS DEL MUTUO.
 
 3.1 Capital: El monto del mutuo es {capital} moneda de curso legal en la República de Chile.
 
-3.2 Plazo: """+EstructurasContrato.clausula_plazo_variante(diccionario["plazo_fecha"], diccionario["plazo_dias"])+"""
+3.2 Plazo: """+EstructurasContrato.clausula_plazo_variante()+"""
 
 3.3 Intereses: Desde la fecha del presente Contrato hasta la Fecha de Vencimiento, el Capital devengará una tasa de interés simple de {tasa}% mensual, calculada en base a 30 días.
 
