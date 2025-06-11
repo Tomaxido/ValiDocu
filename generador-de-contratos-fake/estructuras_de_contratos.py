@@ -93,6 +93,7 @@ class EstructurasContrato:
 
         return palabras, etiquetas
 
+    @staticmethod
     def clausula_plazo_variante() -> str:
         opciones = [
             "El mutuo tiene como plazo de vencimiento el día {plazo_fecha}, fecha en la que deberá pagarse íntegramente el capital e intereses adeudados.",
