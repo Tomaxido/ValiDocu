@@ -1,10 +1,12 @@
-from typing import Tuple, Callable, List
-from faker import Faker
 import random
+from typing import Callable, Dict, List, Tuple
+
+from faker import Faker
 
 fake = Faker('es_CL')
 
-class EstructurasContrato():
+
+class EstructurasContrato:
     @staticmethod
     def formatear_rut_con_puntos(rut: str) -> str:
         """Convierte 12345678-9 en 12.345.678-9"""
@@ -23,59 +25,130 @@ class EstructurasContrato():
 
 
     @staticmethod
-    def generar_nombre_empresa() -> str:
-        return fake.company()
+    def generar_diccionario_base() -> Dict[str, str]:
+        nombre_persona = fake.name()
+        nombre_empresa = fake.company()
+        return dict(
+            nombre_persona=nombre_persona,
+            rut_persona=EstructurasContrato.generar_rut(),
+            direccion=fake.address().replace('\n', ', '),
+            nombre_empresa=nombre_empresa,
+            rut_empresa=EstructurasContrato.generar_rut(),
+            firma_persona=nombre_persona,
+            firma_empresa=nombre_empresa,
+        )
 
-    def clausula_plazo_variante(plazo_fecha: str, plazo_dias: int) -> str:
+    @staticmethod
+    def obtener_palabras_y_etiquetas(
+        plantilla_contrato: str, diccionario: Dict[str, str]
+    ) -> tuple[list[str], list[str]]:
+        plantilla_contrato = plantilla_contrato.replace("\n", " ").strip()
+        while "  " in plantilla_contrato:
+            plantilla_contrato = plantilla_contrato.replace("  ", " ")
+        palabras = plantilla_contrato.split()
+        etiquetas = ["O" for _ in palabras]
+
+        # El orden importa. Es mejor que "firma" esté antes de "persona" y "empresa",
+        # porque existen las llaves "firma_persona" y "firma_empresa" que corresponden a
+        # "B-FIRMA" e "I-FIRMA".
+        # Igualmente, "direccion" y "domicilio" deben estar antes de "ci", porque estas
+        # dos palabras contienen el substring "ci".
+        llave_a_etiqueta = {
+            "firma": "FIRMA",  # antes de "persona" y "empresa"
+            "tipo_documento": "TIPO_DOCUMENTO",
+            "persona": "NOMBRE_COMPLETO",  # antes de "nombre"
+            "representante": "NOMBRE_COMPLETO",
+            "empresa": "EMPRESA",  # antes de "nombre"
+            "nombre": "NOMBRE_COMPLETO",
+            "direccion": "DIRECCION",  # antes de "ci"
+            "domicilio": "DIRECCION",  # antes de "ci"
+            "rut": "RUT",
+            "ci": "RUT",
+            "fecha": "FECHA",
+            "monto": "MONTO",
+            "capital": "MONTO",
+            "tasa": "TAZA",
+            "taza": "TAZA",
+        }
+        for i in range(len(palabras)-1, -1, -1):
+            inicio = palabras[i].find("{")
+            fin = palabras[i].find("}")
+            if inicio == -1 or fin == -1:
+                continue
+            llave = palabras[i][inicio+1:fin]
+            palabras_reemplazo = diccionario[llave].split()
+            palabras_reemplazo[0] = palabras[i][:inicio] + palabras_reemplazo[0]
+            palabras_reemplazo[-1] += palabras[i][fin+1:]
+            for palabra_clave in llave_a_etiqueta:
+                if palabra_clave in llave:
+                    etiqueta = llave_a_etiqueta[palabra_clave]
+                    etiquetas_reemplazo = [f"B-{etiqueta}"] + [f"I-{etiqueta}"] * (len(palabras_reemplazo) - 1)
+                    break
+            else:
+                etiquetas_reemplazo = ["O" for _ in palabras_reemplazo]
+
+            palabras = palabras[:i] + palabras_reemplazo + palabras[i+1:]
+            etiquetas = etiquetas[:i] + etiquetas_reemplazo + etiquetas[i+1:]
+
+        return palabras, etiquetas
+
+    def clausula_plazo_variante(plazo_fecha: str, plazo_dias: str) -> str:
         opciones = [
-            f"El mutuo tiene como plazo de vencimiento el día {plazo_fecha}, fecha en la que deberá pagarse íntegramente el capital e intereses adeudados.",
-            f"El plazo del presente contrato es de {plazo_dias} días, venciendo el {plazo_fecha}.",
-            f"El presente instrumento tendrá vigencia hasta el día {plazo_fecha}, en que expira el plazo pactado.",
-            f"La duración del contrato es de {plazo_dias} días corridos contados desde la fecha de suscripción, venciendo el {plazo_fecha}.",
-            f"La obligación asumida por el Deudor vence el día {plazo_fecha}, salvo prórroga conforme a la ley.",
-            f"La fecha de término del mutuo será el {plazo_fecha}, totalizando así {plazo_dias} días de plazo.",
-            f"Este contrato vencerá el {plazo_fecha}, considerándose en mora el Deudor a partir de esa fecha.",
-            f"El plazo para el pago íntegro del capital y los intereses estipulados expira el {plazo_fecha}.",
-            f"Las partes acuerdan que el vencimiento de la obligación será el día {plazo_fecha}.",
-            f"La vigencia del presente mutuo se extenderá hasta el {plazo_fecha}, sin posibilidad de prórroga automática.",
+            "El mutuo tiene como plazo de vencimiento el día {plazo_fecha}, fecha en la que deberá pagarse íntegramente el capital e intereses adeudados.",
+            "El plazo del presente contrato es de {plazo_dias} días, venciendo el {plazo_fecha}.",
+            "El presente instrumento tendrá vigencia hasta el día {plazo_fecha}, en que expira el plazo pactado.",
+            "La duración del contrato es de {plazo_dias} días corridos contados desde la fecha de suscripción, venciendo el {plazo_fecha}.",
+            "La obligación asumida por el Deudor vence el día {plazo_fecha}, salvo prórroga conforme a la ley.",
+            "La fecha de término del mutuo será el {plazo_fecha}, totalizando así {plazo_dias} días de plazo.",
+            "Este contrato vencerá el {plazo_fecha}, considerándose en mora el Deudor a partir de esa fecha.",
+            "El plazo para el pago íntegro del capital y los intereses estipulados expira el {plazo_fecha}.",
+            "Las partes acuerdan que el vencimiento de la obligación será el día {plazo_fecha}.",
+            "La vigencia del presente mutuo se extenderá hasta el {plazo_fecha}, sin posibilidad de prórroga automática.",
         ]
         return random.choice(opciones)
         
     @staticmethod
-    def estructura_contrato_mutuo() -> Tuple[str, str]:
-        # Datos aleatorios para deudor y corredor (empresas y representantes)
-        deudor_empresa = fake.company().upper()
-        deudor_rut = f"{fake.random_int(60000000, 99999999)}-{random.choice(['0','1','2','3','4','5','6','7','8','9','K','k'])}"
-        deudor_representante = fake.name().upper()
-        deudor_ci = f"{fake.random_int(10000000, 29999999)}-{random.choice(['0','1','2','3','4','5','6','7','8','9','K','k'])}"
-        deudor_domicilio = f"{fake.street_address().upper()} {fake.city().upper()}, comuna de {fake.city().upper()}"
+    def estructura_contrato_mutuo() -> Tuple[str, Dict[str, str]]:
+        digits = "0123456789Kk"
 
-        corredor_empresa = fake.company().upper()
-        corredor_rut = f"{fake.random_int(20000000, 59999999)}-{random.choice(['0','1','2','3','4','5','6','7','8','9','K','k'])}"
-        corredor_representante = fake.name().upper()
-        corredor_ci = f"{fake.random_int(10000000, 29999999)}-{random.choice(['0','1','2','3','4','5','6','7','8','9','K','k'])}"
-        corredor_domicilio = f"{fake.street_address().upper()} {fake.city().upper()}, comuna de {fake.city().upper()}"
+        diccionario = dict(
+            tipo_documento = "CONTRATO DE MUTUO Y MANDATO",
 
-        fecha_dia = fake.day_of_month()
-        fecha_mes = fake.month_name()
-        fecha_anio = fake.year()
+            # Datos aleatorios para deudor y corredor (empresas y representantes)
+            deudor_empresa = fake.company().upper(),
+            deudor_rut = f"{fake.random_int(60000000, 99999999)}-{random.choice(digits)}",
+            deudor_representante = fake.name().upper(),
+            deudor_ci = f"{fake.random_int(10000000, 29999999)}-{random.choice(digits)}",
+            deudor_domicilio = f"{fake.street_address().upper()} {fake.city().upper()}, comuna de {fake.city().upper()}",
 
-        capital = fake.pyint(min_value=50000000, max_value=600000000, step=5000000)
-        tasa = round(random.uniform(0.08, 0.25), 3)
-        plazo_fecha = fake.date_between(start_date="+1m", end_date="+1y").strftime("%d de %B de %Y")
-        plazo_dias = random.choice([90, 120, 180, 270, 360, 365, 400, 720])
+            corredor_empresa = fake.company().upper(),
+            corredor_rut = f"{fake.random_int(20000000, 59999999)}-{random.choice(digits)}",
+            corredor_representante = fake.name().upper(),
+            corredor_ci = f"{fake.random_int(10000000, 29999999)}-{random.choice(digits)}",
+            corredor_domicilio = f"{fake.street_address().upper()} {fake.city().upper()}, comuna de {fake.city().upper()}",
 
-        identificador = fake.lexify(text='??????')
-        nombre_titular = fake.company().upper()
+            fecha = f"{fake.day_of_month()} de {fake.month_name()} de {fake.year()}",
 
-        contrato = f"""
-CONTRATO DE MUTUO Y MANDATO
+            capital = f"${fake.pyint(min_value=50000000, max_value=600000000, step=5000000):,}",
+            tasa = str(round(random.uniform(0.08, 0.25), 3)),
+            plazo_fecha = fake.date_between(start_date="+1m", end_date="+1y").strftime("%d de %B de %Y"),
+            plazo_dias = str(random.choice([90, 120, 180, 270, 360, 365, 400, 720])),
+
+            identificador = fake.lexify(text='??????'),
+            nombre_titular = fake.company().upper(),
+        )
+
+        diccionario["firma_deudor"] = f"{diccionario['deudor_representante']}\n{diccionario['deudor_empresa']}"
+        diccionario["firma_corredor"] = f"{diccionario['corredor_representante']}\n{diccionario['corredor_empresa']}"
+
+        plantilla_contrato = """
+{tipo_documento}
 
 {deudor_empresa}
 A
 {corredor_empresa}
 
-En Santiago, a {fecha_dia} de {fecha_mes} de {fecha_anio}, entre:
+En Santiago, a {fecha}, entre:
 
 A) {deudor_empresa}, Rol Único Tributario número {deudor_rut}, representada por {deudor_representante}, cédula de identidad número {deudor_ci}, todos con domicilio para estos efectos en {deudor_domicilio}, en adelante, indistintamente, el “Deudor”.
 
@@ -100,9 +173,9 @@ SEGUNDO: ANTECEDENTES.
 
 TERCERO: CARACTERÍSTICAS DEL MUTUO.
 
-3.1 Capital: El monto del mutuo es ${capital:,} moneda de curso legal en la República de Chile.
+3.1 Capital: El monto del mutuo es {capital} moneda de curso legal en la República de Chile.
 
-3.2 Plazo: {EstructurasContrato.clausula_plazo_variante(plazo_fecha, plazo_dias)}
+3.2 Plazo: """+EstructurasContrato.clausula_plazo_variante(diccionario["plazo_fecha"], diccionario["plazo_dias"])+"""
 
 3.3 Intereses: Desde la fecha del presente Contrato hasta la Fecha de Vencimiento, el Capital devengará una tasa de interés simple de {tasa}% mensual, calculada en base a 30 días.
 
@@ -112,243 +185,232 @@ DÉCIMO TERCERO: FIRMA.
 
 El presente instrumento se firma mediante el uso de firma electrónica avanzada con mecanismos que cumplen con las condiciones contempladas en la Ley N°19.799.
 
-{deudor_representante}
-{deudor_empresa}
+{firma_deudor}
 
-{corredor_representante}
-{corredor_empresa}
+{firma_corredor}
     """
-        return contrato, deudor_empresa
+        return plantilla_contrato, diccionario
 
 
     @staticmethod
-    def estructura_1() -> Tuple[str, str]:
-        nombre_persona = fake.name()
-        rut_persona = EstructurasContrato.generar_rut()
-        direccion = fake.address().replace('\n', ', ')
-        nombre_empresa = EstructurasContrato.generar_nombre_empresa()
-        rut_empresa = EstructurasContrato.generar_rut()
-        monto = f"${fake.pyint(min_value=100000, max_value=5000000):,}".replace(",", ".")
-        servicio = fake.sentence(nb_words=8)
-        fecha = fake.date_this_decade().strftime("%d/%m/%Y")
-        parrafos = "\n\n".join([fake.paragraph(nb_sentences=5) for _ in range(8)])
-        contrato = (
-            f"CONTRATO DE SERVICIO\n\n"
-            f"Se suscribe el presente contrato entre {nombre_persona} (RUT {rut_persona}) con domicilio en {direccion} "
-            f"y la empresa {nombre_empresa} (RUT {rut_empresa}).\n\n"
-            f"En la ciudad de Santiago, a {fecha}, se acuerda lo siguiente:\n"
-            f"Servicio: {servicio}\n"
-            f"Monto total: {monto}\n\n"
-            f"{parrafos}\n\n"
-            f"Firmas:\n\n{nombre_persona}                   Representante de {nombre_empresa}"
+    def estructura_1() -> Tuple[str, Dict[str, str]]:
+        diccionario = EstructurasContrato.generar_diccionario_base()
+        diccionario.update(
+            tipo_documento="CONTRATO DE SERVICIO",
+            monto=f"${fake.pyint(min_value=100000, max_value=5000000):,}".replace(",", "."),
+            servicio=fake.sentence(nb_words=8),
+            fecha=fake.date_this_decade().strftime("%d/%m/%Y"),
+            parrafos="\n\n".join([fake.paragraph(nb_sentences=5) for _ in range(8)]),
         )
-        return contrato, nombre_persona
+        plantilla_contrato = (
+            "{tipo_documento}\n\n"
+            "Se suscribe el presente contrato entre {nombre_persona} (RUT {rut_persona}) con domicilio en {direccion} "
+            "y la empresa {nombre_empresa} (RUT {rut_empresa}).\n\n"
+            "En la ciudad de Santiago, a {fecha}, se acuerda lo siguiente:\n"
+            "Servicio: {servicio}\n"
+            "Monto total: {monto}\n\n"
+            "{parrafos}\n\n"
+            "Firmas:\n\n{firma_persona}                   Representante de {firma_empresa}"
+        )
+
+        return plantilla_contrato, diccionario
 
     @staticmethod
-    def estructura_2() -> Tuple[str, str]:
-        nombre_persona = fake.name()
-        rut_persona = EstructurasContrato.generar_rut()
-        direccion = fake.address().replace('\n', ', ')
-        nombre_empresa = EstructurasContrato.generar_nombre_empresa()
-        rut_empresa = EstructurasContrato.generar_rut()
-        monto = f"${fake.pyint(min_value=500000, max_value=10000000):,}".replace(",", ".")
-        servicio = fake.text(max_nb_chars=30)
-        fecha = fake.date_this_year().strftime("%d/%m/%Y")
-        parrafos = "\n".join([fake.paragraph(nb_sentences=3) for _ in range(5)])
-        contrato = (
-            f"ACUERDO CONTRACTUAL\n\n"
-            f"Fecha: {fecha}\n"
-            f"El Sr./Sra. {nombre_persona} (RUT: {rut_persona}), domiciliado en {direccion},\n"
-            f"acepta prestar servicios a la empresa {nombre_empresa}, cuyo RUT es {rut_empresa}.\n"
-            f"Servicio ofrecido: {servicio}\n"
-            f"El pago acordado es de {monto}.\n\n"
-            f"{parrafos}\n\n"
-            f"______________________________    ______________________________\n"
-            f"{nombre_persona}                     {nombre_empresa}"
+    def estructura_2() -> Tuple[str, Dict[str, str]]:
+        diccionario = EstructurasContrato.generar_diccionario_base()
+        diccionario.update(
+            tipo_documento="ACUERDO CONTRACTUAL",
+            monto=f"${fake.pyint(min_value=500000, max_value=10000000):,}".replace(",", "."),
+            servicio=fake.text(max_nb_chars=30),
+            fecha=fake.date_this_year().strftime("%d/%m/%Y"),
+            parrafos="\n".join([fake.paragraph(nb_sentences=3) for _ in range(5)]),
         )
-        return contrato, nombre_persona
+        plantilla_contrato = (
+            "{tipo_documento}\n\n"
+            "Fecha: {fecha}\n"
+            "El Sr./Sra. {nombre_persona} (RUT: {rut_persona}), domiciliado en {direccion},\n"
+            "acepta prestar servicios a la empresa {nombre_empresa}, cuyo RUT es {rut_empresa}.\n"
+            "Servicio ofrecido: {servicio}\n"
+            "El pago acordado es de {monto}.\n\n"
+            "{parrafos}\n\n"
+            "______________________________    ______________________________\n"
+            "{nombre_persona}                     {nombre_empresa}"
+        )
+        return plantilla_contrato, diccionario
 
     @staticmethod
-    def estructura_3() -> Tuple[str, str]:
-        nombre_persona = fake.name()
-        rut_persona = EstructurasContrato.generar_rut()
-        direccion = fake.address().replace('\n', ', ')
-        nombre_empresa = EstructurasContrato.generar_nombre_empresa()
-        rut_empresa = EstructurasContrato.generar_rut()
-        monto = f"${fake.pyint(min_value=200000, max_value=3000000):,}".replace(",", ".")
-        servicio = fake.sentence(nb_words=10)
-        fecha = fake.date_this_century().strftime("%d/%m/%Y")
-        extra = fake.sentence(nb_words=12)
-        parrafos = "\n".join([fake.paragraph(nb_sentences=4) for _ in range(7)])
-        contrato = (
-            f"CONTRATO N° {fake.random_int(min=1000, max=9999)}\n"
-            f"Fecha de emisión: {fecha}\n\n"
-            f"Comparecen por una parte {nombre_persona} (RUT {rut_persona}), domiciliado en {direccion}, "
-            f"y por la otra parte la empresa {nombre_empresa}, RUT {rut_empresa}.\n\n"
-            f"{extra}\n"
-            f"Objeto del contrato: {servicio}\n"
-            f"Monto estipulado: {monto}\n\n"
-            f"{parrafos}\n\n"
-            f"FIRMAN:\n\n{nombre_persona}\n{nombre_empresa} ({rut_empresa})"
+    def estructura_3() -> Tuple[str, Dict[str, str]]:
+        diccionario = EstructurasContrato.generar_diccionario_base()
+        diccionario.update(
+            tipo_documento=f"CONTRATO N° {fake.random_int(min=1000, max=9999)}",
+            monto=f"${fake.pyint(min_value=200000, max_value=3000000):,}".replace(",", "."),
+            servicio=fake.sentence(nb_words=10),
+            fecha=fake.date_this_century().strftime("%d/%m/%Y"),
+            extra=fake.sentence(nb_words=12),
+            parrafos="\n".join([fake.paragraph(nb_sentences=4) for _ in range(7)]),
         )
-        return contrato, nombre_persona
+        plantilla_contrato = (
+            "{tipo_documento}\n"
+            "Fecha de emisión: {fecha}\n\n"
+            "Comparecen por una parte {nombre_persona} (RUT {rut_persona}), domiciliado en {direccion}, "
+            "y por la otra parte la empresa {nombre_empresa}, RUT {rut_empresa}.\n\n"
+            "{extra}\n"
+            "Objeto del contrato: {servicio}\n"
+            "Monto estipulado: {monto}\n\n"
+            "{parrafos}\n\n"
+            "FIRMAN:\n\n{nombre_persona}\n{nombre_empresa} ({rut_empresa})"
+        )
+        return plantilla_contrato, diccionario
 
     @staticmethod
-    def estructura_4() -> Tuple[str, str]:
-        nombre_persona = fake.name()
-        rut_persona = EstructurasContrato.generar_rut()
-        direccion = fake.address().replace('\n', ', ')
-        nombre_empresa = EstructurasContrato.generar_nombre_empresa()
-        rut_empresa = EstructurasContrato.generar_rut()
-        monto = f"${fake.pyint(min_value=150000, max_value=8000000):,}".replace(",", ".")
-        servicio = fake.sentence(nb_words=12)
-        fecha = fake.date_this_year().strftime("%d/%m/%Y")
-        parrafos = "\n".join([fake.paragraph(nb_sentences=2) for _ in range(6)])
-        contrato = (
-            f"DOCUMENTO DE ACUERDO\n"
-            f"Firmado en {fecha} entre {nombre_persona}, RUT {rut_persona}, domiciliado en {direccion}, "
-            f"y {nombre_empresa} (RUT {rut_empresa}).\n"
-            f"El servicio pactado consiste en: {servicio}.\n"
-            f"El monto a cancelar será de {monto}.\n\n"
-            f"{parrafos}\n\n"
-            f"Firmado por:\n{nombre_persona}\n{nombre_empresa}"
+    def estructura_4() -> Tuple[str, Dict[str, str]]:
+        diccionario = EstructurasContrato.generar_diccionario_base()
+        diccionario.update(
+            tipo_documento="DOCUMENTO DE ACUERDO",
+            monto=f"${fake.pyint(min_value=150000, max_value=8000000):,}".replace(",", "."),
+            servicio=fake.sentence(nb_words=12),
+            fecha=fake.date_this_year().strftime("%d/%m/%Y"),
+            parrafos="\n".join([fake.paragraph(nb_sentences=2) for _ in range(6)]),
         )
-        return contrato, nombre_persona
+        plantilla_contrato = (
+            "{tipo_documento}\n"
+            "Firmado en {fecha} entre {nombre_persona}, RUT {rut_persona}, domiciliado en {direccion}, "
+            "y {nombre_empresa} (RUT {rut_empresa}).\n"
+            "El servicio pactado consiste en: {servicio}.\n"
+            "El monto a cancelar será de {monto}.\n\n"
+            "{parrafos}\n\n"
+            "Firmado por:\n{nombre_persona}\n{nombre_empresa}"
+        )
+        return plantilla_contrato, diccionario
 
     @staticmethod
-    def estructura_5() -> Tuple[str, str]:
-        nombre_persona = fake.name()
-        rut_persona = EstructurasContrato.generar_rut()
-        direccion = fake.address().replace('\n', ', ')
-        nombre_empresa = EstructurasContrato.generar_nombre_empresa()
-        rut_empresa = EstructurasContrato.generar_rut()
-        monto = f"${fake.pyint(min_value=700000, max_value=9000000):,}".replace(",", ".")
-        servicio = fake.sentence(nb_words=7)
-        fecha = fake.date_this_decade().strftime("%d/%m/%Y")
-        clausulas = "\n".join([f"Cláusula {i+1}: {fake.sentence(nb_words=15)}" for i in range(5)])
-        contrato = (
-            f"CONTRATO DE PRESTACIÓN DE SERVICIOS PROFESIONALES\n"
-            f"Entre {nombre_persona} (RUT {rut_persona}) y {nombre_empresa} (RUT {rut_empresa}).\n"
-            f"Fecha: {fecha}\n\n"
-            f"Servicio contratado: {servicio}\n"
-            f"Monto: {monto}\n\n"
-            f"{clausulas}\n\n"
-            f"Firmas:\n{nombre_persona} / {nombre_empresa}"
+    def estructura_5() -> Tuple[str, Dict[str, str]]:
+        diccionario = EstructurasContrato.generar_diccionario_base()
+        diccionario.update(
+            tipo_documento="CONTRATO DE PRESTACIÓN DE SERVICIOS PROFESIONALES",
+            monto=f"${fake.pyint(min_value=700000, max_value=9000000):,}".replace(",", "."),
+            servicio=fake.sentence(nb_words=7),
+            fecha=fake.date_this_decade().strftime("%d/%m/%Y"),
+            clausulas="\n".join([f"Cláusula {i+1}: {fake.sentence(nb_words=15)}" for i in range(5)]),
         )
-        return contrato, nombre_persona
+        plantilla_contrato = (
+            "{tipo_documento}\n"
+            "Entre {nombre_persona} (RUT {rut_persona}) y {nombre_empresa} (RUT {rut_empresa}).\n"
+            "Fecha: {fecha}\n\n"
+            "Servicio contratado: {servicio}\n"
+            "Monto: {monto}\n\n"
+            "{clausulas}\n\n"
+            "Firmas:\n{nombre_persona} / {nombre_empresa}"
+        )
+        return plantilla_contrato, diccionario
 
     @staticmethod
-    def estructura_6() -> Tuple[str, str]:
-        nombre_persona = fake.name()
-        rut_persona = EstructurasContrato.generar_rut()
-        direccion = fake.address().replace('\n', ', ')
-        nombre_empresa = EstructurasContrato.generar_nombre_empresa()
-        rut_empresa = EstructurasContrato.generar_rut()
-        monto = f"${fake.pyint(min_value=300000, max_value=2000000):,}".replace(",", ".")
-        servicio = fake.text(max_nb_chars=50)
-        fecha = fake.date_between(start_date='-5y', end_date='today').strftime("%d/%m/%Y")
-        observaciones = fake.paragraph(nb_sentences=2)
-        contrato = (
-            f"CONTRATO SIMPLE\n"
-            f"{nombre_persona} (RUT: {rut_persona}) acuerda prestar servicios para {nombre_empresa} (RUT: {rut_empresa}).\n"
-            f"Dirección: {direccion}\n"
-            f"Fecha de inicio: {fecha}\n"
-            f"Descripción del servicio: {servicio}\n"
-            f"Monto acordado: {monto}\n"
-            f"Observaciones: {observaciones}\n"
-            f"Firmas: ____________________   ____________________"
+    def estructura_6() -> Tuple[str, Dict[str, str]]:
+        diccionario = EstructurasContrato.generar_diccionario_base()
+        diccionario.update(
+            tipo_documento="CONTRATO SIMPLE",
+            monto=f"${fake.pyint(min_value=300000, max_value=2000000):,}".replace(",", "."),
+            servicio=fake.text(max_nb_chars=50),
+            fecha=fake.date_between(start_date='-5y', end_date='today').strftime("%d/%m/%Y"),
+            observaciones=fake.paragraph(nb_sentences=2),
         )
-        return contrato, nombre_persona
+        plantilla_contrato = (
+            "{tipo_documento}\n"
+            "{nombre_persona} (RUT: {rut_persona}) acuerda prestar servicios para {nombre_empresa} (RUT: {rut_empresa}).\n"
+            "Dirección: {direccion}\n"
+            "Fecha de inicio: {fecha}\n"
+            "Descripción del servicio: {servicio}\n"
+            "Monto acordado: {monto}\n"
+            "Observaciones: {observaciones}\n"
+            "Firmas: ____________________   ____________________"
+        )
+        return plantilla_contrato, diccionario
 
     @staticmethod
-    def estructura_7() -> Tuple[str, str]:
-        nombre_persona = fake.name()
-        rut_persona = EstructurasContrato.generar_rut()
-        direccion = fake.address().replace('\n', ', ')
-        nombre_empresa = EstructurasContrato.generar_nombre_empresa()
-        rut_empresa = EstructurasContrato.generar_rut()
-        monto = f"${fake.pyint(min_value=1000000, max_value=20000000):,}".replace(",", ".")
-        servicio = fake.bs().capitalize()
-        fecha = fake.date_this_decade().strftime("%d/%m/%Y")
-        detalles = "\n".join([f"- {fake.sentence(nb_words=10)}" for _ in range(4)])
-        contrato = (
-            f"ACTA DE COMPROMISO\n"
-            f"Por este acto, {nombre_persona} (RUT {rut_persona}), domiciliado en {direccion},\n"
-            f"y {nombre_empresa} (RUT {rut_empresa}) acuerdan lo siguiente:\n"
-            f"Fecha: {fecha}\n"
-            f"Servicio: {servicio}\n"
-            f"Monto total: {monto}\n"
-            f"Detalles:\n{detalles}\n"
-            f"Firmado electrónicamente."
+    def estructura_7() -> Tuple[str, Dict[str, str]]:
+        diccionario = EstructurasContrato.generar_diccionario_base()
+        diccionario.update(
+            tipo_documento="ACTA DE COMPROMISO",
+            monto=f"${fake.pyint(min_value=1000000, max_value=20000000):,}".replace(",", "."),
+            servicio=fake.bs().capitalize(),
+            fecha=fake.date_this_decade().strftime("%d/%m/%Y"),
+            detalles="\n".join([f"- {fake.sentence(nb_words=10)}" for _ in range(4)]),
         )
-        return contrato, nombre_persona
+        plantilla_contrato = (
+            "{tipo_documento}\n"
+            "Por este acto, {nombre_persona} (RUT {rut_persona}), domiciliado en {direccion},\n"
+            "y {nombre_empresa} (RUT {rut_empresa}) acuerdan lo siguiente:\n"
+            "Fecha: {fecha}\n"
+            "Servicio: {servicio}\n"
+            "Monto total: {monto}\n"
+            "Detalles:\n{detalles}\n"
+            "Firmado electrónicamente."
+        )
+        return plantilla_contrato, diccionario
 
     @staticmethod
-    def estructura_8() -> Tuple[str, str]:
-        nombre_persona = fake.name()
-        rut_persona = EstructurasContrato.generar_rut()
-        direccion = fake.address().replace('\n', ', ')
-        nombre_empresa = EstructurasContrato.generar_nombre_empresa()
-        rut_empresa = EstructurasContrato.generar_rut()
-        monto = f"${fake.pyint(min_value=250000, max_value=10000000):,}".replace(",", ".")
-        servicio = fake.catch_phrase()
-        fecha = fake.date_this_year().strftime("%d/%m/%Y")
-        clausulas = "\n".join([f"{i+1}. {fake.sentence(nb_words=12)}" for i in range(6)])
-        contrato = (
-            f"CONTRATO ESPECIAL\n"
-            f"En la fecha {fecha}, se acuerda entre {nombre_persona} (RUT {rut_persona}), "
-            f"con domicilio en {direccion}, y la empresa {nombre_empresa} (RUT {rut_empresa}) la prestación del siguiente servicio:\n"
-            f"{servicio}\n"
-            f"Por un monto de: {monto}\n"
-            f"Cláusulas:\n{clausulas}\n"
-            f"Firmas:\n{nombre_persona} / {nombre_empresa}"
+    def estructura_8() -> Tuple[str, Dict[str, str]]:
+        diccionario = EstructurasContrato.generar_diccionario_base()
+        diccionario.update(
+            tipo_documento="CONTRATO ESPECIAL",
+            monto=f"${fake.pyint(min_value=250000, max_value=10000000):,}".replace(",", "."),
+            servicio=fake.catch_phrase(),
+            fecha=fake.date_this_year().strftime("%d/%m/%Y"),
+            clausulas="\n".join([f"{i+1}. {fake.sentence(nb_words=12)}" for i in range(6)]),
         )
-        return contrato, nombre_persona
+        plantilla_contrato = (
+            "{tipo_documento}\n"
+            "En la fecha {fecha}, se acuerda entre {nombre_persona} (RUT {rut_persona}), "
+            "con domicilio en {direccion}, y la empresa {nombre_empresa} (RUT {rut_empresa}) la prestación del siguiente servicio:\n"
+            "{servicio}\n"
+            "Por un monto de: {monto}\n"
+            "Cláusulas:\n{clausulas}\n"
+            "Firmas:\n{nombre_persona} / {nombre_empresa}"
+        )
+        return plantilla_contrato, diccionario
 
     @staticmethod
-    def estructura_9() -> Tuple[str, str]:
-        nombre_persona = fake.name()
-        rut_persona = EstructurasContrato.generar_rut()
-        direccion = fake.address().replace('\n', ', ')
-        nombre_empresa = EstructurasContrato.generar_nombre_empresa()
-        rut_empresa = EstructurasContrato.generar_rut()
-        monto = f"${fake.pyint(min_value=400000, max_value=15000000):,}".replace(",", ".")
-        servicio = fake.text(max_nb_chars=60)
-        fecha = fake.date_this_century().strftime("%d/%m/%Y")
-        parrafos = "\n".join([fake.paragraph(nb_sentences=3) for _ in range(4)])
-        contrato = (
-            f"FORMULARIO DE CONTRATO\n"
-            f"Entre {nombre_persona} (RUT: {rut_persona}, dirección: {direccion}) "
-            f"y {nombre_empresa} (RUT: {rut_empresa}), en fecha {fecha}.\n"
-            f"Servicio: {servicio}\n"
-            f"Monto: {monto}\n\n"
-            f"{parrafos}\n"
-            f"Firmas:\n{nombre_persona}\n{nombre_empresa}"
+    def estructura_9() -> Tuple[str, Dict[str, str]]:
+        diccionario = EstructurasContrato.generar_diccionario_base()
+        diccionario.update(
+            tipo_documento="FORMULARIO DE CONTRATO",
+            monto=f"${fake.pyint(min_value=400000, max_value=15000000):,}".replace(",", "."),
+            servicio=fake.text(max_nb_chars=60),
+            fecha=fake.date_this_century().strftime("%d/%m/%Y"),
+            parrafos="\n".join([fake.paragraph(nb_sentences=3) for _ in range(4)]),
         )
-        return contrato, nombre_persona
+        plantilla_contrato = (
+            "{tipo_documento}\n"
+            "Entre {nombre_persona} (RUT: {rut_persona}, dirección: {direccion}) "
+            "y {nombre_empresa} (RUT: {rut_empresa}), en fecha {fecha}.\n"
+            "Servicio: {servicio}\n"
+            "Monto: {monto}\n\n"
+            "{parrafos}\n"
+            "Firmas:\n{nombre_persona}\n{nombre_empresa}"
+        )
+        return plantilla_contrato, diccionario
 
     @staticmethod
-    def estructura_10() -> Tuple[str, str]:
-        nombre_persona = fake.name()
-        rut_persona = EstructurasContrato.generar_rut()
-        direccion = fake.address().replace('\n', ', ')
-        nombre_empresa = EstructurasContrato.generar_nombre_empresa()
-        rut_empresa = EstructurasContrato.generar_rut()
-        monto = f"${fake.pyint(min_value=350000, max_value=12000000):,}".replace(",", ".")
-        servicio = fake.job()
-        fecha = fake.date_between(start_date='-3y', end_date='today').strftime("%d/%m/%Y")
-        condiciones = "\n".join([f"{i+1}) {fake.sentence(nb_words=10)}" for i in range(5)])
-        contrato = (
-            f"CONTRATO INDIVIDUAL\n"
-            f"Suscrito en {fecha} entre {nombre_persona}, RUT {rut_persona}, domiciliado en {direccion}, "
-            f"y la empresa {nombre_empresa} (RUT {rut_empresa}).\n"
-            f"Servicio profesional: {servicio}\n"
-            f"Monto pactado: {monto}\n"
-            f"Condiciones:\n{condiciones}\n"
-            f"________________________\n"
-            f"{nombre_persona}        {nombre_empresa}"
+    def estructura_10() -> Tuple[str, Dict[str, str]]:
+        diccionario = EstructurasContrato.generar_diccionario_base()
+        diccionario.update(
+            tipo_documento="CONTRATO INDIVIDUAL",
+            monto=f"${fake.pyint(min_value=350000, max_value=12000000):,}".replace(",", "."),
+            servicio=fake.job(),
+            fecha=fake.date_between(start_date='-3y', end_date='today').strftime("%d/%m/%Y"),
+            condiciones="\n".join([f"{i+1}) {fake.sentence(nb_words=10)}" for i in range(5)]),
         )
-        return contrato, nombre_persona
+        plantilla_contrato = (
+            "{tipo_documento}\n"
+            "Suscrito en {fecha} entre {nombre_persona}, RUT {rut_persona}, domiciliado en {direccion}, "
+            "y la empresa {nombre_empresa} (RUT {rut_empresa}).\n"
+            "Servicio profesional: {servicio}\n"
+            "Monto pactado: {monto}\n"
+            "Condiciones:\n{condiciones}\n"
+            "________________________\n"
+            "{nombre_persona}        {nombre_empresa}"
+        )
+        return plantilla_contrato, diccionario
 
     @staticmethod
     def random_structure() -> Tuple[str, str]:

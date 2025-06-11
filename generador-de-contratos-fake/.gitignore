@@ -1,5 +1,6 @@
 venv/
 contratos/
+etiquetas/
 __pycache__/
 *.pyc
 *.pyo
