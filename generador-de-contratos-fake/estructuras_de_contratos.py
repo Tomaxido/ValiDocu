@@ -6,10 +6,21 @@ fake = Faker('es_CL')
 
 class EstructurasContrato():
     @staticmethod
-    def generar_rut() -> str:
+    def formatear_rut_con_puntos(rut: str) -> str:
+        """Convierte 12345678-9 en 12.345.678-9"""
+        cuerpo, dv = rut.split('-')
+        cuerpo_puntos = f"{int(cuerpo):,}".replace(",", ".")
+        return f"{cuerpo_puntos}-{dv}"
+
+    @staticmethod
+    def generar_rut(puntos: bool = False) -> str:
         numero = fake.random_int(min=10000000, max=25000000)
         dv = fake.random_element(elements=['K', 'k', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'])
-        return f"{numero}-{dv}"
+        rut = f"{numero}-{dv}"
+        if puntos:
+            rut = EstructurasContrato.formatear_rut_con_puntos(rut)
+        return rut
+
 
     @staticmethod
     def generar_nombre_empresa() -> str:
