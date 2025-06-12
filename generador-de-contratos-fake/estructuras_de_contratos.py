@@ -201,7 +201,6 @@ El presente instrumento se firma mediante el uso de firma electrónica avanzada 
             "{parrafos}\n\n"
             "Firmas:\n\n{firma_persona}                   Representante de {firma_empresa}"
         )
-
         return plantilla_contrato, diccionario
 
     @staticmethod
@@ -223,7 +222,7 @@ El presente instrumento se firma mediante el uso de firma electrónica avanzada 
             "El pago acordado es de {monto}.\n\n"
             "{parrafos}\n\n"
             "______________________________    ______________________________\n"
-            "{nombre_persona}                     {nombre_empresa}"
+            "{firma_persona}                     {firma_empresa}"
         )
         return plantilla_contrato, diccionario
 
@@ -238,6 +237,7 @@ El presente instrumento se firma mediante el uso de firma electrónica avanzada 
             extra=fake.sentence(nb_words=12),
             parrafos="\n".join([fake.paragraph(nb_sentences=4) for _ in range(7)]),
         )
+        diccionario["firma_empresa"] += f"({rut_empresa})"
         plantilla_contrato = (
             "{tipo_documento}\n"
             "Fecha de emisión: {fecha}\n\n"
@@ -247,7 +247,7 @@ El presente instrumento se firma mediante el uso de firma electrónica avanzada 
             "Objeto del contrato: {servicio}\n"
             "Monto estipulado: {monto}\n\n"
             "{parrafos}\n\n"
-            "FIRMAN:\n\n{nombre_persona}\n{nombre_empresa} ({rut_empresa})"
+            "FIRMAN:\n\n{firma_persona}\n{firma_empresa}"
         )
         return plantilla_contrato, diccionario
 
@@ -268,7 +268,7 @@ El presente instrumento se firma mediante el uso de firma electrónica avanzada 
             "El servicio pactado consiste en: {servicio}.\n"
             "El monto a cancelar será de {monto}.\n\n"
             "{parrafos}\n\n"
-            "Firmado por:\n{nombre_persona}\n{nombre_empresa}"
+            "Firmado por:\n{firma_persona}\n{firma_empresa}"
         )
         return plantilla_contrato, diccionario
 
@@ -289,7 +289,7 @@ El presente instrumento se firma mediante el uso de firma electrónica avanzada 
             "Servicio contratado: {servicio}\n"
             "Monto: {monto}\n\n"
             "{clausulas}\n\n"
-            "Firmas:\n{nombre_persona} / {nombre_empresa}"
+            "Firmas:\n{firma_persona} / {firma_empresa}"
         )
         return plantilla_contrato, diccionario
 
@@ -354,7 +354,7 @@ El presente instrumento se firma mediante el uso de firma electrónica avanzada 
             "{servicio}\n"
             "Por un monto de: {monto}\n"
             "Cláusulas:\n{clausulas}\n"
-            "Firmas:\n{nombre_persona} / {nombre_empresa}"
+            "Firmas:\n{firma_persona} / {firma_empresa}"
         )
         return plantilla_contrato, diccionario
 
@@ -375,7 +375,7 @@ El presente instrumento se firma mediante el uso de firma electrónica avanzada 
             "Servicio: {servicio}\n"
             "Monto: {monto}\n\n"
             "{parrafos}\n"
-            "Firmas:\n{nombre_persona}\n{nombre_empresa}"
+            "Firmas:\n{firma_persona}\n{firma_empresa}"
         )
         return plantilla_contrato, diccionario
 
@@ -397,7 +397,7 @@ El presente instrumento se firma mediante el uso de firma electrónica avanzada 
             "Monto pactado: {monto}\n"
             "Condiciones:\n{condiciones}\n"
             "________________________\n"
-            "{nombre_persona}        {nombre_empresa}"
+            "{firma_persona}        {firma_empresa}"
         )
         return plantilla_contrato, diccionario
 
