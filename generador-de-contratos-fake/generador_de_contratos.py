@@ -6,7 +6,9 @@ from uuid import uuid4
 from fpdf import FPDF
 
 from estructuras_de_contratos import EstructurasContrato
+from pdf_to_images import pdf_to_images
 
+pdf_folder = "contratos"
 
 def guardar_pdf(texto: str, nombre_archivo: str, carpeta: str = "contratos") -> None:
     os.makedirs(carpeta, exist_ok=True)
@@ -49,12 +51,16 @@ def main() -> None:
         except ValueError:
             print("El argumento debe ser un número entero, se usará 1 contrato por defecto.")
 
+
+
     for i in range(cantidad):
         plantilla_contrato, D = EstructurasContrato.random_structure()
         contrato = plantilla_contrato.format(**D)
         palabras, etiquetas = EstructurasContrato.obtener_palabras_y_etiquetas(plantilla_contrato, D)
         nombre_archivo = f"{uuid4()}_{i+1}"
         guardar_pdf(contrato, nombre_archivo + ".pdf")
+        pdf_path = os.path.join(pdf_folder, nombre_archivo + ".pdf")
+        pdf_to_images(pdf_path, output_folder="pdf_images")
         guardar_json(palabras, etiquetas, nombre_archivo+"-p1")
         print(f"Contrato generado: {nombre_archivo}")
 
