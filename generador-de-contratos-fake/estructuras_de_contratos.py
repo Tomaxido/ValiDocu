@@ -47,27 +47,17 @@ class EstructurasContrato:
         palabras = [t for t in tokens if len(t) > 0 and not t.startswith("_")]
         etiquetas = ["O" for _ in palabras]
 
-        # El orden importa. Es mejor que "firma" esté antes de "persona" y "empresa",
-        # porque existen las llaves "firma_persona" y "firma_empresa" que corresponden a
-        # "B-FIRMA" e "I-FIRMA".
-        # Igualmente, "direccion" y "domicilio" deben estar antes de "ci", porque estas
-        # dos palabras contienen el substring "ci".
-        llave_a_etiqueta = {
-            "firma": "FIRMA",  # antes de "persona" y "empresa"
-            "tipo_documento": "TIPO_DOCUMENTO",
-            "persona": "NOMBRE_COMPLETO",  # antes de "nombre"
-            "representante": "NOMBRE_COMPLETO",
-            "empresa": "EMPRESA",  # antes de "nombre"
-            "nombre": "NOMBRE_COMPLETO",
-            "direccion": "DIRECCION",  # antes de "ci"
-            "domicilio": "DIRECCION",  # antes de "ci"
-            "rut": "RUT",
-            "ci": "RUT",
-            "fecha": "FECHA",
-            "monto": "MONTO",
-            "capital": "MONTO",
-            "tasa": "TAZA",
-            "taza": "TAZA",
+        etiqueta_a_llaves = {
+            "NOMBRE_COMPLETO": ["nombre_persona", "deudor_representante", "corredor_representante"],
+            "EMPRESA": ["nombre_empresa", "nombre_titular", "deudor_empresa", "corredor_empresa"],
+            "DIRECCION": ["direccion", "deudor_domicilio", "corredor_domicilio"],
+            "RUT": ["rut_persona", "rut_empresa", "deudor_rut", "deudor_ci", "corredor_rut", "corredor_ci"],
+            "FECHA": ["fecha", "plazo_fecha"],
+            "MONTO": ["monto", "capital"],
+            "PLAZO": [],  # TODO: incluir plazos
+            "TAZA": ["tasa", "taza"],
+            "TIPO_DOCUMENTO": ["tipo_documento"],
+            "FIRMA": ["firma_persona", "firma_empresa", "firma_deudor", "firma_corredor"],
         }
         for i in range(len(palabras)-1, -1, -1):
             inicio = palabras[i].find("{")
@@ -78,9 +68,8 @@ class EstructurasContrato:
             palabras_reemplazo = diccionario[llave].split()
             palabras_reemplazo[0] = palabras[i][:inicio] + palabras_reemplazo[0]
             palabras_reemplazo[-1] += palabras[i][fin+1:]
-            for palabra_clave in llave_a_etiqueta:
-                if palabra_clave in llave:
-                    etiqueta = llave_a_etiqueta[palabra_clave]
+            for etiqueta, llaves in etiqueta_a_llaves.items():
+                if llave in llaves:
                     etiquetas_reemplazo = [f"B-{etiqueta}"] + [f"I-{etiqueta}"] * (len(palabras_reemplazo) - 1)
                     break
             else:
