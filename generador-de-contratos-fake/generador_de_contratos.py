@@ -53,15 +53,15 @@ def main() -> None:
 
 
 
-    for i in range(cantidad):
+    for _ in range(cantidad):
         plantilla_contrato, D = EstructurasContrato.random_structure()
         contrato = plantilla_contrato.format(**D)
         palabras, etiquetas = EstructurasContrato.obtener_palabras_y_etiquetas(plantilla_contrato, D)
-        nombre_archivo = f"{uuid4()}_{i+1}"
+        nombre_archivo = f"{uuid4()}"
         guardar_pdf(contrato, nombre_archivo + ".pdf")
         pdf_path = os.path.join(pdf_folder, nombre_archivo + ".pdf")
         pdf_to_images(pdf_path, output_folder="pdf_images")
-        guardar_json(palabras, etiquetas, nombre_archivo+"-p1")
+        guardar_json(palabras, etiquetas, nombre_archivo)
         print(f"Contrato generado: {nombre_archivo}")
 
 if __name__ == "__main__":
