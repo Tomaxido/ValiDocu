@@ -43,10 +43,8 @@ class EstructurasContrato:
     def obtener_palabras_y_etiquetas(
         plantilla_contrato: str, diccionario: Dict[str, str]
     ) -> tuple[list[str], list[str]]:
-        plantilla_contrato = plantilla_contrato.replace("\n", " ").strip()
-        while "  " in plantilla_contrato:
-            plantilla_contrato = plantilla_contrato.replace("  ", " ")
-        palabras = plantilla_contrato.split()
+        tokens = plantilla_contrato.strip().split()
+        palabras = [t for t in tokens if len(t) > 0 and not t.startswith("_")]
         etiquetas = ["O" for _ in palabras]
 
         # El orden importa. Es mejor que "firma" esté antes de "persona" y "empresa",
