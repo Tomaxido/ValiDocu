@@ -2,7 +2,7 @@ import json
 import os
 from PIL import Image, ImageDraw
 
-IMAGE_INPUT_DIR = "pdf_images/"
+IMAGE_INPUT_DIR = "pdf_images_selected/"
 IMAGE_OUTPUT_DIR = "pdf_images_draw/"
 
 os.makedirs(IMAGE_OUTPUT_DIR, exist_ok=True)

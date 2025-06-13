@@ -12,8 +12,11 @@ YELLOW = "\033[0;33m"
 
 # === CONFIGURACIÓN ===
 PNG_DIR = "pdf_images/"
+SELECTED_PNG_DIR = "pdf_images_selected/"
 LABEL_DIR = "etiquetas/"
 OUTPUT_DIR = "output/"
+
+os.makedirs(SELECTED_PNG_DIR, exist_ok=True)
 
 JSON_EXTENSION = ".json"
 
@@ -146,6 +149,8 @@ for label_json_filename in os.listdir(LABEL_DIR):
         }
 
         dataset.append(doc_entry)
+
+        image.save(os.path.join(SELECTED_PNG_DIR, png_filename))
 
     # Fin de documento
     print()
