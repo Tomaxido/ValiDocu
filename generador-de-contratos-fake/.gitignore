@@ -4,7 +4,6 @@ etiquetas/
 output/
 pdf_images/
 pdf_images_draw/
-pdf_images_selected/
 __pycache__/
 *.pyc
 *.pyo

@@ -9,16 +9,29 @@ RED = "\033[0;31m"
 GREEN = "\033[0;32m"
 YELLOW = "\033[0;33m"
 
+# Etiquetas disponibles
+TAGS = [
+    "O",
+    "B-NOMBRE_COMPLETO", "I-NOMBRE_COMPLETO",
+    "B-EMPRESA", "I-EMPRESA",
+    "B-RUT", "I-RUT",
+    "B-DIRECCION", "I-DIRECCION",
+    "B-FECHA", "I-FECHA",
+    "B-MONTO", "I-MONTO",
+    "B-PLAZO", "I-PLAZO",
+    "B-TAZA", "I-TAZA",
+    "B-TIPO_DOCUMENTO", "I-TIPO_DOCUMENTO",
+    "B-FIRMA", "I-FIRMA"
+]
+
 
 # === CONFIGURACIÓN ===
 PNG_DIR = "pdf_images/"
-SELECTED_PNG_DIR = "pdf_images_selected/"
 LABEL_DIR = "etiquetas/"
 OUTPUT_DIR = "output/"
 
-os.makedirs(SELECTED_PNG_DIR, exist_ok=True)
-
 JSON_EXTENSION = ".json"
+PNG_EXTENSION = ".png"
 
 png_filenames = os.listdir(PNG_DIR)
 dataset = []
@@ -53,7 +66,11 @@ for label_json_filename in os.listdir(LABEL_DIR):
 
     # Lee cada imagen por separado
     for png_filename in doc_page_png_filenames:
-        doc_page_id = os.path.basename(png_filename)
+        if not png_filename.endswith(PNG_EXTENSION):
+            continue
+
+        # ID de la página del documento
+        doc_page_id = png_filename[:-len(PNG_EXTENSION)]
         image_path = os.path.join(PNG_DIR, png_filename)
 
         print(f"🆕 Nueva página de documento detectada: {doc_page_id}")
@@ -75,7 +92,7 @@ for label_json_filename in os.listdir(LABEL_DIR):
 
         words, boxes, labels = [], [], []
 
-        continue_with_page = True
+        require_manual_intervention = False
 
         # Interfaz de etiquetado
         for i in range(len(png_words)):
@@ -86,10 +103,10 @@ for label_json_filename in os.listdir(LABEL_DIR):
             json_label = json_labels[k]
 
             if png_word != json_word:
-                ask_for_confirmation = False
+                is_big_difference = False
                 if len(png_word) != len(json_word):
                     diff_error = "largos diferentes"
-                    ask_for_confirmation = True
+                    is_big_difference = True
                 else:
                     num_differences = 0
                     for c1, c2 in zip(png_word, json_word):
@@ -99,46 +116,46 @@ for label_json_filename in os.listdir(LABEL_DIR):
                         diff_error = "1 diferencia"
                     else:
                         diff_error = f"{num_differences} diferencias"
-                        ask_for_confirmation = True
+                        is_big_difference = True
                 
-                color = RED if ask_for_confirmation else YELLOW
+                color = RED if is_big_difference else YELLOW
                 print(f"{color}ADVERTENCIA: {png_word} != {json_words[k]} ({diff_error}){RESET}")
-                if ask_for_confirmation:
-                    print("Próximos pares:")
+                if is_big_difference:
                     num_pairs = 0
                     num_matches = 0
                     for w1, w2 in zip(png_words[i+1:i+4], json_words[k+1:k+4]):
                         num_pairs += 1
                         if w1 == w2:
-                            print(f"\t{GREEN}{w1} == {w2}{RESET}")
                             num_matches += 1
-                        else:
-                            print(f"\t{RED}{w1} != {w2}{RESET}")
-                    if num_matches == 0:
-                        continue_with_page = False
-                    elif num_matches < num_pairs:
-                        user_input = input("¿Continuar con esta página? [s/n] ")
-                        while len(user_input) == 0 or user_input[0] not in "sSnN":
-                            user_input = input()
-                        if user_input[0] in "nN":
-                            continue_with_page = False
-                    else:
-                        print("Continuando con página...")
-            
-            # Mejor seguir con la siguiente página
-            if not continue_with_page:
-                print("Página terminada.")
-                break
+                    if num_matches < num_pairs:
+                        require_manual_intervention = True
+                        break
 
             words.append(png_word)
             boxes.append(png_box)
             labels.append(json_label)
 
-        current_json_index += len(png_words)
+        if require_manual_intervention:
+            for j in range(i, len(png_words)):
+                png_word = png_words[j]
+                png_box = png_boxes[j]
 
-        # Mejor seguir con la siguiente página
-        if not continue_with_page:
-            continue
+                print(f"\nPalabra {j+1}/{len(png_words)}: '{png_word}'")
+                for idx, tag in enumerate(TAGS):
+                    print(f"[{idx}] {tag}")
+                try:
+                    choice = int(input("Etiqueta (número): "))
+                    user_label = TAGS[choice] if 0 <= choice < len(TAGS) else "O"
+                except KeyboardInterrupt:
+                    exit()
+                except:
+                    user_label = "O"
+
+                words.append(png_word)
+                boxes.append(png_box)
+                labels.append(user_label)
+
+        current_json_index += len(png_words)
 
         # Actualizar o agregar entrada
         doc_entry = {
@@ -150,8 +167,6 @@ for label_json_filename in os.listdir(LABEL_DIR):
 
         dataset.append(doc_entry)
 
-        image.save(os.path.join(SELECTED_PNG_DIR, png_filename))
-
     # Fin de documento
     print()
 
@@ -161,20 +176,4 @@ output_path = os.path.join(OUTPUT_DIR, "output.json")
 with open(output_path, "w", encoding="utf-8") as f:
     json.dump(dataset, f, indent=4, ensure_ascii=False)
 
-print(f"\n✅ Guardado actualizado en: {output_path}")
-
-
-# Etiquetas disponibles
-TAGS = [
-    "O",
-    "B-NOMBRE_COMPLETO", "I-NOMBRE_COMPLETO",
-    "B-EMPRESA", "I-EMPRESA",
-    "B-RUT", "I-RUT",
-    "B-DIRECCION", "I-DIRECCION",
-    "B-FECHA", "I-FECHA",
-    "B-MONTO", "I-MONTO",
-    "B-PLAZO", "I-PLAZO",
-    "B-TAZA", "I-TAZA",
-    "B-TIPO_DOCUMENTO", "I-TIPO_DOCUMENTO",
-    "B-FIRMA", "I-FIRMA"
-]
+print(f"✅ Guardado actualizado en: {output_path}")

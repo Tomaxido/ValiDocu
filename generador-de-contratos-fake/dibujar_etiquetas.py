@@ -2,7 +2,7 @@ import json
 import os
 from PIL import Image, ImageDraw
 
-IMAGE_INPUT_DIR = "pdf_images_selected/"
+IMAGE_INPUT_DIR = "pdf_images/"
 IMAGE_OUTPUT_DIR = "pdf_images_draw/"
 
 os.makedirs(IMAGE_OUTPUT_DIR, exist_ok=True)
@@ -28,7 +28,7 @@ label_to_color = {
 }
 
 for obj in output:
-    image = Image.open(os.path.join(IMAGE_INPUT_DIR, obj["id"]))
+    image = Image.open(os.path.join(IMAGE_INPUT_DIR, obj["id"] + ".png"))
     image.load()
 
     draw = ImageDraw.Draw(image)
@@ -44,5 +44,5 @@ for obj in output:
         draw.rectangle([2.47*x0 - 10, 3.52*y0 - 10, 2.47*x1 + 10, 3.52*y1 + 10], outline=color, width=4)
         draw.text((2.47*x0, 3.52*y0 - 50), label[:7], fill=color, font_size=30)
 
-    image.save(os.path.join(IMAGE_OUTPUT_DIR, obj["id"]))
+    image.save(os.path.join(IMAGE_OUTPUT_DIR, obj["id"] + ".png"))
     image.close()
