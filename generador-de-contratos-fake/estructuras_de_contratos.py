@@ -237,7 +237,7 @@ El presente instrumento se firma mediante el uso de firma electrónica avanzada 
             extra=fake.sentence(nb_words=12),
             parrafos="\n".join([fake.paragraph(nb_sentences=4) for _ in range(7)]),
         )
-        diccionario["firma_empresa"] += f"({rut_empresa})"
+        diccionario["firma_empresa"] += f"({diccionario['rut_empresa']})"
         plantilla_contrato = (
             "{tipo_documento}\n"
             "Fecha de emisión: {fecha}\n\n"

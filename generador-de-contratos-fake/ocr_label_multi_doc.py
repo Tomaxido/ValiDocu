@@ -102,19 +102,29 @@ for label_json_filename in os.listdir(LABEL_DIR):
                 print(f"{color}ADVERTENCIA: {png_word} != {json_words[k]} ({diff_error}){RESET}")
                 if ask_for_confirmation:
                     print("Próximos pares:")
+                    num_pairs = 0
+                    num_matches = 0
                     for w1, w2 in zip(png_words[i+1:i+4], json_words[k+1:k+4]):
+                        num_pairs += 1
                         if w1 == w2:
                             print(f"\t{GREEN}{w1} == {w2}{RESET}")
+                            num_matches += 1
                         else:
                             print(f"\t{RED}{w1} != {w2}{RESET}")
-                    user_input = input("¿Continuar con esta página? [s/n] ")
-                    while len(user_input) == 0 or user_input[0] not in "sSnN":
-                        user_input = input()
-                    if user_input[0] in "nN":
+                    if num_matches == 0:
                         continue_with_page = False
+                    elif num_matches < num_pairs:
+                        user_input = input("¿Continuar con esta página? [s/n] ")
+                        while len(user_input) == 0 or user_input[0] not in "sSnN":
+                            user_input = input()
+                        if user_input[0] in "nN":
+                            continue_with_page = False
+                    else:
+                        print("Continuando con página...")
             
             # Mejor seguir con la siguiente página
             if not continue_with_page:
+                print("Página terminada.")
                 break
 
             words.append(png_word)
@@ -129,7 +139,7 @@ for label_json_filename in os.listdir(LABEL_DIR):
 
         # Actualizar o agregar entrada
         doc_entry = {
-            "id": doc_id,
+            "id": doc_page_id,
             "words": words,
             "boxes": boxes,
             "labels": labels
