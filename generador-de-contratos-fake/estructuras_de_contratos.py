@@ -54,7 +54,7 @@ class EstructurasContrato:
             "RUT": ["rut_persona", "rut_empresa", "deudor_rut", "deudor_ci", "corredor_rut", "corredor_ci"],
             "FECHA": ["fecha", "plazo_fecha"],
             "MONTO": ["monto", "capital"],
-            "PLAZO": [],  # TODO: incluir plazos
+            "PLAZO": ["plazo_fecha", "plazo_dias"],
             "TAZA": ["tasa", "taza"],
             "TIPO_DOCUMENTO": ["tipo_documento"],
             "FIRMA": ["firma_persona", "firma_empresa", "firma_deudor", "firma_corredor"],
@@ -84,11 +84,11 @@ class EstructurasContrato:
     def clausula_plazo_variante() -> str:
         opciones = [
             "El mutuo tiene como plazo de vencimiento el día {plazo_fecha}, fecha en la que deberá pagarse íntegramente el capital e intereses adeudados.",
-            "El plazo del presente contrato es de {plazo_dias} días, venciendo el {plazo_fecha}.",
+            "El plazo del presente contrato es de {plazo_dias}, venciendo el {plazo_fecha}.",
             "El presente instrumento tendrá vigencia hasta el día {plazo_fecha}, en que expira el plazo pactado.",
-            "La duración del contrato es de {plazo_dias} días corridos contados desde la fecha de suscripción, venciendo el {plazo_fecha}.",
+            "La duración del contrato es de {plazo_dias} corridos contados desde la fecha de suscripción, venciendo el {plazo_fecha}.",
             "La obligación asumida por el Deudor vence el día {plazo_fecha}, salvo prórroga conforme a la ley.",
-            "La fecha de término del mutuo será el {plazo_fecha}, totalizando así {plazo_dias} días de plazo.",
+            "La fecha de término del mutuo será el {plazo_fecha}, totalizando así {plazo_dias} de plazo.",
             "Este contrato vencerá el {plazo_fecha}, considerándose en mora el Deudor a partir de esa fecha.",
             "El plazo para el pago íntegro del capital y los intereses estipulados expira el {plazo_fecha}.",
             "Las partes acuerdan que el vencimiento de la obligación será el día {plazo_fecha}.",
@@ -121,7 +121,7 @@ class EstructurasContrato:
             capital = f"${fake.pyint(min_value=50000000, max_value=600000000, step=5000000):,}",
             tasa = str(round(random.uniform(0.08, 0.25), 3)),
             plazo_fecha = fake.date_between(start_date="+1m", end_date="+1y").strftime("%d de %B de %Y"),
-            plazo_dias = str(random.choice([90, 120, 180, 270, 360, 365, 400, 720])),
+            plazo_dias = f"{random.choice([90, 120, 180, 270, 360, 365, 400, 720])} días",
 
             identificador = fake.lexify(text='??????'),
             nombre_titular = fake.company().upper(),
