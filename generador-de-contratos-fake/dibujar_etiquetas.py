@@ -27,7 +27,7 @@ label_to_color = {
     for i, label in enumerate(labels)
 }
 
-for obj in output[:5]:
+for obj in output:
     image = Image.open(os.path.join(IMAGE_INPUT_DIR, obj["id"]))
     image.load()
 

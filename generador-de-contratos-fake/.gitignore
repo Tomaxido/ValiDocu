@@ -3,6 +3,7 @@ contratos/
 etiquetas/
 output/
 pdf_images/
+pdf_images_draw/
 __pycache__/
 *.pyc
 *.pyo
