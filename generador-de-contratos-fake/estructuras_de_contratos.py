@@ -193,8 +193,8 @@ El presente instrumento se firma mediante el uso de firma electrónica avanzada 
         )
         plantilla_contrato = (
             "{tipo_documento}\n\n"
-            "Se suscribe el presente contrato entre {nombre_persona} (RUT {rut_persona}) con domicilio en {direccion} "
-            "y la empresa {nombre_empresa} (RUT {rut_empresa}).\n\n"
+            "Se suscribe el presente contrato entre {nombre_persona} (RUT {rut_persona} ) con domicilio en {direccion} "
+            "y la empresa {nombre_empresa} (RUT {rut_empresa} ).\n\n"
             "En la ciudad de Santiago, a {fecha}, se acuerda lo siguiente:\n"
             "Servicio: {servicio}\n"
             "Monto total: {monto}\n\n"
@@ -216,7 +216,7 @@ El presente instrumento se firma mediante el uso de firma electrónica avanzada 
         plantilla_contrato = (
             "{tipo_documento}\n\n"
             "Fecha: {fecha}\n"
-            "El Sr./Sra. {nombre_persona} (RUT: {rut_persona}), domiciliado en {direccion},\n"
+            "El Sr./Sra. {nombre_persona} (RUT: {rut_persona} ), domiciliado en {direccion},\n"
             "acepta prestar servicios a la empresa {nombre_empresa}, cuyo RUT es {rut_empresa}.\n"
             "Servicio ofrecido: {servicio}\n"
             "El pago acordado es de {monto}.\n\n"
@@ -241,13 +241,13 @@ El presente instrumento se firma mediante el uso de firma electrónica avanzada 
         plantilla_contrato = (
             "{tipo_documento}\n"
             "Fecha de emisión: {fecha}\n\n"
-            "Comparecen por una parte {nombre_persona} (RUT {rut_persona}), domiciliado en {direccion}, "
+            "Comparecen por una parte {nombre_persona} (RUT {rut_persona} ), domiciliado en {direccion}, "
             "y por la otra parte la empresa {nombre_empresa}, RUT {rut_empresa}.\n\n"
             "{extra}\n"
             "Objeto del contrato: {servicio}\n"
             "Monto estipulado: {monto}\n\n"
             "{parrafos}\n\n"
-            "FIRMAN:\n\n{firma_persona}\n{firma_empresa}"
+            "FIRMAN:\n\n{firma_persona}\n{firma_persona}"
         )
         return plantilla_contrato, diccionario
 
@@ -264,7 +264,7 @@ El presente instrumento se firma mediante el uso de firma electrónica avanzada 
         plantilla_contrato = (
             "{tipo_documento}\n"
             "Firmado en {fecha} entre {nombre_persona}, RUT {rut_persona}, domiciliado en {direccion}, "
-            "y {nombre_empresa} (RUT {rut_empresa}).\n"
+            "y {nombre_empresa} (RUT {rut_empresa} ).\n"
             "El servicio pactado consiste en: {servicio}.\n"
             "El monto a cancelar será de {monto}.\n\n"
             "{parrafos}\n\n"
@@ -284,7 +284,7 @@ El presente instrumento se firma mediante el uso de firma electrónica avanzada 
         )
         plantilla_contrato = (
             "{tipo_documento}\n"
-            "Entre {nombre_persona} (RUT {rut_persona}) y {nombre_empresa} (RUT {rut_empresa}).\n"
+            "Entre {nombre_persona} (RUT {rut_persona} ) y {nombre_empresa} (RUT {rut_empresa} ).\n"
             "Fecha: {fecha}\n\n"
             "Servicio contratado: {servicio}\n"
             "Monto: {monto}\n\n"
@@ -305,7 +305,7 @@ El presente instrumento se firma mediante el uso de firma electrónica avanzada 
         )
         plantilla_contrato = (
             "{tipo_documento}\n"
-            "{nombre_persona} (RUT: {rut_persona}) acuerda prestar servicios para {nombre_empresa} (RUT: {rut_empresa}).\n"
+            "{nombre_persona} (RUT: {rut_persona} ) acuerda prestar servicios para {nombre_empresa} (RUT: {rut_empresa} ).\n"
             "Dirección: {direccion}\n"
             "Fecha de inicio: {fecha}\n"
             "Descripción del servicio: {servicio}\n"
@@ -327,8 +327,8 @@ El presente instrumento se firma mediante el uso de firma electrónica avanzada 
         )
         plantilla_contrato = (
             "{tipo_documento}\n"
-            "Por este acto, {nombre_persona} (RUT {rut_persona}), domiciliado en {direccion},\n"
-            "y {nombre_empresa} (RUT {rut_empresa}) acuerdan lo siguiente:\n"
+            "Por este acto, {nombre_persona} (RUT {rut_persona} ), domiciliado en {direccion},\n"
+            "y {nombre_empresa} (RUT {rut_empresa} ) acuerdan lo siguiente:\n"
             "Fecha: {fecha}\n"
             "Servicio: {servicio}\n"
             "Monto total: {monto}\n"
@@ -349,8 +349,8 @@ El presente instrumento se firma mediante el uso de firma electrónica avanzada 
         )
         plantilla_contrato = (
             "{tipo_documento}\n"
-            "En la fecha {fecha}, se acuerda entre {nombre_persona} (RUT {rut_persona}), "
-            "con domicilio en {direccion}, y la empresa {nombre_empresa} (RUT {rut_empresa}) la prestación del siguiente servicio:\n"
+            "En la fecha {fecha}, se acuerda entre {nombre_persona} (RUT {rut_persona} ), "
+            "con domicilio en {direccion}, y la empresa {nombre_empresa} (RUT {rut_empresa} ) la prestación del siguiente servicio:\n"
             "{servicio}\n"
             "Por un monto de: {monto}\n"
             "Cláusulas:\n{clausulas}\n"
@@ -371,7 +371,7 @@ El presente instrumento se firma mediante el uso de firma electrónica avanzada 
         plantilla_contrato = (
             "{tipo_documento}\n"
             "Entre {nombre_persona} (RUT: {rut_persona}, dirección: {direccion}) "
-            "y {nombre_empresa} (RUT: {rut_empresa}), en fecha {fecha}.\n"
+            "y {nombre_empresa} (RUT: {rut_empresa} ), en fecha {fecha}.\n"
             "Servicio: {servicio}\n"
             "Monto: {monto}\n\n"
             "{parrafos}\n"
@@ -392,7 +392,7 @@ El presente instrumento se firma mediante el uso de firma electrónica avanzada 
         plantilla_contrato = (
             "{tipo_documento}\n"
             "Suscrito en {fecha} entre {nombre_persona}, RUT {rut_persona}, domiciliado en {direccion}, "
-            "y la empresa {nombre_empresa} (RUT {rut_empresa}).\n"
+            "y la empresa {nombre_empresa} (RUT {rut_empresa} ).\n"
             "Servicio profesional: {servicio}\n"
             "Monto pactado: {monto}\n"
             "Condiciones:\n{condiciones}\n"
