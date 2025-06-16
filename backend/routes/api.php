@@ -2,6 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DocumentUploadController;
+use App\Http\Controllers\SemanticController;
+
 
 Route::prefix('v1')->group(function () {
     Route::get('/documents', [DocumentUploadController::class, 'index']);
@@ -12,5 +14,8 @@ Route::prefix('v1')->group(function () {
 
     Route::delete('/documents/file/{id}', [DocumentUploadController::class, 'destroyFile']);
     Route::delete('/documents/group/{id}', [DocumentUploadController::class, 'destroyGroup']);
+
+    Route::post('/buscar-similar', [SemanticController::class, 'buscarSimilares']);
+
 
 });

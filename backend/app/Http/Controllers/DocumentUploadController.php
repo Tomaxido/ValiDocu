@@ -21,6 +21,11 @@ class DocumentUploadController extends Controller
         ]);
 
         foreach ($request->file('documents') as $file) {
+
+            //tranformar a png
+            //mandar los png a la ia
+            //recibir el json y ver que hacer, ademas de respuesta del rut
+
             $path = $file->store('documents', 'public');
             $group->documents()->create([
                 'filename' => $file->getClientOriginalName(),
