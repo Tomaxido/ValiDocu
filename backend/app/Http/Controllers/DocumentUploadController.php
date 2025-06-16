@@ -28,10 +28,67 @@ class DocumentUploadController extends Controller
                 'mime_type' => $file->getClientMimeType(),
                 'status' => 0,
             ]);
+
+            // Obtener nombre base sin extensión, por ejemplo: contrato_12
+            $originalBaseName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+
+            // Convertir PDF a imágenes
+            $images = $this->convertPdfToImages($path);
+
+            foreach ($images as $imgPath) {
+                // Detectar número de página desde el nombre generado
+                $pageNumber = '';
+                if (preg_match('/_p(\d+)\.png$/', $imgPath, $matches)) {
+                    $pageNumber = $matches[1]; // ej: "1"
+                }
+
+                // Construir nuevo nombre amigable
+                $newFilename = $originalBaseName . '_p' . $pageNumber . '.png';
+
+                $group->documents()->create([
+                    'filename' => $newFilename,
+                    'filepath' => $imgPath,
+                    'mime_type' => 'image/png',
+                    'status' => 0,
+                ]);
+            }
         }
 
         return response()->json(['message' => 'Grupo creado y documentos subidos.', 'group_id' => $group->id]);
     }
+
+    public function convertPdfToImages($relativePath)
+    {
+        $pdfPath = storage_path('app/public/' . $relativePath);
+
+        // Convertir ruta de Windows a ruta WSL
+        $wslPdfPath = str_replace('\\', '/', $pdfPath);
+        $wslPdfPath = '/mnt/' . strtolower($wslPdfPath[0]) . substr($wslPdfPath, 2); // ej: C:\... → /mnt/c/...
+
+        \Log::info("🛠 Ejecutando script con: {$wslPdfPath}");
+
+        $ubuntuDistro = env('UBUNTU_DISTRO');
+        $pythonBin = env('PYTHON_BIN');
+        $scriptPath = env('SCRIPT_PATH');
+
+        $command = "wsl -d {$ubuntuDistro} {$pythonBin} {$scriptPath} " . escapeshellarg($wslPdfPath);
+
+        \Log::info("📤 Comando armado: {$command}");
+
+        $output = shell_exec($command);
+
+        \Log::info("📥 Resultado del script: {$output}");
+
+        $result = json_decode($output, true);
+
+        // Convertimos las rutas WSL devueltas por Python a rutas relativas Laravel
+        $images = array_map(function ($imgPath) {
+            return 'documents/' . basename($imgPath);
+        }, $result['images'] ?? []);
+
+        return $images;
+    }
+
     public function addToGroup(Request $request, $group_id)
     {
         $request->validate([
