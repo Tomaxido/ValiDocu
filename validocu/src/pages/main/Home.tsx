@@ -65,15 +65,10 @@ export default function Home() {
             onKeyDown={(e) => e.key === 'Enter' && buscar()}
           />
         </div>
-        <button className="filter-btn">Tipo</button>
-        <button className="filter-btn">Personas</button>
-        <button className="filter-btn">Modificado</button>
-        <button className="filter-btn">Fuente</button>
+        <button onClick={() => setIsModalOpen(true)} className="add-group-btn">
+          <PlusIcon size={24}/> Agregar grupo
+        </button>
       </div>
-
-      <button onClick={() => setIsModalOpen(true)} className="add-group-btn">
-        <PlusIcon size={24}/> Agregar grupo
-      </button>
 
       <NewGroupModal
         isOpen={isModalOpen}

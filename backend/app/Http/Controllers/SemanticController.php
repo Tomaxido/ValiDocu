@@ -25,8 +25,8 @@ class SemanticController extends Controller
             d.filename AS document_name, g.name AS group_name,
             1 - (si.embedding <=> ?::vector) as score
             FROM semantic_index si
-            JOIN documents d ON d.id = si.document_id
-            JOIN document_groups g ON g.id = si.document_group_id
+            LEFT JOIN documents d ON d.id = si.document_id
+            LEFT JOIN document_groups g ON g.id = si.document_group_id
             ORDER BY si.embedding <=> ?::vector
             LIMIT 10;
         ", [$embeddingStr, $embeddingStr]);
