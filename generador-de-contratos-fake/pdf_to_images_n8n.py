@@ -30,4 +30,5 @@ if __name__ == "__main__":
     pdf_base64 = sys.stdin.buffer.read()
     pdf_bytes = base64.b64decode(pdf_base64)
     output_files = pdf_to_images(pdf_bytes, pdf_filename)
-    print(",".join(output_files))
+    for png_name in output_files:
+        print(png_name)
