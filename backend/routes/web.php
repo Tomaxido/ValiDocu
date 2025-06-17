@@ -1,10 +1,11 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Models\DocumentGroup;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
+use Illuminate\Http\Request;
+use App\Models\DocumentGroup;
+use Symfony\Component\Mime\MimeTypes;
 
 Route::get('/', function () {
     return view('welcome');
@@ -26,8 +27,11 @@ Route::get('/secure-pdf/{hashed}', function ($hashed) {
         abort(404);
     }
 
+    // Detectar tipo MIME real
+    $mimeType = MimeTypes::getDefault()->guessMimeType($path);
+
     return Response::file($path, [
-        'Content-Type' => 'application/pdf',
+        'Content-Type' => $mimeType ?? 'application/octet-stream',
         'Access-Control-Allow-Origin' => '*',
     ]);
 });

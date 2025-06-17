@@ -6,7 +6,7 @@ import type { DocumentGroup } from "./interfaces";
 // }
 
 // TODO: arreglar
-export const baseURL = "http://localhost:8000";
+export const baseURL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
 
 
 async function getJSON(url: string): Promise<any> {

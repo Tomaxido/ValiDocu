@@ -40,26 +40,32 @@ class DocumentUploadController extends Controller
             // Convertir PDF a imágenes
             $images = $this->convertPdfToImages($path);
 
-            foreach ($images as $imgPath) {
-                // Detectar número de página desde el nombre generado
-                $pageNumber = '';
-                if (preg_match('/_p(\d+)\.png$/', $imgPath, $matches)) {
-                    $pageNumber = $matches[1]; // ej: "1"
-                }
-
-                // Construir nuevo nombre amigable
-                $newFilename = $originalBaseName . '_p' . $pageNumber . '.png';
-
-                $group->documents()->create([
-                    'filename' => $newFilename,
-                    'filepath' => $imgPath,
-                    'mime_type' => 'image/png',
-                    'status' => 0,
-                ]);
-            }
+            // Guardar imagenes en carpeta manteniendo el nombre del documento
+            $this->saveImages($images, $originalBaseName, $group);
         }
 
         return response()->json(['message' => 'Grupo creado y documentos subidos.', 'group_id' => $group->id]);
+    }
+
+    public function saveImages($images, $originalBaseName, $group)
+    {
+        foreach ($images as $imgPath) {
+            // Detectar número de página desde el nombre generado
+            $pageNumber = '';
+            if (preg_match('/_p(\d+)\.png$/', $imgPath, $matches)) {
+                $pageNumber = $matches[1]; // ej: "1"
+            }
+
+            // Construir nuevo nombre amigable
+            $newFilename = $originalBaseName . '_p' . $pageNumber . '.png';
+
+            $group->documents()->create([
+                'filename' => $newFilename,
+                'filepath' => $imgPath,
+                'mime_type' => 'image/png',
+                'status' => 0,
+            ]);
+        }
     }
 
     public function convertPdfToImages($relativePath)
@@ -104,12 +110,15 @@ class DocumentUploadController extends Controller
 
         foreach ($request->file('documents') as $file) {
             $path = $file->store('documents', 'public');
+            $originalBaseName = $file->getClientOriginalName();
             $group->documents()->create([
-                'filename' => $file->getClientOriginalName(),
+                'filename' => $originalBaseName,
                 'filepath' => $path,
                 'mime_type' => $file->getClientMimeType(),
                 'status' => 0,
             ]);
+            $images = $this->convertPdfToImages($path);
+            $this->saveImages($images, $originalBaseName, $group);
         }
 
         return response()->json(['message' => 'Documentos añadidos al grupo ' . $group->name]);

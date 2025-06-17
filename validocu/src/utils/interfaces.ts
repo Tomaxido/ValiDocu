@@ -17,3 +17,9 @@ export interface DocumentGroup {
     updated_at: string;
     documents: Document[];
 };
+
+export interface GroupedDocument {
+    name: string;
+    files: Document[];
+    representative: Document;
+};
