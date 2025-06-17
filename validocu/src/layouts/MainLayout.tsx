@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import logo from "../assets/ValiDocu_1.png";
 import './MainLayout.css';
 
 interface Props {
@@ -11,7 +10,7 @@ export default function MainLayout({ children }: Props) {
     <div className="layout-wrapper">
       <header className="layout-header">
         <a href="/" className="logo-link">
-          <img src={logo} alt="Logo" className="logo" />
+          <img src="/ValiDocu_logo_text_background.svg" alt="Logo" className="logo" />
         </a>
 
 

@@ -23,3 +23,13 @@ export interface GroupedDocument {
     files: Document[];
     representative: Document;
 };
+
+export interface BoxAnnotation {
+  label: string;
+  text: string;
+  boxes: number[][];
+}
+
+export interface GroupedImageViewerProps {
+  files: Document[];
+}

@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\DocumentGroup;
 use App\Models\Document;
+use Illuminate\Support\Facades\Http;
+
+
 
 class DocumentUploadController extends Controller
 {
@@ -38,7 +41,7 @@ class DocumentUploadController extends Controller
             $originalBaseName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
 
             // Convertir PDF a imágenes
-            $images = $this->convertPdfToImages($path);
+            $images = $this->convertPdfToImages($path,$group);
 
             // Guardar imagenes en carpeta manteniendo el nombre del documento
             $this->saveImages($images, $originalBaseName, $group);
@@ -59,46 +62,101 @@ class DocumentUploadController extends Controller
             // Construir nuevo nombre amigable
             $newFilename = $originalBaseName . '_p' . $pageNumber . '.png';
 
-            $group->documents()->create([
+            $document = $group->documents()->create([
                 'filename' => $newFilename,
                 'filepath' => $imgPath,
                 'mime_type' => 'image/png',
                 'status' => 0,
             ]);
+            // === Enviar a API FastAPI ===
+            try {
+                $absolutePath = storage_path('app/public/' . $imgPath);
+
+                $response = Http::attach(
+                    'file', fopen($absolutePath, 'r'), $newFilename
+                )->post('http://localhost:5050/procesar/', [
+                    'doc_id' => $document->id,
+                    'group_id' => $group->id,
+                ]);
+
+                // Podís guardar respuesta si querís:
+                if ($response->successful()) {
+                    // actualizar estado, guardar json path, etc.
+                    $document->update([
+                        'status' => 1,
+                        'metadata' => $response->json(), // solo si tenís columna metadata
+                    ]);
+                } else {
+                    \Log::error("Procesamiento falló para $newFilename", ['error' => $response->body()]);
+                }
+
+            } catch (\Exception $e) {
+                \Log::error("Error al procesar con IA", ['error' => $e->getMessage()]);
+            }
         }
     }
 
-    public function convertPdfToImages($relativePath)
+    public function convertPdfToImages($relativePath, $group)
     {
         $pdfPath = storage_path('app/public/' . $relativePath);
+        $filename = basename($relativePath);
 
-        // Convertir ruta de Windows a ruta WSL
-        $wslPdfPath = str_replace('\\', '/', $pdfPath);
-        $wslPdfPath = '/mnt/' . strtolower($wslPdfPath[0]) . substr($wslPdfPath, 2); // ej: C:\... → /mnt/c/...
+        \Log::info("📄 Ruta PDF: $pdfPath");
 
-        \Log::info("🛠 Ejecutando script con: {$wslPdfPath}");
+        if (!file_exists($pdfPath)) {
+            \Log::error("❌ PDF no encontrado: $pdfPath");
+            return [];
+        }
 
-        $ubuntuDistro = env('UBUNTU_DISTRO');
-        $pythonBin = env('PYTHON_BIN');
-        $scriptPath = env('SCRIPT_PATH');
+        try {
+            \Log::info("📤 Enviando PDF a API: $filename");
 
-        $command = "wsl -d {$ubuntuDistro} {$pythonBin} {$scriptPath} " . escapeshellarg($wslPdfPath);
+            $response = Http::attach(
+                'file',
+                fopen($pdfPath, 'r'),
+                $filename
+            )->post('http://localhost:5050/pdf_to_images/');
 
-        \Log::info("📤 Comando armado: {$command}");
+            \Log::info("🔁 Respuesta API status: " . $response->status());
+            \Log::debug("📦 Respuesta body: " . $response->body());
 
-        $output = shell_exec($command);
+            if (!$response->successful()) {
+                \Log::error("❌ Falló llamada a FastAPI", [
+                    'status' => $response->status(),
+                    'body' => $response->body()
+                ]);
+                return [];
+            }
 
-        \Log::info("📥 Resultado del script: {$output}");
+            $data = $response->json();
 
-        $result = json_decode($output, true);
+            if (!isset($data['images']) || empty($data['images'])) {
+                \Log::warning("⚠️ No se recibieron imágenes desde la API.");
+            }
 
-        // Convertimos las rutas WSL devueltas por Python a rutas relativas Laravel
-        $images = array_map(function ($imgPath) {
-            return 'documents/' . basename($imgPath);
-        }, $result['images'] ?? []);
+            $imagenesGuardadas = [];
 
-        return $images;
+            foreach ($data['images'] as $img) {
+                $imgFilename = $img['filename'];
+                $base64 = $img['content_base64'];
+
+                \Log::info("💾 Guardando imagen: $imgFilename");
+
+                $path = storage_path("app/public/documents/{$imgFilename}");
+                $result = file_put_contents($path, base64_decode($base64));
+                
+                $imagenesGuardadas[] = "documents/{$imgFilename}";
+
+            }
+
+            return $imagenesGuardadas;
+
+        } catch (\Exception $e) {
+            \Log::error("❌ Excepción en conversión PDF", ['error' => $e->getMessage()]);
+            return [];
+        }
     }
+
 
     public function addToGroup(Request $request, $group_id)
     {
@@ -117,7 +175,7 @@ class DocumentUploadController extends Controller
                 'mime_type' => $file->getClientMimeType(),
                 'status' => 0,
             ]);
-            $images = $this->convertPdfToImages($path);
+            $images = $this->convertPdfToImages($path, $group);
             $this->saveImages($images, $originalBaseName, $group);
         }
 
