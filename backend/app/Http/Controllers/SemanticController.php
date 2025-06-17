@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+
 
 class SemanticController extends Controller
 {
@@ -36,16 +38,28 @@ class SemanticController extends Controller
 
     private function generarEmbedding($texto)
     {
-        $command = 'wsl -d Ubuntu /home/peto/layoutlmv3_env/bin/python /home/peto/layoutlmv3_env/train_full/scripts/generar_vector.py ' . escapeshellarg($texto);
+        try {
+            $response = Http::post('http://localhost:5050/vector/', [
+                'texto' => $texto,
+            ]);
 
-        $output = shell_exec($command);
-        $json = json_decode($output, true);
+            if (!$response->successful()) {
+                \Log::error("❌ Error en respuesta de API embedding", ['status' => $response->status(), 'body' => $response->body()]);
+                return null;
+            }
 
-        if (!is_array($json)) {
-            \Log::error("❌ Falló la generación del embedding: " . $output);
+            $json = $response->json();
+
+            if (!is_array($json) || !isset($json['embedding'])) {
+                \Log::error("❌ Embedding malformado o vacío", ['response' => $json]);
+                return null;
+            }
+
+            return $json['embedding'];
+
+        } catch (\Exception $e) {
+            \Log::error("❌ Excepción al llamar a la API de embedding", ['error' => $e->getMessage()]);
             return null;
         }
-
-        return $json;
     }
 }

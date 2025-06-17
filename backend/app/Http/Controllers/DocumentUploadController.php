@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\DocumentGroup;
 use App\Models\Document;
+use Illuminate\Support\Facades\Http;
+
 
 class DocumentUploadController extends Controller
 {
@@ -59,12 +61,37 @@ class DocumentUploadController extends Controller
             // Construir nuevo nombre amigable
             $newFilename = $originalBaseName . '_p' . $pageNumber . '.png';
 
-            $group->documents()->create([
+            $document = $group->documents()->create([
                 'filename' => $newFilename,
                 'filepath' => $imgPath,
                 'mime_type' => 'image/png',
                 'status' => 0,
             ]);
+            // === Enviar a API FastAPI ===
+            try {
+                $absolutePath = storage_path('app/public/' . $imgPath);
+
+                $response = Http::attach(
+                    'file', fopen($absolutePath, 'r'), $newFilename
+                )->post('http://localhost:5050/procesar/', [
+                    'doc_id' => $document->id,
+                    'group_id' => $group->id,
+                ]);
+
+                // Podís guardar respuesta si querís:
+                if ($response->successful()) {
+                    // actualizar estado, guardar json path, etc.
+                    $document->update([
+                        'status' => 1,
+                        'metadata' => $response->json(), // solo si tenís columna metadata
+                    ]);
+                } else {
+                    \Log::error("Procesamiento falló para $newFilename", ['error' => $response->body()]);
+                }
+
+            } catch (\Exception $e) {
+                \Log::error("Error al procesar con IA", ['error' => $e->getMessage()]);
+            }
         }
     }
 
