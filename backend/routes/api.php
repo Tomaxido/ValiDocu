@@ -16,6 +16,8 @@ Route::prefix('v1')->group(function () {
     Route::delete('/documents/group/{id}', [DocumentUploadController::class, 'destroyGroup']);
 
     Route::post('/buscar-similar', [SemanticController::class, 'buscarSimilares']);
+    Route::post('/semantic-data/by-filenames', [DocumentUploadController::class, 'getSemanticDataByFilenames']);
+
 
 
 });

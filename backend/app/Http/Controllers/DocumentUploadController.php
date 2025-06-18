@@ -6,7 +6,8 @@ use Illuminate\Http\Request;
 use App\Models\DocumentGroup;
 use App\Models\Document;
 use Illuminate\Support\Facades\Http;
-
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 
 class DocumentUploadController extends Controller
@@ -234,4 +235,28 @@ class DocumentUploadController extends Controller
         return response()->json(['message' => 'Grupo y documentos eliminados correctamente.']);
     }
 
+    public function getSemanticDataByFilenames(Request $request)
+    {
+        // 1. Log de lo que llega
+        $filenames = $request->input('filenames');
+        Log::info('📥 Filenames recibidos en API:', $filenames);
+
+        if (!is_array($filenames)) {
+            Log::warning('⚠️ El parámetro "filenames" no es un array:', ['filenames' => $filenames]);
+            return response()->json(['error' => 'Se esperaba un array de nombres de archivo.'], 400);
+        }
+
+        // 2. Log del query generado
+        $data = DB::table('semantic_index')
+            ->join('documents', 'semantic_index.document_id', '=', 'documents.id')
+            ->whereIn('documents.filename', $filenames)
+            ->select('documents.filename', 'semantic_index.json_layout')
+            ->get();
+
+        Log::info('📤 Resultados de la consulta:', $data->toArray());
+
+        return response()->json($data->map(function ($item) {
+            return (array) $item;
+        }));
+    }
 }

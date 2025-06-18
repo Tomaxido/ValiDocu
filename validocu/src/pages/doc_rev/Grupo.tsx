@@ -5,6 +5,7 @@ import type { DocumentGroup, Document, GroupedDocument } from "../../utils/inter
 import UploadModal from "./UploadModal";
 import DeleteModal from "./DeleteModal";
 import GroupedImageViewer from "./GroupedImageViewer";
+import labelColors from "../../utils/labelColors";
 
 import "./Grupo.css";
 
@@ -39,6 +40,20 @@ export default function Grupo() {
 	const [sidebarOpen, setSidebarOpen] = useState(true);
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+	const [semanticGroupData, setSemanticGroupData] = useState<any[]>([]);
+
+	const fetchSemanticGroupData = async (groupFiles: Document[]) => {
+	const filenames = groupFiles.map(doc => doc.filename);
+
+	const res = await fetch(`http://localhost:8000/api/v1/semantic-data/by-filenames`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ filenames })
+	});
+
+	const data = await res.json();
+	setSemanticGroupData(data);
+	};
 
 	useEffect(() => {
 		if (grupoId) {
@@ -47,7 +62,10 @@ export default function Grupo() {
 				setGroup(g);
 				const grouped = groupDocuments(g.documents);
 				setGroupedDocs(grouped);
-				if (grouped.length > 0) setSelectedDoc(grouped[0].representative);
+				if (grouped.length > 0) {
+					setSelectedDoc(grouped[0].representative);
+					fetchSemanticGroupData(grouped[0].files); 
+				}
 			});
 		}
 	}, [grupoId]);
@@ -106,7 +124,10 @@ export default function Grupo() {
 								return (
 									<li key={grouped.representative.id} className={`doc-item ${statusClass}`}>
 										<button
-											onClick={() => setSelectedDoc(grouped.representative)}
+											onClick={() => {
+												setSelectedDoc(grouped.representative);
+												fetchSemanticGroupData(grouped.files);
+											}}
 											className={selectedDoc?.id === grouped.representative.id ? "active" : ""}
 										>
 											{grouped.name}
@@ -141,6 +162,36 @@ export default function Grupo() {
 										: "🕓 Sin Revisar"}
 							</p>
 							<p><strong>Subido:</strong> {new Date(selectedDoc.created_at).toLocaleString()}</p>
+
+							<h2 className="text-lg font-bold mb-2">Datos detectados por IA</h2>
+							{semanticGroupData.map((item, i) => (
+								<div key={i} className="mb-4 border-b pb-2">
+									<p className="font-semibold text-sm mb-1">
+										Página: {item.filename.match(/_p(\d+)\./)?.[1] || "¿?"}
+									</p>
+									<pre className="text-xs whitespace-pre-wrap">
+										<div className="text-xs whitespace-pre-wrap space-y-1">
+										{(() => {
+											try {
+												const layout = JSON.parse(item.json_layout);
+												return layout.map((campo: any, i: number) => {
+												const color = labelColors[campo.label] || "rgba(200, 200, 200, 0.4)";
+
+												return (
+													<div key={i} className="text-info-block">
+													<span className="color-box" style={{ backgroundColor: color }} />
+													<strong>{campo.label}:</strong>&nbsp;{campo.text}
+													</div>
+												);
+												});
+											} catch (e) {
+												return <p className="text-red-500">⚠️ Error al procesar datos IA</p>;
+											}
+											})()}
+										</div>
+									</pre>
+								</div>
+							))}
 						</div>
 					</div>
 				) : (
