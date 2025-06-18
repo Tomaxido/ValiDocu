@@ -76,3 +76,13 @@ export async function buscarDocumentosPorTexto(texto: string): Promise<any[]> {
   return await res.json();
 }
 
+export async function buscarJsonLayoutPorIdDocumento(id: number): Promise<any> {
+  const res = await fetch(`${baseURL}/api/v1/documents/${id}/layout`);
+
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData?.message || "Error al buscar documentos");
+  }
+
+  return await res.json();
+}

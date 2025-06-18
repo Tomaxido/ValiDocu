@@ -8,6 +8,7 @@ use App\Http\Controllers\SemanticController;
 Route::prefix('v1')->group(function () {
     Route::get('/documents', [DocumentUploadController::class, 'index']);
     Route::get('/documents/{id}', [DocumentUploadController::class, 'show']);
+    Route::get('/documents/{id}/layout', [SemanticController::class, 'buscarJsonLayoutByDocumentId']);
 
     Route::post('/documents', [DocumentUploadController::class, 'storeNewGroup']);
     Route::post('/documents/{group_id}', [DocumentUploadController::class, 'addToGroup']);
@@ -17,6 +18,7 @@ Route::prefix('v1')->group(function () {
 
     Route::post('/buscar-similar', [SemanticController::class, 'buscarSimilares']);
     Route::post('/semantic-data/by-filenames', [DocumentUploadController::class, 'getSemanticDataByFilenames']);
+
 
 
 

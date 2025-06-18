@@ -1,86 +1,64 @@
 import { useEffect, useRef, useState } from "react";
-import { baseURL } from "../../utils/api";
+import { baseURL, buscarJsonLayoutPorIdDocumento } from "../../utils/api";
 import type { BoxAnnotation, GroupedImageViewerProps } from "../../utils/interfaces";
 import labelColors from "../../utils/labelColors.ts";
 import "./GroupedImageViewer.css";
 
-// 🔸 Cada elemento del array representa las anotaciones de una página
-const hardcodedAnnotations: BoxAnnotation[][] = [
-  [
-    {
-      label: "TIPO_DOCUMENTO",
-      text: "DOCUMENTO DE ACUERDO",
-      boxes: [[131, 154, 796, 192]],
-    },
-    {
-      label: "FECHA",
-      text: "05/02/2025",
-      boxes: [[431, 270, 674, 312]],
-    },
-    {
-      label: "NOMBRE_COMPLETO",
-      text: "Maria Romina Rojas Mufhoz,",
-      boxes: [[858, 266, 1533, 308]],
-    },
-    {
-      label: "RUT",
-      text: "17286500-1,",
-      boxes: [[1706, 270, 1977, 315]],
-    },
-    {
-      label: "DIRECCION",
-      text: "Avenida Gabriela Mistral 3902 Piso 56...",
-      boxes: [
-        [126, 389, 2344, 427],
-        [129, 505, 575, 554],
-      ],
-    },
-    {
-      label: "EMPRESA",
-      text: "Santos Alvarez E.I.R.L.",
-      boxes: [[635, 508, 1143, 543]],
-    },
-    {
-      label: "RUT",
-      text: "13450681-1).",
-      boxes: [[1302, 505, 1587, 550]],
-    },
-    {
-      label: "MONTO",
-      text: "$4.198.064.",
-      boxes: [[769, 859, 1024, 905]],
-    },
-    {
-      label: "NOMBRE_COMPLETO",
-      text: "Maria Romina Rojas Munoz",
-      boxes: [[131, 2157, 744, 2199]],
-    },
-    {
-      label: "FIRMA",
-      text: "Santos Alvarez E.I.R.L.",
-      boxes: [[131, 2280, 640, 2318]],
-    },
-  ],
-
-];
-
 export default function GroupedImageViewer({ files }: Readonly<GroupedImageViewerProps>) {
   const [scales, setScales] = useState<{ x: number; y: number }[]>([]);
+  const [annotationsByPage, setAnnotationsByPage] = useState<BoxAnnotation[][]>([]);
   const imgRefs = useRef<(HTMLImageElement | null)[]>([]);
+  const observers = useRef<ResizeObserver[]>([]);
 
+  // 🔍 Cargar layouts desde API
   useEffect(() => {
-    const newScales = files.map((_, i) => {
+    async function fetchLayouts() {
+      const layouts: BoxAnnotation[][] = await Promise.all(
+        files.map(async (doc) => {
+          try {
+            const data = await buscarJsonLayoutPorIdDocumento(doc.id);
+            return data as BoxAnnotation[];
+          } catch (error) {
+            console.error("Error cargando layout del documento", doc.id, error);
+            return [];
+          }
+        })
+      );
+      setAnnotationsByPage(layouts);
+    }
+
+    if (files.length > 0) {
+      fetchLayouts();
+    }
+  }, [files]);
+
+  // 📏 Observar cambios de tamaño de las imágenes (por zoom o responsive)
+  useEffect(() => {
+    observers.current.forEach((obs) => obs.disconnect());
+    observers.current = [];
+
+    files.forEach((_, i) => {
       const img = imgRefs.current[i];
       if (img?.naturalWidth && img?.naturalHeight) {
+        const observer = new ResizeObserver(() => {
+          setScales((prev) => {
+            const next = [...prev];
+            next[i] = {
+              x: img.clientWidth / img.naturalWidth,
+              y: img.clientHeight / img.naturalHeight,
+            };
+            return next;
+          });
+        });
 
-        return {
-          x: img.clientWidth / img.naturalWidth,
-          y: img.clientHeight / img.naturalHeight,
-        };
+        observer.observe(img);
+        observers.current.push(observer);
       }
-      return { x: 1, y: 1 };
     });
-    setScales(newScales);
+
+    return () => {
+      observers.current.forEach((obs) => obs.disconnect());
+    };
   }, [files]);
 
   if (files.length === 0) return <p>No hay imágenes para mostrar.</p>;
@@ -96,22 +74,9 @@ export default function GroupedImageViewer({ files }: Readonly<GroupedImageViewe
             src={`${baseURL}/secure-pdf/${doc.filepath.split("/").pop()}`}
             alt={doc.filename}
             className="image-viewer-img"
-            onLoad={() => {
-              const img = imgRefs.current[pageIndex];
-              if (img?.naturalWidth && img?.naturalHeight) {
-                setScales((prev) => {
-                  const next = [...prev];
-                  next[pageIndex] = {
-                    x: img.clientWidth / img.naturalWidth,
-                    y: img.clientHeight / img.naturalHeight,
-                  };
-                  return next;
-                });
-              }
-            }}
           />
           <div className="highlight-layer">
-            {(hardcodedAnnotations[pageIndex] || []).map((anno, i) =>
+            {(annotationsByPage[pageIndex] || []).map((anno, i) =>
               anno.boxes.map((box, j) => {
                 const [x1, y1, x2, y2] = box;
                 const scale = scales[pageIndex] || { x: 1, y: 1 };
