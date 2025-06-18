@@ -54,10 +54,14 @@ class DocumentUploadController extends Controller
             $images = $this->convertPdfToImages($path,$group);
 
             // Guardar imagenes en carpeta manteniendo el nombre del documento
-            $validado = $this->saveImages($images, $originalBaseName, $group);
-            if ($validado) {
-                // Cambiar status del documento a 2
+            $rechazado = $this->saveImages($images, $originalBaseName, $group);
+            if ($rechazado) {
+                // Cambiar status del documento a 2 = Rechazado
                 $document->status = 2;
+                $document->save();
+            } else {
+                // Cambiar status del documento a 1 = Conforme
+                $document->status = 1;
                 $document->save();
             }
         }
@@ -206,7 +210,7 @@ class DocumentUploadController extends Controller
 
                 $path = storage_path("app/public/documents/{$imgFilename}");
                 $result = file_put_contents($path, base64_decode($base64));
-                
+
                 $imagenesGuardadas[] = "documents/{$imgFilename}";
 
             }
@@ -238,10 +242,14 @@ class DocumentUploadController extends Controller
                 'status' => 0,
             ]);
             $images = $this->convertPdfToImages($path, $group);
-            $validado = $this->saveImages($images, $originalBaseName, $group);
-            if ($validado) {
-                // Cambiar status del documento a 2
+            $rechazado = $this->saveImages($images, $originalBaseName, $group);
+            if ($rechazado) {
+                // Cambiar status del documento a 2 = Rechazado
                 $document->status = 2;
+                $document->save();
+            } else {
+                // Cambiar status del documento a 1 = Conforme
+                $document->status = 1; // o el estado que consideres
                 $document->save();
             }
         }
