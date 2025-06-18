@@ -8,175 +8,173 @@ import GroupedImageViewer from "./GroupedImageViewer";
 import DocInfoPanel from "./DocInfoPanel";
 import "./Grupo.css";
 
-
 function groupDocuments(documents: Document[]): GroupedDocument[] {
-	const groups: { [key: string]: Document[] } = {};
+  const pdfs = documents.filter((doc) => doc.filename.toLowerCase().endsWith(".pdf"));
+  const images = documents.filter((doc) => !doc.filename.toLowerCase().endsWith(".pdf"));
 
-	for (const doc of documents) {
-		if (doc.filename.toLowerCase().endsWith(".pdf")) continue;
+  const groups: { [key: string]: Document[] } = {};
 
-		const match = RegExp(/^(.+?)_p\d+\.(png|jpg|jpeg)$/i).exec(doc.filename);
-		const key = match ? match[1] : doc.filename;
+  for (const doc of images) {
+    const match = /^(.+?)_p\d+\.(png|jpg|jpeg)$/i.exec(doc.filename);
+    const key = match ? match[1] : doc.filename;
 
-		if (!groups[key]) {
-			groups[key] = [];
-		}
-		groups[key].push(doc);
-	}
+    if (!groups[key]) {
+      groups[key] = [];
+    }
+    groups[key].push(doc);
+  }
 
-	return Object.entries(groups).map(([key, files]) => ({
-		name: key,
-		files,
-		representative: files[0], // Usamos el primero como ítem clickeable
-	}));
+  return Object.entries(groups).map(([key, imgs]) => {
+    const matchingPdf = pdfs.find((pdf) => pdf.filename.toLowerCase().startsWith(key.toLowerCase()));
+    return {
+      name: key,
+      images: imgs,
+      pdf: matchingPdf,
+    };
+  });
 }
-
-function getBaseFilename(filename: string): string {
-  const lastUnderscore = filename.lastIndexOf("_");
-  if (lastUnderscore === -1) return filename;
-  return filename.substring(0, lastUnderscore);
-}
-
 
 export default function Grupo() {
-	const { grupoId } = useParams<{ grupoId: string }>();
-	const [group, setGroup] = useState<DocumentGroup | null>(null);
-	const [groupedDocs, setGroupedDocs] = useState<GroupedDocument[]>([]);
-	const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
-	const [sidebarOpen, setSidebarOpen] = useState(true);
-	const [isModalOpen, setIsModalOpen] = useState(false);
-	const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-	const [semanticGroupData, setSemanticGroupData] = useState<any[]>([]);
+  const { grupoId } = useParams<{ grupoId: string }>();
+  const [group, setGroup] = useState<DocumentGroup | null>(null);
+  const [groupedDocs, setGroupedDocs] = useState<GroupedDocument[]>([]);
+  const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [semanticGroupData, setSemanticGroupData] = useState<any[]>([]);
 
-	const fetchSemanticGroupData = async (groupFiles: Document[]) => {
-	const ids = groupFiles.map(doc => doc.id);
+  const fetchSemanticGroupData = async (groupFiles: Document[]) => {
+    const ids = groupFiles.map(doc => doc.id);
 
-	const res = await fetch(`http://localhost:8000/api/v1/semantic-data/by-filenames`, {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ ids })
-	});
+    const res = await fetch(`http://localhost:8000/api/v1/semantic-data/by-filenames`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids })
+    });
 
-	const data = await res.json();
-	setSemanticGroupData(data);
-	};
+    const data = await res.json();
+    setSemanticGroupData(data);
+  };
 
-	useEffect(() => {
-		if (grupoId) {
-			getDocumentGroupById(grupoId).then((g) => {
-				console.log("Archivos recibidos:", g);
-				setGroup(g);
-				const grouped = groupDocuments(g.documents);
-				setGroupedDocs(grouped);
-				if (grouped.length > 0) {
-					setSelectedDoc(grouped[0].representative);
-					fetchSemanticGroupData(grouped[0].files); 
-				}
-			});
-		}
-	}, [grupoId]);
+  useEffect(() => {
+    if (grupoId) {
+      getDocumentGroupById(grupoId).then((g) => {
+        console.log("Archivos recibidos:", g);
+        setGroup(g);
+        const grouped = groupDocuments(g.documents);
+        setGroupedDocs(grouped);
+        if (grouped.length > 0 && grouped[0].pdf) {
+          setSelectedDoc(grouped[0].pdf);
+          fetchSemanticGroupData(grouped[0].images);
+        }
+      });
+    }
+  }, [grupoId]);
 
-	if (!group) return <p>Cargando grupo...</p>;
+  if (!group) return <p>Cargando grupo...</p>;
 
-	const handleFileUpload = async (files: FileList) => {
-		if (!grupoId) return;
-		try {
-			await uploadDocumentsToGroup(grupoId, files);
-			const updatedGroup = await getDocumentGroupById(grupoId);
-			setGroup(updatedGroup);
-			const grouped = groupDocuments(updatedGroup.documents);
-			setGroupedDocs(grouped);
-			setSelectedDoc(grouped.at(-1)?.representative || null);
-		} catch (err: any) {
-			alert("Error al subir: " + err.message);
-		}
-	};
+  const handleFileUpload = async (files: FileList) => {
+    if (!grupoId) return;
+    try {
+      await uploadDocumentsToGroup(grupoId, files);
+      const updatedGroup = await getDocumentGroupById(grupoId);
+      setGroup(updatedGroup);
+      const grouped = groupDocuments(updatedGroup.documents);
+      setGroupedDocs(grouped);
+      const lastPdf = grouped.at(-1)?.pdf;
+      setSelectedDoc(lastPdf || null);
+    } catch (err: any) {
+      alert("Error al subir: " + err.message);
+    }
+  };
 
-	const handleDeleteDocuments = async (ids: number[]) => {
-		if (!grupoId) return;
-		try {
-			await deleteDocuments(ids);
-			const updatedGroup = await getDocumentGroupById(grupoId);
-			setGroup(updatedGroup);
-			const grouped = groupDocuments(updatedGroup.documents);
-			setGroupedDocs(grouped);
-			setSelectedDoc(grouped[0]?.representative || null);
-		} catch (err: any) {
-			alert("Error al eliminar documentos: " + err.message);
-		}
-	};
+  const handleDeleteDocuments = async (ids: number[]) => {
+    if (!grupoId) return;
+    try {
+      await deleteDocuments(ids);
+      const updatedGroup = await getDocumentGroupById(grupoId);
+      setGroup(updatedGroup);
+      const grouped = groupDocuments(updatedGroup.documents);
+      setGroupedDocs(grouped);
+      const firstPdf = grouped[0]?.pdf;
+      setSelectedDoc(firstPdf || null);
+    } catch (err: any) {
+      alert("Error al eliminar documentos: " + err.message);
+    }
+  };
 
-	return (
-		<div className="grupo-layout">
-			<aside className={`grupo-sidebar ${sidebarOpen ? "open" : "collapsed"}`}>
-				<button className="toggle-sidebar" onClick={() => setSidebarOpen(!sidebarOpen)}>
-					{sidebarOpen ? "◀" : "▶"}
-				</button>
-				{sidebarOpen && (
-					<>
-						<br />
-						<h3>Grupo: {group.name}</h3>
-						<h3>Listado de Documentos</h3>
-						<ul>
-							<p><button onClick={() => setIsModalOpen(true)}>+ Añadir documento</button></p>
-							{groupedDocs.map((grouped) => {
-								const statusClass =
-									grouped.representative.status === 1
-										? "validado"
-										: grouped.representative.status === 2
-										? "rechazado"
-										: "sin-procesar";
+  return (
+    <div className="grupo-layout">
+      <aside className={`grupo-sidebar ${sidebarOpen ? "open" : "collapsed"}`}>
+        <button className="toggle-sidebar" onClick={() => setSidebarOpen(!sidebarOpen)}>
+          {sidebarOpen ? "◀" : "▶"}
+        </button>
+        {sidebarOpen && (
+          <>
+            <br />
+            <h3>Grupo: {group.name}</h3>
+            <h3>Listado de Documentos</h3>
+            <ul>
+              <p><button onClick={() => setIsModalOpen(true)}>+ Añadir documento</button></p>
+              {groupedDocs.map((grouped) => {
+                const statusClass =
+                  grouped.pdf?.status === 1
+                    ? "validado"
+                    : grouped.pdf?.status === 2
+                    ? "rechazado"
+                    : "sin-procesar";
 
-								return (
-									<li key={grouped.representative.id} className={`doc-item ${statusClass}`}>
-										<button
-											onClick={() => {
-												setSelectedDoc(grouped.representative);
-												fetchSemanticGroupData(grouped.files);
-											}}
-											className={selectedDoc?.id === grouped.representative.id ? "active" : ""}
-										>
-											{grouped.name}
-										</button>
-									</li>
-								);
-							})}
-						</ul>
-						<p>
-							<button onClick={() => setDeleteModalOpen(true)}>🗑 Eliminar documentos</button>
-						</p>
-					</>
-				)}
-			</aside>
+                return (
+                  <li key={grouped.name} className={`doc-item ${statusClass}`}>
+                    <button
+                      onClick={() => {
+                        if (grouped.pdf) {
+                          setSelectedDoc(grouped.pdf);
+                          fetchSemanticGroupData(grouped.images);
+                        }
+                      }}
+                      className={selectedDoc?.id === grouped.pdf?.id ? "active" : ""}
+                    >
+                      {grouped.name}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            <p>
+              <button onClick={() => setDeleteModalOpen(true)}>🗑 Eliminar documentos</button>
+            </p>
+          </>
+        )}
+      </aside>
 
-			<div className="grupo-content">
-				{selectedDoc ? (
-					<div className="viewer-grid">
-						<div className="pdf-viewer">
-							<GroupedImageViewer
-								files={groupedDocs.find(g => g.representative.id === selectedDoc.id)?.files || [selectedDoc]}
-							/>
-						</div>
+      <div className="grupo-content">
+        {selectedDoc ? (
+          <div className="viewer-grid">
+            <div className="pdf-viewer">
+              <GroupedImageViewer
+                files={groupedDocs.find(g => g.pdf?.id === selectedDoc.id)?.images || [selectedDoc]}
+              />
+            </div>
+            <DocInfoPanel selectedDoc={selectedDoc} semanticGroupData={semanticGroupData} />
+          </div>
+        ) : (
+          <p>Selecciona un documento para ver su contenido.</p>
+        )}
+      </div>
 
-						<DocInfoPanel selectedDoc={selectedDoc} semanticGroupData={semanticGroupData} />
-
-					</div>
-				) : (
-					<p>Selecciona un documento para ver su contenido.</p>
-				)}
-			</div>
-
-			<UploadModal
-				isOpen={isModalOpen}
-				onClose={() => setIsModalOpen(false)}
-				onUpload={handleFileUpload}
-			/>
-			<DeleteModal
-				isOpen={deleteModalOpen}
-				onClose={() => setDeleteModalOpen(false)}
-				documents={group.documents}
-				onDelete={handleDeleteDocuments}
-			/>
-		</div>
-	);
+      <UploadModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onUpload={handleFileUpload}
+      />
+      <DeleteModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        documents={group.documents}
+        onDelete={handleDeleteDocuments}
+      />
+    </div>
+  );
 }

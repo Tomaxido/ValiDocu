@@ -16,7 +16,7 @@ export default function GroupedImageViewer({ files }: Readonly<GroupedImageViewe
 
     async function fetchLayouts() {
       // 🧼 Limpiar las anotaciones anteriores mientras se cargan nuevas
-      setAnnotationsByPage([]); // ← Esto es lo que faltaba
+      setAnnotationsByPage([]);
 
       const layouts: BoxAnnotation[][] = await Promise.all(
         files.map(async (doc) => {

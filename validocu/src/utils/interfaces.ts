@@ -19,10 +19,10 @@ export interface DocumentGroup {
 };
 
 export interface GroupedDocument {
-    name: string;
-    files: Document[];
-    representative: Document;
-};
+  name: string;
+  images: Document[];
+  pdf?: Document;
+}
 
 export interface BoxAnnotation {
   label: string;
