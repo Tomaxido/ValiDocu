@@ -12,7 +12,12 @@ export default function GroupedImageViewer({ files }: Readonly<GroupedImageViewe
 
   // 🔍 Cargar layouts desde API
   useEffect(() => {
+    let cancelado = false;
+
     async function fetchLayouts() {
+      // 🧼 Limpiar las anotaciones anteriores mientras se cargan nuevas
+      setAnnotationsByPage([]); // ← Esto es lo que faltaba
+
       const layouts: BoxAnnotation[][] = await Promise.all(
         files.map(async (doc) => {
           try {
@@ -24,12 +29,19 @@ export default function GroupedImageViewer({ files }: Readonly<GroupedImageViewe
           }
         })
       );
-      setAnnotationsByPage(layouts);
+
+      if (!cancelado) {
+        setAnnotationsByPage(layouts);
+      }
     }
 
     if (files.length > 0) {
       fetchLayouts();
     }
+
+    return () => {
+      cancelado = true; // por si cambia rápidamente de documento
+    };
   }, [files]);
 
   // 📏 Observar cambios de tamaño de las imágenes (por zoom o responsive)
