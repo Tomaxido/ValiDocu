@@ -32,6 +32,13 @@ function groupDocuments(documents: Document[]): GroupedDocument[] {
 	}));
 }
 
+function getBaseFilename(filename: string): string {
+  const lastUnderscore = filename.lastIndexOf("_");
+  if (lastUnderscore === -1) return filename;
+  return filename.substring(0, lastUnderscore);
+}
+
+
 export default function Grupo() {
 	const { grupoId } = useParams<{ grupoId: string }>();
 	const [group, setGroup] = useState<DocumentGroup | null>(null);
@@ -153,7 +160,7 @@ export default function Grupo() {
 						</div>
 
 						<div className="doc-info">
-							<h3>{selectedDoc.filename}</h3>
+							<h3>{getBaseFilename(selectedDoc.filename)}</h3>
 							<p><strong>Estado:</strong>{" "}
 								{selectedDoc.status === 1
 									? "✅ Validado"
