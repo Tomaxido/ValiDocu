@@ -105,3 +105,9 @@
   color: black;
   font-size: 14px;
 }
+
+.modal-buttons {
+  margin-top: 15px;
+  display: flex;
+  justify-content: space-between;
+}

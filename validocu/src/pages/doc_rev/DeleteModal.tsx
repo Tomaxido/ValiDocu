@@ -10,6 +10,7 @@ interface Props {
 
 export default function DeleteModal({ isOpen, onClose, documents, onDelete }: Readonly<Props>) {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   if (!isOpen) return null;
 
@@ -21,7 +22,9 @@ export default function DeleteModal({ isOpen, onClose, documents, onDelete }: Re
 
   const handleDelete = () => {
     if (selectedIds.length > 0) {
+      setIsDeleting(true);
       onDelete(selectedIds);
+      setIsDeleting(false);
       onClose();
     }
   };
@@ -46,8 +49,8 @@ export default function DeleteModal({ isOpen, onClose, documents, onDelete }: Re
         </ul>
         <div className="modal-buttons">
           <button onClick={onClose}>Cancelar</button>
-          <button onClick={handleDelete} disabled={selectedIds.length === 0}>
-            Eliminar seleccionados
+          <button onClick={handleDelete} disabled={isDeleting || selectedIds.length === 0}>
+            { isDeleting ? "Eliminando..." : "Eliminar seleccionados" }
           </button>
         </div>
       </div>
