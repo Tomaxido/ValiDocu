@@ -8,6 +8,7 @@ interface Props {
 
 export default function UploadModal({ isOpen, onClose, onUpload }: Readonly<Props>) {
   const [fileList, setFileList] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   if (!isOpen) return null;
 
@@ -20,11 +21,13 @@ export default function UploadModal({ isOpen, onClose, onUpload }: Readonly<Prop
     setFileList((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (fileList.length === 0) return;
     const dt = new DataTransfer();
     fileList.forEach(file => dt.items.add(file));
-    onUpload(dt.files);
+    setIsUploading(true);
+    await onUpload(dt.files);
+    setIsUploading(false);
     setFileList([]);
     onClose();
   };
@@ -44,8 +47,8 @@ export default function UploadModal({ isOpen, onClose, onUpload }: Readonly<Prop
         </ul>
         <div className="modal-buttons">
           <button onClick={onClose}>Cancelar</button>
-          <button onClick={handleSubmit} disabled={fileList.length === 0}>
-            Subir {fileList.length > 0 ? `(${fileList.length})` : ""}
+          <button onClick={handleSubmit} disabled={isUploading || fileList.length === 0}>
+            { isUploading ? "Subiendo..." : "Subir" + (fileList.length > 0 ? ` (${fileList.length})` : "") }
           </button>
         </div>
       </div>

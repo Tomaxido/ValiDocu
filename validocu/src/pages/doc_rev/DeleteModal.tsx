@@ -20,10 +20,10 @@ export default function DeleteModal({ isOpen, onClose, documents, onDelete }: Re
     );
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (selectedIds.length > 0) {
       setIsDeleting(true);
-      onDelete(selectedIds);
+      await onDelete(selectedIds);
       setIsDeleting(false);
       onClose();
     }
