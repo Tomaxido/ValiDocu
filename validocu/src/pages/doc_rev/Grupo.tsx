@@ -24,14 +24,27 @@ function groupDocuments(documents: Document[]): GroupedDocument[] {
     groups[key].push(doc);
   }
 
-  return Object.entries(groups).map(([key, imgs]) => {
-    const matchingPdf = pdfs.find((pdf) => pdf.filename.toLowerCase().startsWith(key.toLowerCase()));
-    return {
-      name: key,
-      images: imgs,
-      pdf: matchingPdf,
-    };
-  });
+	return Object.entries(groups).map(([key, imgs]) => {
+		const matchingPdf = pdfs.find((pdf) => pdf.filename.toLowerCase().startsWith(key.toLowerCase()));
+		const nameWithoutExt = matchingPdf
+			? matchingPdf.filename.replace(/\.pdf$/i, "")
+			: key;
+		return {
+			name: nameWithoutExt,
+			images: imgs,
+			pdf: matchingPdf,
+		};
+	});
+}
+
+function getStatusClass(status: number | undefined): string {
+	if(status === 1){
+		return "validado";
+	}
+	else if(status === 2){
+		return "rechazado";
+	}
+	return "sin-procesar";
 }
 
 export default function Grupo() {
@@ -119,11 +132,7 @@ export default function Grupo() {
               <p><button onClick={() => setIsModalOpen(true)}>+ Añadir documento</button></p>
               {groupedDocs.map((grouped) => {
                 const statusClass =
-                  grouped.pdf?.status === 1
-                    ? "validado"
-                    : grouped.pdf?.status === 2
-                    ? "rechazado"
-                    : "sin-procesar";
+                  getStatusClass(grouped.pdf?.status)
 
                 return (
                   <li key={grouped.name} className={`doc-item ${statusClass}`}>
