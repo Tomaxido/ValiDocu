@@ -92,7 +92,10 @@ export default function GroupedImageViewer({ files }: Readonly<GroupedImageViewe
               anno.boxes.map((box, j) => {
                 const [x1, y1, x2, y2] = box;
                 const scale = scales[pageIndex] || { x: 1, y: 1 };
-                const color = labelColors[anno.label] || "rgba(255,255,0,0.4)";
+                const color = anno.label.endsWith("_E")
+                  ? "rgba(255, 0, 0, 0.4)" // rojo para campos con error
+                  : labelColors[anno.label] || "rgba(255,255,0,0.4)";
+
 
                 return (
                   <div
