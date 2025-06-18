@@ -6,12 +6,21 @@ use Illuminate\Http\Request;
 use App\Models\DocumentGroup;
 use App\Models\Document;
 use Illuminate\Support\Facades\Http;
+use App\Services\SiiService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 
 class DocumentUploadController extends Controller
 {
+
+    protected $siiService;
+
+    public function __construct(SiiService $siiService)
+    {
+        $this->siiService = $siiService;
+    }
+
     public function storeNewGroup(Request $request)
     {
         $request->validate([
@@ -83,10 +92,54 @@ class DocumentUploadController extends Controller
                 // Podís guardar respuesta si querís:
                 if ($response->successful()) {
                     // actualizar estado, guardar json path, etc.
-                    $document->update([
-                        'status' => 1,
-                        'metadata' => $response->json(), // solo si tenís columna metadata
-                    ]);
+
+                    $data = DB::table('semantic_index')
+                        ->select('id', 'json_layout')
+                        ->where('document_id', $document->id)
+                        ->first(); // ← obtiene un solo registro
+
+                    $layout = json_decode($data->json_layout, true);
+                    $modificado = false;
+
+                    foreach ($layout as &$campo) {
+                        if ($campo['label'] === 'RUT') {
+                            $limpio = strtoupper(preg_replace('/[^0-9kK]/', '', $campo['text']));
+                            $rut = substr($limpio, 0, -1);
+                            $dv = substr($limpio, -1);
+
+                            $sii = $this->checkRut($rut, $dv);
+                            // Lógica de validación del RUT chileno
+                            if ($sii->getStatusCode() == 400) {
+                                \Log::error("❌ Error al verificar RUT");
+                                $campo['label'] = 'RUT_E';
+                                $campo['text'] = $rut . '-' . $dv;
+                                $modificado = true;
+                            } else {
+                                \Log::info("RUT Correcto");
+                                $campo['text'] = $rut . '-' . $dv;
+                            }
+                        }
+                    }
+
+                    // Si se modificó, se actualiza el json en la tabla
+                    if ($modificado) {
+                        \Log::info("🔄 Actualizando json_layout para documento ID: {$document->id}");
+                        DB::table('semantic_index')
+                            ->where('document_id', $document->id)
+                            ->update([
+                                'json_layout' => json_encode($layout)
+                            ]);
+
+                        $document->update([
+                            'status' => 2, // Estado 2 para indicar que fue rechazado por campos errados.
+                            'metadata' => $response->json(), // solo si tenís columna metadata
+                        ]);
+                    } else {
+                        $document->update([
+                            'status' => 1,
+                            'metadata' => $response->json(), // solo si tenís columna metadata
+                        ]);
+                    }
                 } else {
                     \Log::error("Procesamiento falló para $newFilename", ['error' => $response->body()]);
                 }
@@ -258,5 +311,30 @@ class DocumentUploadController extends Controller
         return response()->json($data->map(function ($item) {
             return (array) $item;
         }));
+    }
+
+    public function checkRut($rut, $dv)
+    {
+        $max_intentos = 10;
+        $intentos = 0;
+        $ultimoError = null;
+
+        while ($intentos < $max_intentos) {
+            try {
+                $datos = $this->siiService->checkDte($rut, $dv);
+                return response()->json($datos, 200);
+            } catch (\Exception $e) {
+                $intentos++;
+                $ultimoError = $e; // Guarda el último error
+                \Log::error("Intento $intentos fallido: " . $e->getMessage());
+            }
+        }
+
+        // Fuera del while: si llegamos aquí, todos los intentos fallaron
+        return response()->json([
+            'code' => 400,
+            'intentos' => $intentos,
+            'message' => $ultimoError ? $ultimoError->getMessage() : 'Error desconocido.'
+        ], 400);
     }
 }
