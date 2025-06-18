@@ -40,7 +40,7 @@ class DocumentUploadController extends Controller
             //recibir el json y ver que hacer, ademas de respuesta del rut
 
             $path = $file->store('documents', 'public');
-            $group->documents()->create([
+            $document = $group->documents()->create([
                 'filename' => $file->getClientOriginalName(),
                 'filepath' => $path,
                 'mime_type' => $file->getClientMimeType(),
@@ -54,7 +54,12 @@ class DocumentUploadController extends Controller
             $images = $this->convertPdfToImages($path,$group);
 
             // Guardar imagenes en carpeta manteniendo el nombre del documento
-            $this->saveImages($images, $originalBaseName, $group);
+            $validado = $this->saveImages($images, $originalBaseName, $group);
+            if ($validado) {
+                // Cambiar status del documento a 2
+                $document->status = 2;
+                $document->save();
+            }
         }
 
         return response()->json(['message' => 'Grupo creado y documentos subidos.', 'group_id' => $group->id]);
@@ -62,6 +67,7 @@ class DocumentUploadController extends Controller
 
     public function saveImages($images, $originalBaseName, $group)
     {
+        $modificado_global = false;
         foreach ($images as $imgPath) {
             // Detectar número de página desde el nombre generado
             $pageNumber = '';
@@ -134,6 +140,7 @@ class DocumentUploadController extends Controller
                             'status' => 2, // Estado 2 para indicar que fue rechazado por campos errados.
                             'metadata' => $response->json(), // solo si tenís columna metadata
                         ]);
+                        $modificado_global = true;
                     } else {
                         $document->update([
                             'status' => 1,
@@ -148,6 +155,7 @@ class DocumentUploadController extends Controller
                 \Log::error("Error al procesar con IA", ['error' => $e->getMessage()]);
             }
         }
+        return $modificado_global;
     }
 
     public function convertPdfToImages($relativePath, $group)
@@ -223,14 +231,19 @@ class DocumentUploadController extends Controller
         foreach ($request->file('documents') as $file) {
             $path = $file->store('documents', 'public');
             $originalBaseName = $file->getClientOriginalName();
-            $group->documents()->create([
+            $document = $group->documents()->create([
                 'filename' => $originalBaseName,
                 'filepath' => $path,
                 'mime_type' => $file->getClientMimeType(),
                 'status' => 0,
             ]);
             $images = $this->convertPdfToImages($path, $group);
-            $this->saveImages($images, $originalBaseName, $group);
+            $validado = $this->saveImages($images, $originalBaseName, $group);
+            if ($validado) {
+                // Cambiar status del documento a 2
+                $document->status = 2;
+                $document->save();
+            }
         }
 
         return response()->json(['message' => 'Documentos añadidos al grupo ' . $group->name]);
