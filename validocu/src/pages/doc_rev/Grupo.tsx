@@ -5,8 +5,7 @@ import type { DocumentGroup, Document, GroupedDocument } from "../../utils/inter
 import UploadModal from "./UploadModal";
 import DeleteModal from "./DeleteModal";
 import GroupedImageViewer from "./GroupedImageViewer";
-import labelColors from "../../utils/labelColors";
-
+import DocInfoPanel from "./DocInfoPanel";
 import "./Grupo.css";
 
 
@@ -159,47 +158,8 @@ export default function Grupo() {
 							/>
 						</div>
 
-						<div className="doc-info">
-							<h3>{getBaseFilename(selectedDoc.filename)}</h3>
-							<p><strong>Estado:</strong>{" "}
-								{selectedDoc.status === 1
-									? "✅ Validado"
-									: selectedDoc.status === 2
-										? "❌ Rechazado"
-										: "🕓 Sin Revisar"}
-							</p>
-							<p><strong>Subido:</strong> {new Date(selectedDoc.created_at).toLocaleString()}</p>
+						<DocInfoPanel selectedDoc={selectedDoc} semanticGroupData={semanticGroupData} />
 
-							<h2 className="text-lg font-bold mb-2">Datos detectados por IA</h2>
-							{semanticGroupData.map((item, i) => (
-								<div key={i} className="mb-4 border-b pb-2">
-									<p className="font-semibold text-sm mb-1">
-										Página: {item.filename.match(/_p(\d+)\./)?.[1] || "¿?"}
-									</p>
-									<pre className="text-xs whitespace-pre-wrap">
-										<div className="text-xs whitespace-pre-wrap space-y-1">
-										{(() => {
-											try {
-												const layout = JSON.parse(item.json_layout);
-												return layout.map((campo: any, i: number) => {
-												const color = labelColors[campo.label] || "rgba(200, 200, 200, 0.4)";
-
-												return (
-													<div key={i} className="text-info-block">
-													<span className="color-box" style={{ backgroundColor: color }} />
-													<strong>{campo.label}:</strong>&nbsp;{campo.text}
-													</div>
-												);
-												});
-											} catch (e) {
-												return <p className="text-red-500">⚠️ Error al procesar datos IA</p>;
-											}
-											})()}
-										</div>
-									</pre>
-								</div>
-							))}
-						</div>
 					</div>
 				) : (
 					<p>Selecciona un documento para ver su contenido.</p>
