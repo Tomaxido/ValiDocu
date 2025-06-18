@@ -50,12 +50,12 @@ export default function Grupo() {
 	const [semanticGroupData, setSemanticGroupData] = useState<any[]>([]);
 
 	const fetchSemanticGroupData = async (groupFiles: Document[]) => {
-	const filenames = groupFiles.map(doc => doc.filename);
+	const ids = groupFiles.map(doc => doc.id);
 
 	const res = await fetch(`http://localhost:8000/api/v1/semantic-data/by-filenames`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ filenames })
+		body: JSON.stringify({ ids })
 	});
 
 	const data = await res.json();

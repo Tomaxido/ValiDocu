@@ -291,18 +291,18 @@ class DocumentUploadController extends Controller
     public function getSemanticDataByFilenames(Request $request)
     {
         // 1. Log de lo que llega
-        $filenames = $request->input('filenames');
-        Log::info('📥 Filenames recibidos en API:', $filenames);
+        $ids = $request->input('ids');
+        Log::info('📥 Ids recibidos en API:', $ids);
 
-        if (!is_array($filenames)) {
-            Log::warning('⚠️ El parámetro "filenames" no es un array:', ['filenames' => $filenames]);
+        if (!is_array($ids)) {
+            Log::warning('⚠️ El parámetro "ids" no es un array:', ['ids' => $ids]);
             return response()->json(['error' => 'Se esperaba un array de nombres de archivo.'], 400);
         }
 
         // 2. Log del query generado
         $data = DB::table('semantic_index')
             ->join('documents', 'semantic_index.document_id', '=', 'documents.id')
-            ->whereIn('documents.filename', $filenames)
+            ->whereIn('documents.id', $ids)
             ->select('documents.filename', 'semantic_index.json_layout')
             ->get();
 
