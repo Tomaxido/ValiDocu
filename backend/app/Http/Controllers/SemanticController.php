@@ -24,15 +24,19 @@ class SemanticController extends Controller
 
         // Use parameter binding for safer queries
         $resultados = DB::select("
-            SELECT si.id, si.resumen, si.archivo, si.document_id, si.document_group_id,
-            d.filename AS document_name, g.name AS group_name,
-            1 - (si.embedding <=> ?::vector) as score
-            FROM semantic_index si
-            LEFT JOIN documents d ON d.id = si.document_id
-            LEFT JOIN document_groups g ON g.id = si.document_group_id
-            ORDER BY si.embedding <=> ?::vector
+            SELECT * FROM (
+                SELECT 
+                    si.id, si.resumen, si.archivo, si.document_id, si.document_group_id,
+                    d.filename AS document_name, g.name AS group_name,
+                    1 - (si.embedding <=> ?::vector) as score
+                FROM semantic_index si
+                LEFT JOIN documents d ON d.id = si.document_id
+                LEFT JOIN document_groups g ON g.id = si.document_group_id
+            ) AS sub
+            WHERE score >= 0.4
+            ORDER BY score DESC
             LIMIT 10;
-        ", [$embeddingStr, $embeddingStr]);
+        ", [$embeddingStr]);
 
         return response()->json($resultados);
     }

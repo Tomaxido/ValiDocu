@@ -51,8 +51,8 @@ export default function GroupedImageViewer({ files }: Readonly<GroupedImageViewe
 
     files.forEach((_, i) => {
       const img = imgRefs.current[i];
-      if (img?.naturalWidth && img?.naturalHeight) {
-        const observer = new ResizeObserver(() => {
+      if (img) {
+        const handleLoad = () => {
           setScales((prev) => {
             const next = [...prev];
             next[i] = {
@@ -61,11 +61,29 @@ export default function GroupedImageViewer({ files }: Readonly<GroupedImageViewe
             };
             return next;
           });
-        });
 
-        observer.observe(img);
-        observers.current.push(observer);
+          const observer = new ResizeObserver(() => {
+            setScales((prev) => {
+              const next = [...prev];
+              next[i] = {
+                x: img.clientWidth / img.naturalWidth,
+                y: img.clientHeight / img.naturalHeight,
+              };
+              return next;
+            });
+          });
+
+          observer.observe(img);
+          observers.current.push(observer);
+        };
+
+        if (img.complete) {
+          handleLoad();
+        } else {
+          img.onload = handleLoad;
+        }
       }
+
     });
 
     return () => {

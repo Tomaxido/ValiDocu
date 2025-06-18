@@ -2,9 +2,8 @@ import './Home.css';
 import { useNavigate } from 'react-router-dom';
 import { FolderIcon, PlusIcon, Search, Settings2 } from 'lucide-react';
 import { useEffect, useState } from "react";
-import { createGroup, getDocumentGroups } from "../../utils/api";
+import { createGroup, getDocumentGroups, buscarDocumentosPorTexto } from "../../utils/api";
 import type { DocumentGroup } from "../../utils/interfaces";
-import { buscarDocumentosPorTexto } from "../../utils/api";
 
 import NewGroupModal from './NewGroupModal';
 
@@ -14,6 +13,8 @@ export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [resultados, setResultados] = useState<any[]>([]);
+  const [buscando, setBuscando] = useState(false);
+  const [busquedaRealizada, setBusquedaRealizada] = useState(false); // 👈 NUEVO
 
   useEffect(() => {
     const fun = async () => {
@@ -25,14 +26,20 @@ export default function Home() {
   const buscar = async () => {
     if (!query.trim()) {
       setResultados([]);
+      setBusquedaRealizada(false); // 👈 si el texto está vacío, no hay búsqueda real
       return;
     }
+
+    setBuscando(true);
+    setBusquedaRealizada(true); // 👈 Se marca como búsqueda ejecutada
 
     try {
       const data = await buscarDocumentosPorTexto(query);
       setResultados(data);
     } catch (err: any) {
       alert("Error al buscar: " + err.message);
+    } finally {
+      setBuscando(false);
     }
   };
 
@@ -50,7 +57,7 @@ export default function Home() {
   return (
     <div className="home-container">
       <header className="home-header">
-        <h1>Unidad de: TEST</h1>
+        <h1>Unidad de PMV</h1>
         <button className="icon-btn"><Settings2 size={20} /></button>
       </header>
 
@@ -76,25 +83,46 @@ export default function Home() {
         onUpload={handleFileUpload}
       />
 
-      {/* Resultados IA */}
-      {resultados.length > 0 && (
-        <div className="search-results">
-          <h2>Resultados:</h2>
-          <ul className="result-list">
-            {resultados.map((res, idx) => (
-              <li key={idx} className="result-item">
-                <button
-                  className="result-link"
-                  onClick={() => navigate(`/grupos/${res.document_group_id}/documentos/${res.document_id}`)}
-                >
-                  📂 {res.group_name} — 📄 {res.document_name}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
+      {/* Indicador de búsqueda */}
+      {buscando && <p style={{ marginLeft: '1rem' }}>🔎 Buscando...</p>}
+
+      {/* Sin resultados SOLO si se hizo búsqueda */}
+      {!buscando && busquedaRealizada && resultados.length === 0 && (
+        <p style={{ marginLeft: '1rem' }}>❌ No existen resultados</p>
       )}
 
+      {/* Resultados IA en tabla clickeable */}
+      {resultados.length > 0 && (
+        <div className="search-results">
+          <h2>🔍 Resultados encontrados:</h2>
+          <div className="table-container">
+            <table className="result-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>📂 Grupo</th>
+                  <th>📄 Documento</th>
+                  <th>🎯 Score</th>
+                </tr>
+              </thead>
+              <tbody>
+                {resultados.map((res, idx) => (
+                  <tr
+                    key={idx}
+                    className="clickable-row"
+                    onClick={() => navigate(`/grupos/${res.document_group_id}`)}
+                  >
+                    <td>{idx + 1}</td>
+                    <td>{res.group_name}</td>
+                    <td>{res.document_name}</td>
+                    <td>{(res.score * 100).toFixed(2)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
       {/* Grupos visibles si no hay búsqueda activa o si coincide con el nombre */}
       <div className="folder-grid">
         {documentGroups
