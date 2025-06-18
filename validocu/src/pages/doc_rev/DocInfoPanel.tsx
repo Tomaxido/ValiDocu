@@ -7,19 +7,18 @@ interface Props {
 }
 
 function getBaseFilename(filename: string): string {
-  const lastUnderscore = filename.lastIndexOf("_");
+  const lastUnderscore = filename.lastIndexOf(".");
   if (lastUnderscore === -1) return filename;
   return filename.substring(0, lastUnderscore);
 }
 
 function getDocumentStatus(docStatus: number): string {
-    if(docStatus === 1){
-        return "✅ Validado";
-    }
-    else if(docStatus === 2){
-        return "❌ Rechazado";
-    }
-    return "🕓 Sin Revisar";
+  if (docStatus === 1) {
+    return "✅ Validado";
+  } else if (docStatus === 2) {
+    return "❌ Rechazado";
+  }
+  return "🕓 Sin Revisar";
 }
 
 export default function DocInfoPanel({ selectedDoc, semanticGroupData }: Readonly<Props>) {
@@ -27,8 +26,7 @@ export default function DocInfoPanel({ selectedDoc, semanticGroupData }: Readonl
     <div className="doc-info">
       <h3>{getBaseFilename(selectedDoc.filename)}</h3>
       <p>
-        <strong>Estado:</strong>{" "}
-        {getDocumentStatus(selectedDoc.status)}
+        <strong>Estado:</strong> {getDocumentStatus(selectedDoc.status)}
       </p>
       <p>
         <strong>Subido:</strong> {new Date(selectedDoc.created_at).toLocaleString()}
@@ -46,15 +44,19 @@ export default function DocInfoPanel({ selectedDoc, semanticGroupData }: Readonl
                 try {
                   const layout = JSON.parse(item.json_layout);
                   return layout.map((campo: any, i: number) => {
-                    const label = campo.label;
-                    const color = label.endsWith("_E")
+                    const isError = campo.label.endsWith("_E");
+                    const rawLabel = campo.label.replace(/_E$/, "");
+                    const displayLabel = rawLabel.replace(/_/g, " ");
+                    const color = isError
                       ? "rgba(255, 0, 0, 0.4)"
-                      : labelColors[label] || "rgba(200, 200, 200, 0.4)";
+                      : labelColors[campo.label] || "rgba(200, 200, 200, 0.4)";
 
                     return (
                       <div key={i} className="text-info-block">
                         <span className="color-box" style={{ backgroundColor: color }} />
-                        <strong>{campo.label}:</strong>&nbsp;{campo.text}
+                        <strong>{displayLabel}:</strong>&nbsp;
+                        {campo.text}
+                        {isError && <span className="text-red-600"> (inválido)</span>}.
                       </div>
                     );
                   });
