@@ -87,6 +87,7 @@
   border: 1px solid #ddd;
   border-radius: 8px;
   height: fit-content;
+  max-width: 50%;
 }
 
 
