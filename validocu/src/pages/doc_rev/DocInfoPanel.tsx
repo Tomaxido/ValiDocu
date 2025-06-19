@@ -14,9 +14,9 @@ function getBaseFilename(filename: string): string {
 
 function getDocumentStatus(docStatus: number): string {
   if (docStatus === 1) {
-    return "✅ Validado";
+    return "✅ Conforme";
   } else if (docStatus === 2) {
-    return "❌ Rechazado";
+    return "❌ Inconforme";
   }
   return "🕓 Sin Revisar";
 }

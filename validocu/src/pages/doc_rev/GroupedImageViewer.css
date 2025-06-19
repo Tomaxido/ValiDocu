@@ -21,6 +21,7 @@
   box-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
 }
 
+
 .highlight-layer {
   position: absolute;
   top: 0;
@@ -34,4 +35,18 @@
   position: absolute;
   background-color: rgba(255, 255, 0, 0.4);
   border-radius: 2px;
+}
+
+.download-button {
+  padding: 6px 12px;
+  background-color: #4a90e2;
+  color: white;
+  font-weight: bold;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.download-button:hover {
+  background-color: #357bd8;
 }

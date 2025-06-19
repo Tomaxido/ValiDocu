@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { baseURL, buscarJsonLayoutPorIdDocumento } from "../../utils/api";
 import type { BoxAnnotation, GroupedImageViewerProps } from "../../utils/interfaces";
 import labelColors from "../../utils/labelColors.ts";
+import jsPDF from "jspdf";
 import "./GroupedImageViewer.css";
 
 export default function GroupedImageViewer({ files }: Readonly<GroupedImageViewerProps>) {
@@ -91,10 +92,64 @@ export default function GroupedImageViewer({ files }: Readonly<GroupedImageViewe
     };
   }, [files]);
 
+  async function exportToPdf() {
+    const pdf = new jsPDF();
+
+    for (let pageIndex = 0; pageIndex < files.length; pageIndex++) {
+      const file = files[pageIndex];
+      const filename = file.filepath.split("/").pop();
+      const imageUrl = `${baseURL}/secure-pdf/${filename}`;
+
+      try {
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        const bitmap = await createImageBitmap(blob);
+
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        if (!ctx) continue;
+
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+
+        // 1. Dibuja la imagen
+        ctx.drawImage(bitmap, 0, 0);
+
+        // 2. Dibuja las marcas encima
+        const annotations = annotationsByPage[pageIndex] || [];
+        for (const anno of annotations) {
+          const color = anno.label.endsWith("_E")
+            ? "rgba(255, 0, 0, 0.4)"
+            : labelColors[anno.label] || "rgba(255,255,0,0.4)";
+          ctx.fillStyle = color;
+          for (const [x1, y1, x2, y2] of anno.boxes) {
+            ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+          }
+        }
+
+        // 3. Exporta canvas como imagen para PDF
+        const imgData = canvas.toDataURL("image/jpeg", 1.0);
+        const width = pdf.internal.pageSize.getWidth();
+        const height = (canvas.height * width) / canvas.width;
+
+        if (pageIndex > 0) pdf.addPage();
+        pdf.addImage(imgData, "JPEG", 0, 0, width, height);
+      } catch (err) {
+        console.error(`No se pudo exportar la imagen ${filename}`, err);
+      }
+    }
+
+    pdf.save("imagenes_con_marcas.pdf");
+  }
+
+
   if (files.length === 0) return <p>No hay imágenes para mostrar.</p>;
 
   return (
+    <>
+    <button onClick={exportToPdf} className="download-button">Descargar como PDF</button>
     <div className="image-viewer-container">
+
       {files.map((doc, pageIndex) => (
         <div key={doc.id} className="image-wrapper">
           <img
@@ -135,5 +190,6 @@ export default function GroupedImageViewer({ files }: Readonly<GroupedImageViewe
         </div>
       ))}
     </div>
+    </>
   );
 }
