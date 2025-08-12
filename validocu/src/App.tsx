@@ -1,13 +1,17 @@
-import PDFViewer from './components/PDFViewer';
+import { Routes, Route } from 'react-router-dom';
+import MainLayout from './layouts/MainLayout';
+
+import Home from './pages/main/Home';
+import Grupo from './pages/doc_rev/Grupo';
 
 function App() {
   return (
-    <div>
-      <h1>Visor de PDF en React</h1>
-      <PDFViewer url="/certificado_exento.pdf" />
-      {/* O también puedes usar una URL externa */}
-      {/* <PDFViewer url="https://example.com/document.pdf" /> */}
-    </div>
+    <MainLayout>
+      <Routes>
+        <Route path="/" element={<Home />} />
+          <Route path="/grupos/:grupoId" element={<Grupo />} />
+      </Routes>
+    </MainLayout>
   );
 }
 

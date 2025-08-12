@@ -1,0 +1,15 @@
+# Ignorar resultados generados
+outputs/
+!outputs/.gitkeep  # si querís mantener la carpeta vacía en el repo
+
+# Ignorar caché de Python
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+
+# Ignorar archivos temporales y del sistema
+*.log
+*.tmp
+*.swp
+.DS_Store
