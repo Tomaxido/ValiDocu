@@ -6,7 +6,7 @@ import type { DocumentGroup } from "./interfaces";
 // }
 
 // TODO: arreglar
-export const baseURL = "http://localhost:8000";
+export const baseURL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
 
 
 async function getJSON(url: string): Promise<any> {
@@ -61,3 +61,28 @@ export async function deleteDocuments(ids: number[]): Promise<void> {
   }
 }
 
+export async function buscarDocumentosPorTexto(texto: string): Promise<any[]> {
+  const res = await fetch(`${baseURL}/api/v1/buscar-similar`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ texto }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData?.message || "Error al buscar documentos");
+  }
+
+  return await res.json();
+}
+
+export async function buscarJsonLayoutPorIdDocumento(id: number): Promise<any> {
+  const res = await fetch(`${baseURL}/api/v1/documents/${id}/layout`);
+
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData?.message || "Error al buscar documentos");
+  }
+
+  return await res.json();
+}

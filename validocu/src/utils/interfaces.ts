@@ -17,3 +17,19 @@ export interface DocumentGroup {
     updated_at: string;
     documents: Document[];
 };
+
+export interface GroupedDocument {
+  name: string;
+  images: Document[];
+  pdf?: Document;
+}
+
+export interface BoxAnnotation {
+  label: string;
+  text: string;
+  boxes: number[][];
+}
+
+export interface GroupedImageViewerProps {
+  files: Document[];
+}

@@ -9,6 +9,7 @@ interface Props {
 export default function NewGroupModal({ isOpen, onClose, onUpload }: Readonly<Props>) {
   const [groupName, setGroupName] = useState("");
   const [fileList, setFileList] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   if (!isOpen) return null;
   
@@ -25,7 +26,9 @@ export default function NewGroupModal({ isOpen, onClose, onUpload }: Readonly<Pr
     if (!groupName || fileList.length === 0) return;
     const dt = new DataTransfer();
     fileList.forEach(file => dt.items.add(file));
+    setIsUploading(true);
     await onUpload(groupName, dt.files);
+    setIsUploading(false);
     setFileList([]);
     onClose();
   };
@@ -48,7 +51,9 @@ export default function NewGroupModal({ isOpen, onClose, onUpload }: Readonly<Pr
         </ul>
         <div className="modal-buttons">
           <button onClick={onClose}>Cancelar</button>
-          <button onClick={handleSubmit} disabled={fileList.length === 0}>Subir</button>
+          <button onClick={handleSubmit} disabled={isUploading || fileList.length === 0}>
+            { isUploading ? "Subiendo..." : "Subir" }
+          </button>
         </div>
       </div>
     </div>
