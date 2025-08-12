@@ -3,10 +3,7 @@
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
+  color: #000;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -22,12 +19,14 @@ a:hover {
   color: #535bf2;
 }
 
-body {
+body, #root {
   margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
+  padding: 0;
+  width: 100vw;
   min-height: 100vh;
+  overflow-x: hidden; /* <- importantísimo */
+  display: flex;
+  flex-direction: column;
 }
 
 h1 {
@@ -42,16 +41,15 @@ button {
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
+  background-color: #868383;
   transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
 }
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
+}
+button:enabled {
+  cursor: pointer;
 }
 
 @media (prefers-color-scheme: light) {

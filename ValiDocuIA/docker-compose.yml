@@ -1,0 +1,15 @@
+version: '3.9'
+
+services:
+  ia-api:
+    container_name: ia-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5050:5050"
+    volumes:
+      - ./app:/app/app
+      - ./outputs:/app/outputs
+      - ./outputs/modelo_multiclase:/app/modelo_multiclase
+    command: uvicorn app.main:app --host 0.0.0.0 --port 5050 --reload
