@@ -1,4 +1,9 @@
 import { useState } from "react";
+import {
+  Dialog, DialogTitle, DialogContent, DialogActions,
+  TextField, Button, List, ListItem, ListItemText, IconButton
+} from "@mui/material";
+import { X } from "lucide-react";
 
 interface Props {
   isOpen: boolean;
@@ -11,51 +16,76 @@ export default function NewGroupModal({ isOpen, onClose, onUpload }: Readonly<Pr
   const [fileList, setFileList] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
-  if (!isOpen) return null;
-  
   const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    setFileList((prev) => [...prev, ...files]);
+    setFileList(prev => [...prev, ...files]);
   };
 
   const removeFile = (index: number) => {
-    setFileList((prev) => prev.filter((_, i) => i !== index));
+    setFileList(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async () => {
     if (!groupName || fileList.length === 0) return;
     const dt = new DataTransfer();
-    fileList.forEach(file => dt.items.add(file));
+    fileList.forEach(f => dt.items.add(f));
     setIsUploading(true);
     await onUpload(groupName, dt.files);
     setIsUploading(false);
     setFileList([]);
+    setGroupName("");
     onClose();
   };
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal">
-        <h2>Nuevo grupo</h2>
-        <label>
-          Nombre <input type="text" onChange={e => setGroupName(e.target.value)} className="modal-input" />
-        </label>
-        <input type="file" multiple onChange={handleFiles} />
-        <ul>
+    <Dialog open={isOpen} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>Nuevo grupo</DialogTitle>
+      <DialogContent dividers>
+        <TextField
+          label="Nombre"
+          fullWidth
+          size="small"
+          value={groupName}
+          onChange={(e) => setGroupName(e.target.value)}
+          sx={{ mt: 1 }}
+        />
+
+        <Button
+          variant="outlined"
+          component="label"
+          sx={{ mt: 2 }}
+        >
+          Seleccionar archivos
+          <input hidden type="file" multiple onChange={handleFiles} />
+        </Button>
+
+        <List dense sx={{ mt: 1 }}>
           {fileList.map((file, i) => (
-            <li key={file.name}>
-              {file.name}
-              <button onClick={() => removeFile(i)} style={{ marginLeft: "8px" }}>❌</button>
-            </li>
+            <ListItem
+              key={`${file.name}-${i}`}
+              secondaryAction={
+                <IconButton edge="end" onClick={() => removeFile(i)} aria-label="quitar">
+                  <X size={16} />
+                </IconButton>
+              }
+            >
+              <ListItemText primary={file.name} />
+            </ListItem>
           ))}
-        </ul>
-        <div className="modal-buttons">
-          <button onClick={onClose}>Cancelar</button>
-          <button onClick={handleSubmit} disabled={isUploading || fileList.length === 0}>
-            { isUploading ? "Subiendo..." : "Subir" }
-          </button>
-        </div>
-      </div>
-    </div>
+        </List>
+      </DialogContent>
+
+      <DialogActions>
+        <Button onClick={onClose}>Cancelar</Button>
+        <Button
+          onClick={handleSubmit}
+          disabled={isUploading || fileList.length === 0 || !groupName}
+          variant="contained"
+          color="primary"
+        >
+          {isUploading ? "Subiendo..." : "Subir"}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
