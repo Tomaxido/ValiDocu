@@ -6,45 +6,36 @@ import UploadModal from "./UploadModal";
 import DeleteModal from "./DeleteModal";
 import GroupedImageViewer from "./GroupedImageViewer";
 import DocInfoPanel from "./DocInfoPanel";
-import "./Grupo.css";
+
+import {
+  Box, Paper, Button, Typography, List, ListItemButton,
+  ListItemText, Chip, Stack, IconButton, Divider
+} from "@mui/material";
+import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
 
 function groupDocuments(documents: Document[]): GroupedDocument[] {
   const pdfs = documents.filter((doc) => doc.filename.toLowerCase().endsWith(".pdf"));
   const images = documents.filter((doc) => !doc.filename.toLowerCase().endsWith(".pdf"));
 
   const groups: { [key: string]: Document[] } = {};
-
   for (const doc of images) {
     const match = /^(.+?)_p\d+\.(png|jpg|jpeg)$/i.exec(doc.filename);
     const key = match ? match[1] : doc.filename;
-
-    if (!groups[key]) {
-      groups[key] = [];
-    }
+    if (!groups[key]) groups[key] = [];
     groups[key].push(doc);
   }
 
-	return Object.entries(groups).map(([key, imgs]) => {
-		const matchingPdf = pdfs.find((pdf) => pdf.filename.toLowerCase().startsWith(key.toLowerCase()));
-		const nameWithoutExt = matchingPdf
-			? matchingPdf.filename.replace(/\.pdf$/i, "")
-			: key;
-		return {
-			name: nameWithoutExt,
-			images: imgs,
-			pdf: matchingPdf,
-		};
-	});
+  return Object.entries(groups).map(([key, imgs]) => {
+    const matchingPdf = pdfs.find((pdf) => pdf.filename.toLowerCase().startsWith(key.toLowerCase()));
+    const nameWithoutExt = matchingPdf ? matchingPdf.filename.replace(/\.pdf$/i, "") : key;
+    return { name: nameWithoutExt, images: imgs, pdf: matchingPdf };
+  });
 }
 
-function getStatusClass(status: number | undefined): string {
-	if(status === 1){
-		return "validado";
-	}
-	else if(status === 2){
-		return "rechazado";
-	}
-	return "sin-procesar";
+function statusChip(status?: number) {
+  if (status === 1) return <Chip label="Conforme" color="success" size="small" />;
+  if (status === 2) return <Chip label="Inconforme" color="error" size="small" />;
+  return <Chip label="Sin procesar" variant="outlined" size="small" />;
 }
 
 export default function Grupo() {
@@ -59,13 +50,11 @@ export default function Grupo() {
 
   const fetchSemanticGroupData = async (groupFiles: Document[]) => {
     const ids = groupFiles.map(doc => doc.id);
-
     const res = await fetch(`http://localhost:8000/api/v1/semantic-data/by-filenames`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ids })
     });
-
     const data = await res.json();
     setSemanticGroupData(data);
   };
@@ -73,7 +62,6 @@ export default function Grupo() {
   useEffect(() => {
     if (grupoId) {
       getDocumentGroupById(grupoId).then((g) => {
-        console.log("Archivos recibidos:", g);
         setGroup(g);
         const grouped = groupDocuments(g.documents);
         setGroupedDocs(grouped);
@@ -85,7 +73,7 @@ export default function Grupo() {
     }
   }, [grupoId]);
 
-  if (!group) return <p>Cargando grupo...</p>;
+  if (!group) return <Typography sx={{ p: 2 }}>Cargando grupo...</Typography>;
 
   const handleFileUpload = async (files: FileList) => {
     if (!grupoId) return;
@@ -118,61 +106,108 @@ export default function Grupo() {
   };
 
   return (
-    <div className="grupo-layout">
-      <aside className={`grupo-sidebar ${sidebarOpen ? "open" : "collapsed"}`}>
-        <button className="toggle-sidebar" onClick={() => setSidebarOpen(!sidebarOpen)}>
-          {sidebarOpen ? "◀" : "▶"}
-        </button>
+    <Box sx={{ display: "flex", minHeight: "100dvh", bgcolor: "background.default" }}>
+      {/* Sidebar */}
+      <Paper
+        elevation={0}
+        sx={{
+          position: "relative",
+          bgcolor: "grey.100",
+          borderRight: 1,
+          borderColor: "divider",
+          transition: "width .3s ease",
+          width: sidebarOpen ? 300 : 56,
+          minWidth: sidebarOpen ? 300 : 56,
+          p: sidebarOpen ? 2 : 1,
+          overflowY: "auto",
+        }}
+      >
+        <IconButton
+          size="small"
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          sx={{ position: "absolute", top: 8, right: 8 }}
+        >
+          {sidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+        </IconButton>
+
         {sidebarOpen && (
           <>
-            <br />
-            <h3>Grupo: {group.name}</h3>
-            <h3>Listado de Documentos</h3>
-            <ul>
-              <p><button onClick={() => setIsModalOpen(true)}>+ Añadir documento</button></p>
-              {groupedDocs.map((grouped) => {
-                const statusClass =
-                  getStatusClass(grouped.pdf?.status)
+            <Typography variant="h6" fontWeight={700}>Grupo: {group.name}</Typography>
+            <Stack direction="row" spacing={1} sx={{ mt: 1, mb: 2 }}>
+              <Button
+                variant="contained"
+                color="warning"
+                startIcon={<Plus size={18} />}
+                onClick={() => setIsModalOpen(true)}
+              >
+                Añadir documento
+              </Button>
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<Trash2 size={18} />}
+                onClick={() => setDeleteModalOpen(true)}
+              >
+                Eliminar
+              </Button>
+            </Stack>
 
+            <Divider sx={{ mb: 1 }} />
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>Listado de documentos</Typography>
+
+            <List dense disablePadding>
+              {groupedDocs.map((grouped) => {
+                const active = selectedDoc?.id === grouped.pdf?.id;
                 return (
-                  <li key={grouped.name} className={`doc-item ${statusClass}`}>
-                    <button
-                      onClick={() => {
-                        if (grouped.pdf) {
-                          setSelectedDoc(grouped.pdf);
-                          fetchSemanticGroupData(grouped.images);
-                        }
-                      }}
-                      className={selectedDoc?.id === grouped.pdf?.id ? "active" : ""}
-                    >
-                      {grouped.name}
-                    </button>
-                  </li>
+                  <ListItemButton
+                    key={grouped.name}
+                    selected={active}
+                    onClick={() => {
+                      if (grouped.pdf) {
+                        setSelectedDoc(grouped.pdf);
+                        fetchSemanticGroupData(grouped.images);
+                      }
+                    }}
+                    sx={{
+                      mb: .5, border: 1, borderColor: active ? "secondary.main" : "divider",
+                      borderRadius: 1,
+                    }}
+                  >
+                    <ListItemText
+                      primary={
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Typography variant="body2" fontWeight={700}>{grouped.name}</Typography>
+                          {statusChip(grouped.pdf?.status)}
+                        </Stack>
+                      }
+                    />
+                  </ListItemButton>
                 );
               })}
-            </ul>
-            <p>
-              <button onClick={() => setDeleteModalOpen(true)}>🗑 Eliminar documentos</button>
-            </p>
+            </List>
           </>
         )}
-      </aside>
+      </Paper>
 
-      <div className="grupo-content">
+      {/* Content */}
+      <Box sx={{ flex: 1, p: 3 }}>
         {selectedDoc ? (
-          <div className="viewer-grid">
-            <div className="pdf-viewer">
+          <Box sx={{ display: "flex", gap: 3 }}>
+            <Box sx={{ flex: 2, minWidth: 0 }}>
               <GroupedImageViewer
                 files={groupedDocs.find(g => g.pdf?.id === selectedDoc.id)?.images || [selectedDoc]}
               />
-            </div>
-            <DocInfoPanel selectedDoc={selectedDoc} semanticGroupData={semanticGroupData} />
-          </div>
+            </Box>
+            <Box sx={{ flex: 1, minWidth: 280 }}>
+              <DocInfoPanel selectedDoc={selectedDoc} semanticGroupData={semanticGroupData} />
+            </Box>
+          </Box>
         ) : (
-          <p>Selecciona un documento para ver su contenido.</p>
+          <Typography>Selecciona un documento para ver su contenido.</Typography>
         )}
-      </div>
+      </Box>
 
+      {/* Modales */}
       <UploadModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -184,6 +219,6 @@ export default function Grupo() {
         documents={group.documents}
         onDelete={handleDeleteDocuments}
       />
-    </div>
+    </Box>
   );
 }
