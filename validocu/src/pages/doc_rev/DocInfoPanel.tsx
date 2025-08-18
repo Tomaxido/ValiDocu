@@ -1,8 +1,6 @@
 import labelColors from "../../utils/labelColors";
 import type { Document } from "../../utils/interfaces";
-import {
-  Paper, Typography, Stack, Box, Chip, Alert
-} from "@mui/material";
+import { Paper, Typography, Stack, Box, Chip, Alert } from "@mui/material";
 
 interface Props {
   selectedDoc: Document;
@@ -22,30 +20,43 @@ function StatusChip({ status }: { status: number }) {
 
 export default function DocInfoPanel({ selectedDoc, semanticGroupData }: Readonly<Props>) {
   return (
-    <Paper variant="outlined" sx={{ p: 2, borderColor: "divider", maxWidth: 480 }}>
-      <Typography variant="h6" fontWeight={700} gutterBottom>
+    <Paper
+      variant="outlined"
+      sx={{
+        p: 2,
+        borderColor: "divider",
+        width: "100%",       // << crece a lo ancho
+        height: "100%",      // << ocupa todo el alto del contenedor
+        display: "flex",
+        flexDirection: "column",
+        gap: 1,
+        overflow: "hidden",  // << contenido scroll adentro
+      }}
+    >
+      <Typography variant="h6" fontWeight={700}>
         {getBaseFilename(selectedDoc.filename)}
       </Typography>
 
-      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+      <Stack direction="row" spacing={1} alignItems="center">
         <Typography variant="body2" color="text.secondary">Estado:</Typography>
         <StatusChip status={selectedDoc.status ?? 0} />
       </Stack>
 
-      <Typography variant="body2" sx={{ mb: 2 }}>
+      <Typography variant="body2">
         <strong>Subido:</strong> {new Date(selectedDoc.created_at).toLocaleString()}
       </Typography>
 
-      <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1 }}>
+      <Typography variant="subtitle1" fontWeight={700} sx={{ mt: 1 }}>
         Datos detectados por IA
       </Typography>
 
-      <Stack spacing={2}>
+      {/* Zona scrollable que crece con el espacio disponible */}
+      <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", pr: 1 }}>
         {semanticGroupData.map((item, i) => {
           try {
             const layout = JSON.parse(item.json_layout);
             return (
-              <Box key={i} sx={{ pb: 1, borderBottom: 1, borderColor: "divider" }}>
+              <Box key={i} sx={{ pb: 1, mb: 1, borderBottom: 1, borderColor: "divider" }}>
                 <Typography variant="caption" sx={{ display: "block", mb: 1 }}>
                   Página: {item.filename.match(/_p(\d+)\./)?.[1] || "¿?"}
                 </Typography>
@@ -76,7 +87,7 @@ export default function DocInfoPanel({ selectedDoc, semanticGroupData }: Readonl
             return <Alert key={i} severity="warning">⚠️ Error al procesar datos IA</Alert>;
           }
         })}
-      </Stack>
+      </Box>
     </Paper>
   );
 }
