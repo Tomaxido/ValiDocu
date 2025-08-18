@@ -109,7 +109,7 @@ export default function Grupo() {
     window.addEventListener("mouseup", up);
   };
 
-  const onTouchStart = (e: React.TouchEvent) => {
+  const onTouchStart = () => {
     const move = (ev: TouchEvent) => {
       const t = ev.touches[0];
       if (t) beginDrag(t.clientX);
