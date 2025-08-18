@@ -109,7 +109,7 @@ export default function GroupedImageViewer({ files }: Readonly<GroupedImageViewe
         console.error(`No se pudo exportar la imagen ${filename}`, err);
       }
     }
-    pdf.save("imagenes_con_marcas.pdf");
+    pdf.save("documento_con_marcas.pdf");
   }
 
   if (files.length === 0) return <Box>No hay imágenes para mostrar.</Box>;
