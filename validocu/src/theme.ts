@@ -28,24 +28,24 @@ export const theme = createTheme({
 
   components: {
     MuiCssBaseline: {
-  styleOverrides: {
-    // Evita que MUI agregue padding-right al abrir modales
-    body: { paddingRight: '0 !important' },
+      styleOverrides: {
+        // Evita que MUI agregue padding-right al abrir modales
+        body: { paddingRight: '0 !important' },
 
-    // 🔒 Ocultar scrollbars en todos los contenedores (mantiene el scroll funcional)
-    '*': {
-      scrollbarWidth: 'none',       // Firefox
-      msOverflowStyle: 'none',      // IE/Edge antiguo
+        // 🔒 Ocultar scrollbars en todos los contenedores (mantiene el scroll funcional)
+        '*': {
+          scrollbarWidth: 'none',       // Firefox
+          msOverflowStyle: 'none',      // IE/Edge antiguo
+        },
+        '*::-webkit-scrollbar': {
+          width: 0,                     // WebKit (vertical)
+          // height: 0,                 // si también quieres ocultar la horizontal
+        },
     },
-    '*::-webkit-scrollbar': {
-      width: 0,                     // WebKit (vertical)
-      // height: 0,                 // si también quieres ocultar la horizontal
-    },
-  },
 },
     // AppBar con defaults globales (evita overrides extra y quita sombras)
     MuiAppBar: {
-      defaultProps: { color: 'secondary', elevation: 0 },
+      defaultProps: { elevation: 0 },
     },
 
     // Botones: sin elevación y radio consistente

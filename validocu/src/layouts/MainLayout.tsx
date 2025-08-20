@@ -1,10 +1,13 @@
 import type { ReactNode } from 'react';
 import { AppBar, Toolbar, Box, Link } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
+import { useTheme } from '@mui/material/styles';
+import BrandMark from '../graphics/ValiDocuLogo';
 
 interface Props { children: ReactNode; }
 
 export default function MainLayout({ children }: Props) {
+  const theme = useTheme();
   return (
     <Box
       sx={{
@@ -23,7 +26,7 @@ export default function MainLayout({ children }: Props) {
         sx={{
           boxShadow: 'none',
           border: 0,
-          bgcolor: 'background.secondary',
+          bgcolor: 'secondary.main',
         }}
       >
         <Toolbar sx={{ minHeight: 56, gap: 2 }}>
@@ -34,11 +37,20 @@ export default function MainLayout({ children }: Props) {
             aria-label="Ir al inicio"
             sx={{ display: 'inline-flex', alignItems: 'center' }}
           >
-            <Box
-              component="img"
-              src="/ValiDocu_logo_text.svg"
-              alt="ValiDocu"
-              sx={{ width: 130, height: 'auto', mr: 1 }}
+            <BrandMark
+              background={false}
+              bgcolor={theme.palette.primary.main}
+              width={180}
+              colors={{
+                v: theme.palette.primary.main,
+                a: theme.palette.primary.main,
+                l: theme.palette.primary.main,
+                i: theme.palette.primary.main,
+                d: theme.palette.primary.main,
+                o: theme.palette.primary.main,
+                c: theme.palette.primary.main,
+                u: theme.palette.primary.main,
+              }}
             />
           </Link>
 
