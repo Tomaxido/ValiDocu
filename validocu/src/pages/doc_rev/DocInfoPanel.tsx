@@ -23,7 +23,6 @@ function StatusChip({ status }: { status: number }) {
 }
 
 export default function DocInfoPanel({ selectedDoc, semanticGroupData }: Readonly<Props>) {
-  // Estado para análisis y sugerencias (HdU 04)
   const [analysis, setAnalysis] = useState<AnalyzeResponse | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -47,13 +46,25 @@ export default function DocInfoPanel({ selectedDoc, semanticGroupData }: Readonl
     );
   };
 
-  // Permite resaltar cajas/zonas en el visor desde este panel
+  // Click → foco persistente (con scroll)
   const focusBoxes = (page: number | null, boxes: number[][] | undefined) => {
     window.dispatchEvent(
       new CustomEvent("focus-evidence", {
-        detail: { items: [{ page, boxes: boxes ?? [] }] }, // page puede venir 1-indexada
+        detail: { items: [{ page, boxes: boxes ?? [] }], noScroll: false },
       })
     );
+  };
+
+  // Hover → resalta sin scroll
+  const hoverBoxes = (page: number | null, boxes: number[][] | undefined) => {
+    window.dispatchEvent(
+      new CustomEvent("hover-evidence", {
+        detail: { items: [{ page, boxes: boxes ?? [] }], noScroll: true },
+      })
+    );
+  };
+  const clearHover = () => {
+    window.dispatchEvent(new CustomEvent("hover-evidence", { detail: { items: [] } }));
   };
 
   return (
@@ -91,7 +102,7 @@ export default function DocInfoPanel({ selectedDoc, semanticGroupData }: Readonl
         Datos detectados por IA
       </Typography>
 
-      {/* Zona scrollable que crece con el espacio disponible */}
+      {/* Zona scrollable */}
       <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", pr: 1 }}>
         {semanticGroupData.map((item, i) => {
           try {
@@ -137,6 +148,8 @@ export default function DocInfoPanel({ selectedDoc, semanticGroupData }: Readonl
                             focusBoxes(page, campo.boxes);
                           }
                         }}
+                        onMouseEnter={() => hoverBoxes(page, campo.boxes)}
+                        onMouseLeave={clearHover}
                         title="Click para resaltar en el documento"
                       >
                         <Box sx={{ width: 14, height: 14, borderRadius: 1, bgcolor: color }} />
@@ -161,8 +174,17 @@ export default function DocInfoPanel({ selectedDoc, semanticGroupData }: Readonl
         })}
       </Box>
 
-      {/* ====== Sugerencias de corrección (HdU 04) ====== */}
-      <Box sx={{ mt: 1, border: 1, borderColor: "divider", borderRadius: 1, p: 2, bgcolor: "background.paper" }}>
+      {/* ====== Sugerencias de corrección ====== */}
+      <Box
+        sx={{
+          mt: 1,
+          border: 1,
+          borderColor: "divider",
+          borderRadius: 1,
+          p: 2,
+          bgcolor: "background.paper",
+        }}
+      >
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
           <Typography variant="subtitle1" fontWeight={700}>
             Sugerencias de corrección
