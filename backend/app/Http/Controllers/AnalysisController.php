@@ -95,12 +95,35 @@ class AnalysisController extends Controller
         ]);
     }
 
-    public function show(int $documentId, int $analysisId)
+    public function showAnalysis(int $documentId, int $analysisId)
     {
         $analysis = DocumentAnalysis::where('document_id', $documentId)->findOrFail($analysisId);
         return response()->json([
             'analysis' => $analysis,
             'issues'   => $analysis->issues()->get(),
+        ]);
+    }
+
+    public function showLastAnalysis(int $documentId)
+    {
+        $analysis = DB::table('document_analyses')
+            ->where('document_id', $documentId)
+            ->orderByDesc('created_at')
+            ->first();
+        if (!$analysis) {
+            return response()->json([
+                'message' => 'No existe análisis para este documento'
+            ], 404);
+        }
+
+        // Traer también los issues relacionados
+        $issues = DB::table('analysis_issues')
+            ->where('document_analysis_id', $analysis->id)
+            ->get();
+
+        return response()->json([
+            'analysis' => $analysis,
+            'issues'   => $issues,
         ]);
     }
 

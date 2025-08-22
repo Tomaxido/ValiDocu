@@ -4,7 +4,7 @@ import labelColors from "../../utils/labelColors";
 import type { Document } from "../../utils/interfaces";
 
 import SuggestionsPanel from "../../components/SuggestionsPanel";
-import { analyzeDocument, type AnalyzeResponse, type Issue } from "../../api/analysis";
+import { analyzeDocument, getLastDocumentAnalysis, type AnalyzeResponse, type Issue } from "../../api/analysis";
 
 interface Props {
   selectedDoc: Document;
@@ -32,7 +32,8 @@ export default function DocInfoPanel({ selectedDoc, semanticGroupData }: Readonl
     (async () => {
       setLoading(true);
       try {
-        const res = await analyzeDocument(selectedDoc.id);
+        const res = await getLastDocumentAnalysis(selectedDoc.id);
+        console.log("resultado de ultimo analisis",res);
         setAnalysis(res);
       } finally {
         setLoading(false);
@@ -44,6 +45,21 @@ export default function DocInfoPanel({ selectedDoc, semanticGroupData }: Readonl
     setAnalysis((prev) =>
       prev ? { ...prev, issues: prev.issues.map((i) => (i.id === issue.id ? issue : i)) } : prev
     );
+  };
+
+  const reAnalyze = async (documentId: number) => {
+    if (!documentId) return;
+
+    setLoading(true);
+    try {
+      const res = await analyzeDocument(documentId);
+      setAnalysis(res);
+    } catch (err) {
+      console.error("Error en reAnalyze:", err);
+      alert("Hubo un error al re-analizar el documento");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Click → foco persistente (con scroll)
@@ -193,19 +209,10 @@ export default function DocInfoPanel({ selectedDoc, semanticGroupData }: Readonl
           <Button
             size="small"
             variant="outlined"
-            onClick={async () => {
-              if (!selectedDoc?.id) return;
-              setLoading(true);
-              try {
-                const res = await analyzeDocument(selectedDoc.id);
-                setAnalysis(res);
-              } finally {
-                setLoading(false);
-              }
-            }}
+            onClick={async () => await reAnalyze(selectedDoc?.id)}
             disabled={loading}
           >
-            {loading ? "Analizando…" : "Re-analizar"}
+            {loading ? "Cargando" : "Re-analizar"}
           </Button>
         </Stack>
 

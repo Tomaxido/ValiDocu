@@ -9,7 +9,7 @@ class DocumentFieldSpecSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1) Definimos todas las keys posibles para que TODAS las filas las tengan
+        // 1) Defaults para asegurar todas las columnas
         $default = [
             'doc_type'            => null,
             'field_key'           => null,
@@ -17,33 +17,73 @@ class DocumentFieldSpecSeeder extends Seeder
             'is_required'         => true,
             'datatype'            => null,
             'regex'               => null,
-            'options'             => null, // json
+            'options'             => null,
             'suggestion_template' => null,
             'example_text'        => null,
             'created_at'          => now(),
             'updated_at'          => now(),
         ];
 
-        // 2) Tu data (OJO: la regex con barras escapadas \\)
-        $rows = [
-            ['doc_type'=>'acuerdo','field_key'=>'rut_emisor','label'=>'RUT Emisor','is_required'=>true,'datatype'=>'rut','regex'=>'^\\d{1,2}\\.?\\d{3}\\.?\\d{3}-[\\dkK]$','suggestion_template'=>'Agregar RUT del emisor con formato 12.345.678-9.'],
-            ['doc_type'=>'acuerdo','field_key'=>'rut_receptor','label'=>'RUT Receptor','is_required'=>true,'datatype'=>'rut','regex'=>'^\\d{1,2}\\.?\\d{3}\\.?\\d{3}-[\\dkK]$','suggestion_template'=>'Indicar RUT del receptor (formato válido).'],
-            ['doc_type'=>'acuerdo','field_key'=>'nombre_emisor','label'=>'Nombre Emisor','is_required'=>true,'datatype'=>'string','suggestion_template'=>'Indicar nombre completo del emisor.'],
-            ['doc_type'=>'acuerdo','field_key'=>'nombre_receptor','label'=>'Nombre Receptor','is_required'=>true,'datatype'=>'string','suggestion_template'=>'Indicar nombre completo del receptor.'],
-            ['doc_type'=>'acuerdo','field_key'=>'empresa_emisor','label'=>'Empresa Emisor','is_required'=>false,'datatype'=>'string','suggestion_template'=>'Indique razón social si corresponde.'],
-            ['doc_type'=>'acuerdo','field_key'=>'monto_total','label'=>'Monto Total (CLP)','is_required'=>true,'datatype'=>'money','suggestion_template'=>'Especifique el monto total en CLP. Ej: $1.250.000.'],
-            ['doc_type'=>'acuerdo','field_key'=>'fecha','label'=>'Fecha','is_required'=>true,'datatype'=>'date','suggestion_template'=>'Indique fecha AAAA-MM-DD.'],
-            ['doc_type'=>'acuerdo','field_key'=>'direccion','label'=>'Dirección','is_required'=>false,'datatype'=>'string','suggestion_template'=>'Indique dirección completa.'],
+        // 2) Lista de doc_types basada en tus PDFs (normalizados)
+        //    Puedes mapear TIPO_DOCUMENTO textual a uno de estos en tu servicio de normalización.
+        $DOC_TYPES = [
+            'contrato',              // genérico por si lo usas como fallback
+            'contrato_simple',
+            'formulario_contrato',
+            'acuerdo_contractual',
+            'contrato_especial',
+            'contrato_servicio',
+            'contrato_individual',
+            'contrato_numerado',
         ];
 
-        // 3) Normalizamos para que todas las filas tengan exactamente las mismas columnas
-        $rows = array_map(fn($r) => array_merge($default, $r), $rows);
+        // 3) Especificaciones base (se aplican a TODOS los doc_types)
+        //    - RUT chileno
+        $RUT_REGEX = '^\\d{1,2}\\.?\\d{3}\\.?\\d{3}-[\\dkK]$';
+        //    - Fecha DD-MM-YYYY
+        $FECHA_REGEX = '^\\d{2}-\\d{2}-\\d{4}$';
+        //    - Monto CLP: $1.234.567 o 1.234.567, opcional decimales con coma
+        $MONEY_REGEX = '^\\$?\\s?\\d{1,3}(\\.\\d{3})*(,\\d{1,2})?$';
 
-        // 4) Usamos UPSERT para evitar duplicados si corres seed más de una vez
+        $baseSpec = [
+            // Identificación de partes
+            ['field_key'=>'nombre_emisor',    'label'=>'Nombre Emisor',     'datatype'=>'string', 'is_required'=>true,  'suggestion_template'=>'Indique el nombre completo del emisor.'],
+            ['field_key'=>'rut_emisor',       'label'=>'RUT Emisor',        'datatype'=>'rut',    'is_required'=>true,  'regex'=>$RUT_REGEX, 'suggestion_template'=>'Ingrese un RUT válido para el emisor (ej: 12.345.678-9).'],
+
+            ['field_key'=>'nombre_receptor',  'label'=>'Nombre Receptor',   'datatype'=>'string', 'is_required'=>true,  'suggestion_template'=>'Indique el nombre completo de la contraparte.'],
+            ['field_key'=>'rut_receptor',     'label'=>'RUT Receptor',      'datatype'=>'rut',    'is_required'=>true,  'regex'=>$RUT_REGEX, 'suggestion_template'=>'Ingrese un RUT válido para la contraparte.'],
+
+            // Razón social (opcionales, según documento)
+            ['field_key'=>'empresa_emisor',   'label'=>'Empresa Emisor',    'datatype'=>'string', 'is_required'=>false, 'suggestion_template'=>'Indique la razón social del emisor si corresponde.'],
+            ['field_key'=>'empresa_receptor', 'label'=>'Empresa Receptor',  'datatype'=>'string', 'is_required'=>false, 'suggestion_template'=>'Indique la razón social de la contraparte si corresponde.'],
+
+            // Metadatos del documento
+            ['field_key'=>'direccion',        'label'=>'Dirección',         'datatype'=>'string', 'is_required'=>true,  'suggestion_template'=>'Indique la dirección completa.'],
+            ['field_key'=>'fecha',            'label'=>'Fecha de inicio',   'datatype'=>'date',   'is_required'=>true,  'regex'=>$FECHA_REGEX, 'suggestion_template'=>'Indique la fecha en formato DD-MM-YYYY (ej: 25-12-2025).'],
+            ['field_key'=>'numero_contrato',  'label'=>'Número de contrato','datatype'=>'string', 'is_required'=>false, 'suggestion_template'=>'Indique el número de contrato si aplica.'],
+
+            // Objeto y monto
+            ['field_key'=>'descripcion_servicio','label'=>'Descripción/Servicio','datatype'=>'string','is_required'=>true,'suggestion_template'=>'Describa brevemente el servicio contratado.'],
+            ['field_key'=>'monto_total',         'label'=>'Monto total (CLP)',  'datatype'=>'money', 'is_required'=>true,'regex'=>$MONEY_REGEX, 'suggestion_template'=>'Especifique el monto total en CLP (ej: $1.000.000).'],
+
+            // Otros
+            ['field_key'=>'observaciones',    'label'=>'Observaciones',     'datatype'=>'string', 'is_required'=>false, 'suggestion_template'=>'Incluya observaciones relevantes si existen.'],
+            ['field_key'=>'firmas',           'label'=>'Firmas',            'datatype'=>'string', 'is_required'=>true,  'suggestion_template'=>'Incluya las firmas de ambas partes.'],
+        ];
+
+        // 4) Expandimos el spec base a todos los doc_types
+        $rows = [];
+        foreach ($DOC_TYPES as $dt) {
+            foreach ($baseSpec as $spec) {
+                $rows[] = array_merge($default, array_merge($spec, ['doc_type'=>$dt]));
+            }
+        }
+
+        // 5) UPSERT (evita duplicados al re-seedear)
         DB::table('document_field_specs')->upsert(
             $rows,
-            ['doc_type', 'field_key'], // índice único lógico
-            ['label','is_required','datatype','regex','options','suggestion_template','example_text','updated_at'] // columnas a actualizar si existe
+            ['doc_type', 'field_key'],
+            ['label','is_required','datatype','regex','options','suggestion_template','example_text','updated_at']
         );
     }
 }

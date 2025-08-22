@@ -42,6 +42,15 @@ export async function analyzeDocument(documentId: number): Promise<AnalyzeRespon
   return res.json();
 }
 
+export async function getLastDocumentAnalysis(documentId: number): Promise<AnalyzeResponse> {
+  const res = await fetch(`${BASE_URL}/api/v1/documents/${documentId}/analysis`, {
+    method: 'GET',
+    headers: { 'Accept': 'application/json' },
+  });
+  if (!res.ok) throw new Error(`Analyze failed: ${res.status}`);
+  return res.json();
+}
+
 export async function updateIssueStatus(issueId: number, status: Issue['status']): Promise<Issue> {
   const res = await fetch(`${BASE_URL}/api/v1/issues/${issueId}`, {
     method: 'PATCH',
