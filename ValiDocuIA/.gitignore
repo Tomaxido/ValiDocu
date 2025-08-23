@@ -1,6 +1,7 @@
 # Ignorar resultados generados
 outputs/
 !outputs/.gitkeep  # si querís mantener la carpeta vacía en el repo
+modelo_multiclase/
 
 # Ignorar caché de Python
 __pycache__/
