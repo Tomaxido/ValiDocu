@@ -13,6 +13,12 @@ services:
     volumes:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
       - pgdata:/var/lib/postgresql/data
+    networks:
+      - validocu_network
 
 volumes:
   pgdata:
+
+networks:
+  validocu_network:
+    external: true

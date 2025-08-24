@@ -1,4 +1,4 @@
-import type { DocumentGroup } from "./interfaces";
+import type { BoxAnnotation, DocumentGroup } from "./interfaces";
 
 // let baseURL = "";
 // if (process.env.NODE_ENV === "development") {
@@ -48,6 +48,7 @@ export async function uploadDocumentsToGroup(grupoId: string | number, files: Fi
 
 	await post(`/api/v1/documents/${grupoId}`, formData);
 }
+
 export async function deleteDocuments(ids: number[]): Promise<void> {
   for (const id of ids) {
     const res = await fetch(`${baseURL}/api/v1/documents/file/${id}`, {
@@ -76,7 +77,7 @@ export async function buscarDocumentosPorTexto(texto: string): Promise<any[]> {
   return await res.json();
 }
 
-export async function buscarJsonLayoutPorIdDocumento(id: number): Promise<any> {
+export async function buscarJsonLayoutPorIdDocumento(id: number): Promise<BoxAnnotation[]> {
   const res = await fetch(`${baseURL}/api/v1/documents/${id}/layout`);
 
   if (!res.ok) {
