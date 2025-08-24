@@ -18,7 +18,7 @@ DB_CONFIG = {
     "port": os.getenv("PG_PORT", "5433")
 }
 
-# ARCHIVO A PROCESAR
+# Archivos
 if len(sys.argv) > 1:
     filenames = [os.path.basename(sys.argv[1])]
 else:
@@ -26,13 +26,13 @@ else:
 
 model = SentenceTransformer(MODEL_NAME)
 
-# Intentar conexión a BD (salir sin error duro si falla)
+# Intentar conexión
 try:
     conn = psycopg2.connect(**DB_CONFIG)
     cur = conn.cursor()
 except Exception as e:
     print(f"⚠️ No se pudo conectar a Postgres: {e}")
-    sys.exit(0)  # no romper el flujo del backend
+    sys.exit(0)
 
 for filename in filenames:
     if not filename.endswith(".json"):
@@ -54,38 +54,38 @@ for filename in filenames:
     for et in data:
         campos[et["label"]].append(et["text"])
 
-    ruts = campos.get("RUT", [])
-    nombres = campos.get("NOMBRE_COMPLETO", [])
-    empresa = campos.get("EMPRESA", [])
+    # Extraer datos principales
+    tipo = campos.get("TIPO_DOCUMENTO", ["desconocido"])[0]
+    deudor = f"{campos.get('NOMBRE_COMPLETO_DEUDOR',['N/A'])[0]} (RUT {campos.get('RUT_DEUDOR',['N/A'])[0]})"
+    corredor = f"{campos.get('NOMBRE_COMPLETO_CORREDOR',['N/A'])[0]} (RUT {campos.get('RUT_CORREDOR',['N/A'])[0]})"
+    empresa_deudor = campos.get("EMPRESA_DEUDOR", ["N/A"])[0]
+    empresa_corredor = campos.get("EMPRESA_CORREDOR", ["N/A"])[0]
+    fecha = campos.get("FECHA_ESCRITURA", campos.get("FECHA_EMISION", ["N/A"]))[0]
+    monto = campos.get("MONTO", ["N/A"])[0]
+    tasa = campos.get("TASA", ["N/A"])[0]
+    plazo = campos.get("PLAZO", ["N/A"])[0]
 
-    if len(ruts) == 2 and len(nombres) == 2:
-        resumen = f"""
-        Documento tipo {campos.get("TIPO_DOCUMENTO", ["desconocido"])[0]},
-        entre {nombres[0]} (RUT {ruts[0]}) y {nombres[1]} (RUT {ruts[1]}),
-        con dirección {campos.get("DIRECCION", ["N/A"])[0]},
-        fechado el {campos.get("FECHA", ["N/A"])[0]},
-        por un monto de {campos.get("MONTO", ["N/A"])[0]}.
-        """
-    elif len(ruts) >= 2 and len(empresa) > 0:
-        resumen = f"""
-        Documento tipo {campos.get("TIPO_DOCUMENTO", ["desconocido"])[0]} firmado por {nombres[0] if nombres else "N/A"}
-        (RUT {ruts[0] if ruts else "N/A"}), representando a la empresa {empresa[0]} (RUT {ruts[1] if len(ruts)>1 else 'N/A'}),
-        con dirección {campos.get("DIRECCION", ["N/A"])[0]},
-        fechado el {campos.get("FECHA", ["N/A"])[0]},
-        por un monto de {campos.get("MONTO", ["N/A"])[0]}.
-        """
-    else:
-        resumen = f"""
-        Documento tipo {campos.get("TIPO_DOCUMENTO", ["desconocido"])[0]} firmado por {nombres[0] if nombres else "N/A"}
-        con RUT {ruts[0] if ruts else "N/A"}, con dirección {campos.get("DIRECCION", ["N/A"])[0]},
-        fechado el {campos.get("FECHA", ["N/A"])[0]}, por un monto de {campos.get("MONTO", ["N/A"])[0]}.
-        """
+    # Generar resumen legible
+    resumen = f"""
+    Documento tipo {tipo}, firmado entre {deudor} y {corredor}.
+    Empresa Deudor: {empresa_deudor}, Empresa Corredor: {empresa_corredor}.
+    Fecha: {fecha}, Monto: {monto}, Tasa: {tasa}, Plazo: {plazo}.
+    """.replace("\n", " ").strip()
 
-    resumen = resumen.replace("\\n", " ").strip()
-    embedding = model.encode(resumen).tolist()
-    resumen_sql = resumen
+    # Embeddings
+    embedding_resumen = model.encode(resumen).tolist()
+
+    # json_layout igual que antes (compatible con tu frontend)
     json_sql = json.dumps(data, ensure_ascii=False)
 
+    # embeddings extra por campo (opcional, en otra columna si quieres)
+    embeddings_por_campo = {}
+    for label, textos in campos.items():
+        joined = " ".join(textos)
+        if joined.strip():
+            embeddings_por_campo[label] = model.encode(joined).tolist()
+
+    # Insertar
     cur.execute("""
         INSERT INTO semantic_index (
             document_id, document_group_id, resumen, json_layout, embedding, archivo
@@ -93,11 +93,14 @@ for filename in filenames:
     """, (
         document_id,
         group_id,
-        resumen_sql,
-        json_sql,
-        embedding,
+        resumen,
+        json_sql,                # <- el JSON limpio, igual que antes
+        embedding_resumen,       # <- vector del resumen
         filename
     ))
+
+    # Si quieres guardar embeddings_por_campo, se mete en otra tabla/columna
+
 
     print(f"✅ Insertado: {filename}")
 

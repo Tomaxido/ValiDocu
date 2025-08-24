@@ -187,8 +187,11 @@ export default function GroupedImageViewer({ files }: Readonly<GroupedImageViewe
 
             {/* Anotaciones */}
             <Box sx={{ pointerEvents: "none", position: "absolute", inset: 0 }}>
-              {(annotationsByPage[pageIndex] || []).flatMap((anno, i) =>
-                anno.boxes.map((box, j) => {
+              {(Array.isArray(annotationsByPage[pageIndex])
+                ? annotationsByPage[pageIndex]
+                : Object.values(annotationsByPage[pageIndex] || {})
+              ).flatMap((anno: any, i: number) =>
+                anno.boxes.map((box: number[], j: number) => {
                   const [x1, y1, x2, y2] = box;
                   const scale = scales[pageIndex] || { x: 1, y: 1 };
                   const color = anno.label.endsWith("_E")
@@ -211,6 +214,7 @@ export default function GroupedImageViewer({ files }: Readonly<GroupedImageViewe
                 })
               )}
             </Box>
+
 
             {/* Hover */}
             <Box sx={{ pointerEvents: "none", position: "absolute", inset: 0 }}>
