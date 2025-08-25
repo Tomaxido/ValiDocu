@@ -14,35 +14,35 @@ class AnalysisIssuesSeeder extends Seeder
         // ⚠️ Ajusta los document_id a tus IDs reales en la tabla documents
         $docs = [
             [
-                'document_id'  => 29,
+                'document_id'  => 1,
                 'doc_type'     => 'contrato_especial',
                 'summary'      => 'CONTRATO ESPECIAL entre Elizabeth A. Cortés M. e Industrias Pavez, Retamales y Pérez Ltda. por $8.229.777, fecha 31/07/2025.',
                 'date_raw'     => '31/07/2025',
                 'invalid_ruts' => ['10.354.746-9', null],
             ],
             [
-                'document_id'  => 31,
+                'document_id'  => 3,
                 'doc_type'     => 'formulario_contrato',
                 'summary'      => 'FORMULARIO DE CONTRATO entre Eva E. Guerrero C. y Club Riquelme, Morales y Araya Ltda. por $9.369.891, fecha 28/08/2012.',
                 'date_raw'     => '28/08/2012',
                 'invalid_ruts' => ['11.760.547-9', '21.097.274-7'],
             ],
             [
-                'document_id'  => 25,
+                'document_id'  => 5,
                 'doc_type'     => 'contrato_individual',
                 'summary'      => 'CONTRATO INDIVIDUAL entre Juan Gutiérrez Robles y Mancilla y Rojas S.A., por $10.649.802, fecha 12/04/2024.',
                 'date_raw'     => '12/04/2024',
                 'invalid_ruts' => ['23.026.388-7', '13.781.808-9'],
             ],
             [
-                'document_id'  => 27,
+                'document_id'  => 7,
                 'doc_type'     => 'contrato_simple',
                 'summary'      => 'CONTRATO SIMPLE entre María C. González P. y Holding Valenzuela, Sepúlveda y Silva S.A., por $745.125, fecha 18/08/2025.',
                 'date_raw'     => '18/08/2025',
                 'invalid_ruts' => ['10182597-0', '10250843-4'],
             ],
             [
-                'document_id'  => 23,
+                'document_id'  => 9,
                 'doc_type'     => 'acuerdo_contractual',
                 'summary'      => 'ACUERDO CONTRACTUAL entre Camila L. Rodríguez Rojas y Corporación Núñez, Jara y Valdés Ltda., por $9.869.244, fecha 20/05/2025.',
                 'date_raw'     => '20/05/2025',
@@ -54,7 +54,7 @@ class AnalysisIssuesSeeder extends Seeder
             // 1) Insertar un análisis por documento
             $analysisId = DB::table('document_analyses')->insertGetId([
                 'document_id' => $d['document_id'],
-                'status'      => 'done',
+                'status'      => 'TODO',
                 'summary'     => $d['summary'],
                 'meta'        => json_encode([
                     'doc_type' => $d['doc_type'],
@@ -72,7 +72,7 @@ class AnalysisIssuesSeeder extends Seeder
                 'message'    => 'La fecha no cumple el formato esperado (DD-MM-YYYY).',
                 'suggestion' => 'Reescriba la fecha usando guiones, por ejemplo "20-05-2025".',
                 'confidence' => 0.90,
-                'status'     => 'TODO',
+                'status_id'     => 1,
                 'evidence'   => json_encode([
                     'items' => [[
                         'page'     => 1,
@@ -98,7 +98,7 @@ class AnalysisIssuesSeeder extends Seeder
                     'message'    => 'Formato/Dígito verificador de RUT inválido.',
                     'suggestion' => 'Ingrese un RUT válido (ej: 12.345.678-9).',
                     'confidence' => 0.95,
-                    'status'     => 'TODO',
+                    'status_id'     => 1,
                     'evidence'   => json_encode([
                         'items' => [[
                             'page'     => 1,

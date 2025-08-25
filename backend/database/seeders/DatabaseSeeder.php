@@ -16,6 +16,8 @@ class DatabaseSeeder extends Seeder
         $this->call([
             DocumentFieldSpecSeeder::class,
             DocumentLabelAliasSeeder::class,
+            SuggestionStatusSeeder::class,
+            AnalysisIssuesSeeder::class,
         ]);
     }
 }

@@ -1,4 +1,3 @@
-// Ajusta la BASE_URL si usas proxy o .env
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
 
 export type EvidenceItem = {
@@ -12,26 +11,41 @@ export type Evidence = {
   items?: EvidenceItem[];
 };
 
+export type SuggestionStatus = {
+  id: number;
+  status: string;
+};
+
 export type Issue = {
   id: number;
   document_analysis_id: number;
   field_key: string;
-  issue_type: 'MISSING' | 'INCONSISTENT' | 'FORMAT' | 'OUTDATED';
+  issue_type: string;
   message: string;
   suggestion?: string | null;
-  confidence?: number | string | null;
-  status: 'TODO' | 'NO_APLICA' | 'RESUELTO';
-  evidence?: Evidence | null;
+  confidence?: number | null;
+  evidence?: Evidence | any;
+  status_id?: number | null;
+  status_text?: string | null;
   created_at?: string;
   updated_at?: string;
+  status?: string | null;
 };
 
 export type AnalyzeResponse = {
-  analysis_id: number;
-  doc_type: string;
-  summary: string | null;
+  doc_type?: string | null;
+  summary?: string | null;
   issues: Issue[];
 };
+
+export async function getLastDocumentAnalysis(documentId: number): Promise<AnalyzeResponse> {
+  const res = await fetch(`${BASE_URL}/api/v1/documents/${documentId}/analysis`, {
+    method: 'GET',
+    headers: { 'Accept': 'application/json' },
+  });
+  if (!res.ok) throw new Error(`Analyze fetch failed: ${res.status}`);
+  return res.json();
+}
 
 export async function analyzeDocument(documentId: number): Promise<AnalyzeResponse> {
   const res = await fetch(`${BASE_URL}/api/v1/documents/${documentId}/analyze`, {
@@ -42,22 +56,31 @@ export async function analyzeDocument(documentId: number): Promise<AnalyzeRespon
   return res.json();
 }
 
-export async function getLastDocumentAnalysis(documentId: number): Promise<AnalyzeResponse> {
-  const res = await fetch(`${BASE_URL}/api/v1/documents/${documentId}/analysis`, {
+export async function listSuggestionStatuses(): Promise<SuggestionStatus[]> {
+  const res = await fetch(`${BASE_URL}/api/v1/suggestion-status`, {
     method: 'GET',
     headers: { 'Accept': 'application/json' },
   });
-  if (!res.ok) throw new Error(`Analyze failed: ${res.status}`);
+  if (!res.ok) throw new Error(`Statuses load failed: ${res.status}`);
   return res.json();
 }
 
-export async function updateIssueStatus(issueId: number, status: Issue['status']): Promise<Issue> {
-  const res = await fetch(`${BASE_URL}/api/v1/issues/${issueId}`, {
+export async function updateIssueStatusById(issueId: number, status_id: number): Promise<Issue> {
+  const res = await fetch(`${BASE_URL}/api/v1/issues/${issueId}/status`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status_id }),
   });
-  if (!res.ok) throw new Error(`Update failed: ${res.status}`);
-  const data = await res.json();
-  return data.issue as Issue;
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Update failed: ${res.status} ${body}`);
+  }
+  return await res.json();
+}
+
+export async function updateIssueStatus(issueId: number, statusText: string): Promise<Issue> {
+  const catalog = await listSuggestionStatuses();
+  const found = catalog.find(s => s.status === statusText);
+  if (!found) throw new Error(`Estado desconocido: ${statusText}`);
+  return updateIssueStatusById(issueId, found.id);
 }

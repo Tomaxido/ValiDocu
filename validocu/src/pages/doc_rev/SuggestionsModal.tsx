@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -23,8 +23,8 @@ import {
   Paper,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import type { AnalyzeResponse, Issue } from "../../api/analysis";
-import { updateIssueStatus } from "../../api/analysis";
+import type { AnalyzeResponse, Issue, SuggestionStatus } from "../../api/analysis";
+import { listSuggestionStatuses, updateIssueStatusById } from "../../api/analysis";
 
 type Props = {
   open: boolean;
@@ -35,12 +35,6 @@ type Props = {
   onIssueUpdated: (issue: Issue) => void;
 };
 
-const STATUS_LABEL: Record<Issue["status"], string> = {
-  TODO: "Por corregir",
-  NO_APLICA: "No aplica",
-  RESUELTO: "Resuelto",
-};
-
 export default function SuggestionsModal({
   open,
   onClose,
@@ -49,35 +43,92 @@ export default function SuggestionsModal({
   onReanalyze,
   onIssueUpdated,
 }: Readonly<Props>) {
-  const [filter, setFilter] = useState<"ALL" | Issue["status"]>("ALL");
+  const [catalog, setCatalog] = useState<SuggestionStatus[]>([]);
+  const [filter, setFilter] = useState<"ALL" | number>("ALL");
   const [search, setSearch] = useState("");
+  const [pending, setPending] = useState<Record<number, number>>({});
+  const [saving, setSaving] = useState(false);
 
   const issues = analysis?.issues ?? [];
-  const totalIssues = issues.length;
-  const pendingIssues = issues.filter((i) => i.status === "TODO").length;
+
+  useEffect(() => {
+    if (!open) return;
+    (async () => {
+      try {
+        const data = await listSuggestionStatuses();
+        setCatalog(data);
+        setPending({});
+      } catch {}
+    })();
+  }, [open]);
+
+  const isDirty = useMemo(() => Object.keys(pending).length > 0, [pending]);
+
+  const labelOf = (statusId?: number | null): string => {
+    if (!statusId) return "—";
+    const it = catalog.find((s) => s.id === statusId);
+    return it?.status || "—";
+  };
+
+  const statusIdOfIssue = (issue: Issue): number | null => {
+    if (typeof issue.status_id === "number") return issue.status_id;
+    if (issue.status) {
+      const match = catalog.find((s) => s.status === issue.status);
+      if (match) return match.id;
+    }
+    return null;
+  };
 
   const filtered = useMemo(() => {
     return issues.filter((i) => {
-      const passStatus = filter === "ALL" || i.status === filter;
       const q = search.trim().toLowerCase();
-      const source = `${i.field_key} ${i.message} ${i.suggestion ?? ""}`.toLowerCase();
+      const source = `${i.field_key} ${i.issue_type} ${i.message} ${i.suggestion ?? ""}`.toLowerCase();
       const passSearch = !q || source.includes(q);
-      return passStatus && passSearch;
+
+      if (filter === "ALL") return passSearch;
+
+      const sid = statusIdOfIssue(i);
+      return passSearch && sid === filter;
     });
-  }, [issues, filter, search]);
+  }, [issues, filter, search, catalog]);
+
+  const todoId = useMemo(
+    () => catalog.find((s) => s.status === "TODO")?.id,
+    [catalog]
+  );
+  const pendingIssues = useMemo(
+    () => (todoId ? issues.filter((i) => statusIdOfIssue(i) === todoId).length : 0),
+    [issues, todoId, catalog]
+  );
+  const totalIssues = issues.length;
 
   const handleRowClick = (issue: Issue) => {
-    // Resaltar evidencia en el visor
     window.dispatchEvent(new CustomEvent("focus-evidence", { detail: issue.evidence ?? null }));
   };
 
-  const handleChangeStatus = async (issue: Issue, status: Issue["status"]) => {
-    const updated = await updateIssueStatus(issue.id, status);
-    onIssueUpdated(updated);
+  const handleLocalSelect = (issue: Issue, statusId: number) => {
+    setPending((prev) => ({ ...prev, [issue.id]: statusId }));
+  };
+
+  const handleConfirm = async () => {
+    if (!isDirty) return;
+    setSaving(true);
+    try {
+      const entries = Object.entries(pending);
+      const results = await Promise.all(
+        entries.map(([issueId, statusId]) =>
+          updateIssueStatusById(Number(issueId), Number(statusId))
+        )
+      );
+      results.forEach(onIssueUpdated);
+      setPending({});
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
+    <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
       <DialogTitle sx={{ pr: 5 }}>
         Sugerencias de corrección
         <IconButton
@@ -90,103 +141,119 @@ export default function SuggestionsModal({
       </DialogTitle>
 
       <DialogContent dividers>
-        <Stack direction="row" spacing={2} alignItems="center" justifyItems="center" sx={{ mb: 1 }}>
-          <Badge color="warning" badgeContent={totalIssues}>
-            <Typography variant="body2" color="text.secondary">
-              {pendingIssues} sugerencias pendientes
-            </Typography>
-            {onReanalyze && 
-            <Button onClick={onReanalyze} variant="contained" disabled={loading}>
-                {loading ? "Cargando" : "Re-analizar"}
-            </Button>
-            }
-          </Badge>
+        <Stack spacing={2} sx={{ mb: 2 }}>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={2}
+            alignItems="center"
+            justifyContent="space-between"
+          >
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Badge color="warning">
+                <Typography variant="body2" color="text.secondary">
+                  {pendingIssues} sugerencias pendientes de {totalIssues} en total.
+                </Typography>
+              </Badge>
+            </Stack>
+            {onReanalyze && (
+              <Button onClick={onReanalyze} variant="contained" disabled={loading || saving}>
+                {loading ? "Cargando…" : "Re-analizar"}
+              </Button>
+            )}
+          </Stack>
+
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            <TextField
+              fullWidth
+              size="small"
+              label="Buscar campo, tipo, problema o sugerencia…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              disabled={saving}
+            />
+            <FormControl size="small" sx={{ minWidth: 220 }}>
+              <InputLabel id="filter-status-label">Estado</InputLabel>
+              <Select
+                labelId="filter-status-label"
+                label="Estado"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value as any)}
+                disabled={saving}
+              >
+                <MenuItem value="ALL">Todos</MenuItem>
+                {catalog.map((s) => (
+                  <MenuItem key={s.id} value={s.id}>
+                    {s.status}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Stack>
         </Stack>
 
-        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-          Tipo: <b>{analysis?.doc_type ?? "—"}</b> · Resumen: {analysis?.summary ?? "—"}
-        </Typography>
-
-        {/* Filtros */}
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 2 }}>
-          <TextField
-            fullWidth
-            size="small"
-            label="Buscar campo, problema o sugerencia…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <FormControl size="small" sx={{ minWidth: 180 }}>
-            <InputLabel id="filter-status-label">Estado</InputLabel>
-            <Select
-              labelId="filter-status-label"
-              label="Estado"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value as any)}
-            >
-              <MenuItem value="ALL">Todos</MenuItem>
-              <MenuItem value="TODO">Por corregir</MenuItem>
-              <MenuItem value="NO_APLICA">No aplica</MenuItem>
-              <MenuItem value="RESUELTO">Resuelto</MenuItem>
-            </Select>
-          </FormControl>
-        </Stack>
-
-        {/* Tabla */}
         <TableContainer component={Paper} variant="outlined">
-          <Table size="small">
-            <TableHead sx={{ position: "sticky", top: 0, bgcolor: "background.paper", zIndex: 1 }}>
+          <Table size="small" stickyHeader>
+            <TableHead>
               <TableRow>
-                <TableCell sx={{ width: 180 }}>Campo</TableCell>
-                <TableCell>Problema</TableCell>
+                <TableCell sx={{ width: 200 }}>Campo</TableCell>
+                <TableCell sx={{ width: 160 }}>Tipo</TableCell>
+                <TableCell>Mensaje</TableCell>
                 <TableCell>Sugerencia</TableCell>
                 <TableCell sx={{ width: 110 }} align="right">
                   Confianza
                 </TableCell>
-                <TableCell sx={{ width: 180 }}>Estado</TableCell>
+                <TableCell sx={{ width: 220 }}>Estado</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {filtered.map((i) => (
-                <TableRow
-                  key={i.id}
-                  hover
-                  sx={{ cursor: "pointer" }}
-                  onClick={() => handleRowClick(i)}
-                >
-                  <TableCell>
-                    <Typography variant="body2" fontWeight={600}>
-                      {i.field_key}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>{i.message}</TableCell>
-                  <TableCell>{i.suggestion ?? "—"}</TableCell>
-                  <TableCell align="right">
-                    {i.confidence ? `${(Number(i.confidence) * 100).toFixed(1)}%` : "—"}
-                  </TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    <FormControl size="small" fullWidth>
-                      <Select
-                        value={i.status}
-                        onChange={(e) => handleChangeStatus(i, e.target.value as Issue["status"])}
-                      >
-                        <MenuItem value="TODO">{STATUS_LABEL.TODO}</MenuItem>
-                        <MenuItem value="NO_APLICA">{STATUS_LABEL.NO_APLICA}</MenuItem>
-                        <MenuItem value="RESUELTO">{STATUS_LABEL.RESUELTO}</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {filtered.map((i) => {
+                const currentId = statusIdOfIssue(i);
+                const pendingId = pending[i.id];
+                const value = pendingId ?? currentId ?? "";
+                return (
+                  <TableRow
+                    key={i.id}
+                    hover
+                    sx={{ cursor: "pointer" }}
+                    onClick={() => handleRowClick(i)}
+                  >
+                    <TableCell>
+                      <Typography variant="body2" fontWeight={600}>
+                        {i.field_key}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>{i.issue_type}</TableCell>
+                    <TableCell>{i.message}</TableCell>
+                    <TableCell>{i.suggestion ?? "—"}</TableCell>
+                    <TableCell align="right">
+                      {i.confidence != null
+                        ? `${(Number(i.confidence) * 100).toFixed(1)}%`
+                        : "—"}
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <FormControl size="small" fullWidth>
+                        <Select
+                          value={value}
+                          displayEmpty
+                          renderValue={(v) => (v ? labelOf(Number(v)) : "Seleccionar…")}
+                          onChange={(e) => handleLocalSelect(i, Number(e.target.value))}
+                          disabled={saving}
+                        >
+                          {catalog.map((s) => (
+                            <MenuItem key={s.id} value={s.id}>
+                              {s.status}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
               {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5}>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      align="center"
-                      sx={{ py: 2 }}
-                    >
+                  <TableCell colSpan={6}>
+                    <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 2 }}>
                       Sin resultados
                     </Typography>
                   </TableCell>
@@ -198,7 +265,14 @@ export default function SuggestionsModal({
       </DialogContent>
 
       <DialogActions>
-        <Button onClick={onClose}>Cerrar</Button>
+        <Button onClick={onClose} disabled={saving}>Cerrar</Button>
+        <Button
+          onClick={handleConfirm}
+          variant="contained"
+          disabled={!isDirty || saving}
+        >
+          {saving ? "Guardando…" : "Confirmar cambios"}
+        </Button>
       </DialogActions>
     </Dialog>
   );
