@@ -32,7 +32,7 @@ export interface BoxAnnotation {
 
 export interface SemanticGroup {
   filename: string;
-  json_layout: string;  // TODO: es un string que representa un arreglo de BoxAnnotations. Podría ser directamente BoxAnnotation[]
+  json_layout: BoxAnnotation[]
 }
 
 export interface GroupedImageViewerProps {

@@ -122,7 +122,8 @@ export default function DocInfoPanel({ selectedDoc, semanticGroupData }: Readonl
       <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", pr: 1 }}>
         {semanticGroupData.map((item, i) => {
           try {
-            const layout: BoxAnnotation[] = JSON.parse(item.json_layout);
+            const layout = item.json_layout;
+            console.dir(layout);
             const pageStr = item.filename?.match(/_p(\d+)\./)?.[1] || null;
             const page = pageStr ? parseInt(pageStr, 10) : null;
 

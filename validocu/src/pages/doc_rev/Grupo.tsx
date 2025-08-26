@@ -8,7 +8,7 @@ import GroupedImageViewer from "./GroupedImageViewer";
 import DocInfoPanel from "./DocInfoPanel";
 
 import {
-  Alert, Box, Paper, Button, Typography, List, ListItemButton,
+  Box, Paper, Button, Typography, List, ListItemButton,
   ListItemText, Chip, Stack, IconButton, Divider
 } from "@mui/material";
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
@@ -56,12 +56,6 @@ export default function Grupo() {
   const MIN_RIGHT_PX = 280; // ancho mínimo del panel info
   const HANDLE_PX = 8;      // ancho del resizer
 
-  const fetchSemanticGroupData = async (groupFiles: Document[]) => {
-    const ids = groupFiles.map(doc => doc.id);
-    const semanticGroups = await getSemanticGroupData(ids);
-    setSemanticGroupData(semanticGroups);
-  };
-
   useEffect(() => {
     if (grupoId) {
       getDocumentGroupById(grupoId).then((g) => {
@@ -70,7 +64,9 @@ export default function Grupo() {
         setGroupedDocs(grouped);
         if (grouped.length > 0 && grouped[0].pdf) {
           setSelectedDoc(grouped[0].pdf);
-          fetchSemanticGroupData(grouped[0].images);
+          getSemanticGroupData(grouped[0].images).then(
+            data => setSemanticGroupData(data)
+          );
         }
       });
     }
@@ -247,7 +243,9 @@ export default function Grupo() {
                   onClick={() => {
                     if (grouped.pdf) {
                       setSelectedDoc(grouped.pdf);
-                      fetchSemanticGroupData(grouped.images);
+                      getSemanticGroupData(grouped.images).then(
+                        data => setSemanticGroupData(data)
+                      );
                     }
                   }}
                   sx={{

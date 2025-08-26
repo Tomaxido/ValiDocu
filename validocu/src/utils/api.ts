@@ -1,4 +1,4 @@
-import type { BoxAnnotation, DocumentGroup, SemanticGroup } from "./interfaces";
+import type { BoxAnnotation, Document, DocumentGroup, SemanticGroup } from "./interfaces";
 
 // let baseURL = "";
 // if (process.env.NODE_ENV === "development") {
@@ -31,8 +31,13 @@ async function postJSON(url: string, body: any): Promise<any> {
   return await res.json();
 }
 
-export async function getSemanticGroupData(ids: number[]): Promise<SemanticGroup[]> {
-  return await postJSON("/api/v1/semantic-data/by-filenames", { ids: ids }) as SemanticGroup[];
+export async function getSemanticGroupData(documents: Document[]): Promise<SemanticGroup[]> {
+  const ids = documents.map(doc => doc.id);
+  const data = await postJSON("/api/v1/semantic-data/by-filenames", { ids: ids });
+  for (const semanticGroup of data) {
+    semanticGroup.json_layout = JSON.parse(semanticGroup.json_layout);
+  }
+  return data as SemanticGroup[];
 }
 
 export async function getDocumentGroups(): Promise<DocumentGroup[]> {
