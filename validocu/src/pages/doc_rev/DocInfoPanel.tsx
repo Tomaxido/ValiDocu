@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import { Paper, Typography, Stack, Box, Chip, Alert, Button } from "@mui/material";
 import labelColors from "../../utils/labelColors";
-import type { Document } from "../../utils/interfaces";
+import type { BoxAnnotation, Document, SemanticGroup } from "../../utils/interfaces";
 
 import SuggestionsPanel from "../../components/SuggestionsPanel";
 import { analyzeDocument, getLastDocumentAnalysis, type AnalyzeResponse, type Issue } from "../../api/analysis";
 
 interface Props {
   selectedDoc: Document;
-  semanticGroupData: any[];
+  semanticGroupData: SemanticGroup[];
 }
 
 function getBaseFilename(filename: string): string {
@@ -122,7 +122,7 @@ export default function DocInfoPanel({ selectedDoc, semanticGroupData }: Readonl
       <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", pr: 1 }}>
         {semanticGroupData.map((item, i) => {
           try {
-            const layout = JSON.parse(item.json_layout);
+            const layout: BoxAnnotation[] = JSON.parse(item.json_layout);
             const pageStr = item.filename?.match(/_p(\d+)\./)?.[1] || null;
             const page = pageStr ? parseInt(pageStr, 10) : null;
 
@@ -133,7 +133,7 @@ export default function DocInfoPanel({ selectedDoc, semanticGroupData }: Readonl
                 </Typography>
 
                 <Stack spacing={1}>
-                  {layout.map((campo: any, idx: number) => {
+                  {layout.map((campo: BoxAnnotation, idx: number) => {
                     const isError =
                       typeof campo.label === "string" && campo.label.endsWith("_E");
                     const rawLabel = String(campo.label ?? "").replace(/_E$/, "");

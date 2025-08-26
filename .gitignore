@@ -2,3 +2,5 @@ node_modules
 bootstrap
 storage
 vendor
+SPOILER*
+*.zip

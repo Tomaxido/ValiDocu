@@ -1,4 +1,4 @@
-import type { BoxAnnotation, DocumentGroup } from "./interfaces";
+import type { BoxAnnotation, DocumentGroup, SemanticGroup } from "./interfaces";
 
 // let baseURL = "";
 // if (process.env.NODE_ENV === "development") {
@@ -20,6 +20,19 @@ async function post(url: string, body: any): Promise<void> {
 		const errorData = await res.json();
 		throw new Error(errorData?.message ?? "Error al subir documentos");
 	}
+}
+
+async function postJSON(url: string, body: any): Promise<any> {
+  const res = await fetch(baseURL + url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  return await res.json();
+}
+
+export async function getSemanticGroupData(ids: number[]): Promise<SemanticGroup[]> {
+  return await postJSON("/api/v1/semantic-data/by-filenames", { ids: ids }) as SemanticGroup[];
 }
 
 export async function getDocumentGroups(): Promise<DocumentGroup[]> {

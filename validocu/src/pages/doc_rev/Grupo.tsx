@@ -1,14 +1,14 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { getDocumentGroupById, uploadDocumentsToGroup, deleteDocuments } from "../../utils/api";
-import type { DocumentGroup, Document, GroupedDocument } from "../../utils/interfaces";
+import { getDocumentGroupById, uploadDocumentsToGroup, deleteDocuments, getSemanticGroupData } from "../../utils/api";
+import type { DocumentGroup, Document, GroupedDocument, SemanticGroup } from "../../utils/interfaces";
 import UploadModal from "./UploadModal";
 import DeleteModal from "./DeleteModal";
 import GroupedImageViewer from "./GroupedImageViewer";
 import DocInfoPanel from "./DocInfoPanel";
 
 import {
-  Box, Paper, Button, Typography, List, ListItemButton,
+  Alert, Box, Paper, Button, Typography, List, ListItemButton,
   ListItemText, Chip, Stack, IconButton, Divider
 } from "@mui/material";
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
@@ -46,7 +46,7 @@ export default function Grupo() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [semanticGroupData, setSemanticGroupData] = useState<any[]>([]);
+  const [semanticGroupData, setSemanticGroupData] = useState<SemanticGroup[]>([]);
 
   // ====== Splitter state ======
   const splitRef = useRef<HTMLDivElement | null>(null);
@@ -58,13 +58,8 @@ export default function Grupo() {
 
   const fetchSemanticGroupData = async (groupFiles: Document[]) => {
     const ids = groupFiles.map(doc => doc.id);
-    const res = await fetch(`http://localhost:8000/api/v1/semantic-data/by-filenames`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids })
-    });
-    const data = await res.json();
-    setSemanticGroupData(data);
+    const semanticGroups = await getSemanticGroupData(ids);
+    setSemanticGroupData(semanticGroups);
   };
 
   useEffect(() => {
