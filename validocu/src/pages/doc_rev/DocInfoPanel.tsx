@@ -5,6 +5,7 @@ import type { Document } from "../../utils/interfaces";
 
 import SuggestionsPanel from "../../components/SuggestionsPanel";
 import { analyzeDocument, getLastDocumentAnalysis, type AnalyzeResponse, type Issue } from "../../api/analysis";
+import { downloadDocumentSummaryExcel } from "../../api/summary_excel";
 
 interface Props {
   selectedDoc: Document;
@@ -189,6 +190,20 @@ export default function DocInfoPanel({ selectedDoc, semanticGroupData }: Readonl
           }
         })}
       </Box>
+
+      {/* ====== Generación de Documento Resumen (HdU 05) ====== */}
+      <Button
+        variant="contained"
+        color="primary"
+        sx={{ mb: 2 }}
+        onClick={() => {
+          if (selectedDoc?.id) {
+            downloadDocumentSummaryExcel(selectedDoc.id);
+          }
+        }}
+      >
+        Generar Documento Resumen
+      </Button>
 
       {/* ====== Sugerencias de corrección ====== */}
       <Box
