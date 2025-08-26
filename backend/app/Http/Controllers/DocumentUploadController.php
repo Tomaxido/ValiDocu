@@ -46,6 +46,8 @@ class DocumentUploadController extends Controller
                 'mime_type' => $file->getClientMimeType(),
                 'status' => 0,
             ]);
+            // Obtener ID del documento maestro
+            $document_master_id = $document->id;
 
             // Obtener nombre base sin extensión, por ejemplo: contrato_12
             $originalBaseName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
@@ -54,7 +56,7 @@ class DocumentUploadController extends Controller
             $images = $this->convertPdfToImages($path,$group);
 
             // Guardar imagenes en carpeta manteniendo el nombre del documento
-            $rechazado = $this->saveImages($images, $originalBaseName, $group);
+            $rechazado = $this->saveImages($images, $originalBaseName, $group, $document_master_id);
             if ($rechazado) {
                 // Cambiar status del documento a 2 = Rechazado
                 $document->status = 2;
@@ -69,7 +71,7 @@ class DocumentUploadController extends Controller
         return response()->json(['message' => 'Grupo creado y documentos subidos.', 'group_id' => $group->id]);
     }
 
-    public function saveImages($images, $originalBaseName, $group)
+    public function saveImages($images, $originalBaseName, $group, $document_master_id)
     {
         $modificado_global = false;
         foreach ($images as $imgPath) {
@@ -95,8 +97,10 @@ class DocumentUploadController extends Controller
                 $response = Http::attach(
                     'file', fopen($absolutePath, 'r'), $newFilename
                 )->post('http://localhost:5050/procesar/', [
+                    'master_id' => $document_master_id,
                     'doc_id' => $document->id,
                     'group_id' => $group->id,
+                    'page' => $pageNumber
                 ]);
 
                 // Podís guardar respuesta si querís:
@@ -110,26 +114,30 @@ class DocumentUploadController extends Controller
 
                     $layout = json_decode($data->json_layout, true);
                     $modificado = false;
-
+                    $labelsRut = ['RUT_DEUDOR','RUT_CORREDOR','EMPRESA_DEUDOR_RUT','EMPRESA_CORREDOR_RUT'];
+                    
                     foreach ($layout as &$campo) {
-                        if ($campo['label'] === 'RUT') {
-                            $limpio = strtoupper(preg_replace('/[^0-9kK]/', '', $campo['text']));
-                            $rut = substr($limpio, 0, -1);
-                            $dv = substr($limpio, -1);
+                        if (!isset($campo['label'], $campo['text'])) continue;
 
-                            $sii = $this->checkRut($rut, $dv);
-                            // Lógica de validación del RUT chileno
-                            if ($sii->getStatusCode() == 400) {
-                                \Log::error("❌ Error al verificar RUT");
-                                $campo['label'] = 'RUT_E';
-                                $campo['text'] = $rut . '-' . $dv;
+                        if (in_array($campo['label'], $labelsRut, true)) {
+                            $limpio = strtoupper(preg_replace('/[^0-9K]/', '', $campo['text']));
+                            if (strlen($limpio) < 2) continue;
+
+                            $rut = substr($limpio, 0, -1);
+                            $dv  = substr($limpio, -1);
+
+                            $sii = $this->checkRut($rut, $dv); // devuelve Response
+                            if ($sii->getStatusCode() === 400) {
+                                // marcar error manteniendo el prefijo del label y agregando _E
+                                $campo['label'] = $campo['label'] . '_E';
+                                $campo['text']  = $rut . '-' . $dv;
                                 $modificado = true;
                             } else {
-                                \Log::info("RUT Correcto");
-                                $campo['text'] = $rut . '-' . $dv;
+                                $campo['text']  = $rut . '-' . $dv;
                             }
                         }
                     }
+                    unset($campo);
 
                     // Si se modificó, se actualiza el json en la tabla
                     if ($modificado) {
@@ -241,8 +249,12 @@ class DocumentUploadController extends Controller
                 'mime_type' => $file->getClientMimeType(),
                 'status' => 0,
             ]);
+
+            // Obtener ID del documento maestro
+            $document_master_id = $document->id;
+
             $images = $this->convertPdfToImages($path, $group);
-            $rechazado = $this->saveImages($images, $originalBaseName, $group);
+            $rechazado = $this->saveImages($images, $originalBaseName, $group, $document_master_id);
             if ($rechazado) {
                 // Cambiar status del documento a 2 = Rechazado
                 $document->status = 2;

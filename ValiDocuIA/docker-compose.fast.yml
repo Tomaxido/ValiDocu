@@ -1,0 +1,21 @@
+services:
+  ia-api:
+    container_name: ia-api
+    build:
+      context: .
+      dockerfile: Dockerfile.fast
+      target: runtime
+    environment:
+      - PYTHONUNBUFFERED=1
+      - MODEL_DIR=/app/outputs/modelo_multiclase/ 
+      - OCR_LANG=spa
+      - TESS_CONFIG=--oem 1 --psm 6
+      - CONF_THRESH=0.50
+    ports:
+      - "5050:5050"
+    volumes:
+      - ./app:/app/app:rw
+      - ./outputs:/app/outputs:rw
+    # Si te conectas a Postgres del host:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

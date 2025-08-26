@@ -1,0 +1,56 @@
+ValiDocuIA/
+├─ app/
+│  ├─ main.py
+│  ├─ prediccion.py
+│  ├─ semantic.py
+│  ├─ pdf_to_images.py (si lo usas separado)
+│  └─ generar_vector.py
+├─ outputs/
+│  └─ modelo_multiclase/   # pesos del modelo (HF)
+├─ Dockerfile.fast
+├─ docker-compose.fast.yml
+├─ requirements.txt
+└─ .dockerignore
+
+PASO 1
+
+Colocar todos los archivos de la IA en outputs/modelo_multiclase/
+
+PASO 2
+
+Ejecutar el siguiente comando para construir y ejecutar los contenedores:
+
+```bash
+docker-compose -f docker-compose.fast.yml up --build
+
+OPCIONAL si haran algun cambio en la IA ejecutar "docker compose restart ia-api" para reiniciar
+
+
+Casos de error (logs se ven en consola del docker):
+
+
+    500 en /procesar justo en OCR
+        Falta idioma: entra al contenedor y instala tesseract-ocr-spa, luego restart:
+
+        SOLUCION:
+        docker compose exec -u root ia-api bash -lc 'apt-get update && apt-get install -y tesseract-ocr-spa'
+        docker compose restart ia-api
+
+
+    Processor/Tokenizer rompe con “ModelWrapper …”
+        Es el tokenizer.json del checkpoint:
+
+
+        SOLUCION: copiar tokenizer/processor base al checkpoint ejecutando el siguiente codigo:
+
+        docker compose exec ia-api python
+        
+        from transformers import AutoTokenizer, LayoutLMv3ImageProcessor
+        import os
+        ckpt = os.getenv("MODEL_DIR", "/app/outputs/modelo_multiclase")
+        base = "microsoft/layoutlmv3-base"
+        AutoTokenizer.from_pretrained(base).save_pretrained(ckpt)
+        LayoutLMv3ImageProcessor.from_pretrained(base).save_pretrained(ckpt)
+        print("Tokenizer + ImageProcessor copiados.")
+
+En cualquiera de estos 2 casos se debe de reiniciar el contenedor: docker compose restart ia-api

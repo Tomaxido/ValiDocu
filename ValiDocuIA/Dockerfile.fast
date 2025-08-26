@@ -1,0 +1,38 @@
+# syntax=docker/dockerfile:1.7-labs
+FROM python:3.10-slim AS base
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+# Sist. necesarios (tesseract/poppler)
+RUN --mount=type=cache,target=/var/cache/apt \
+    apt-get update && apt-get install -y --no-install-recommends \
+      tesseract-ocr poppler-utils libglib2.0-0 libsm6 libxext6 libxrender1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# ===== deps =====
+FROM base AS deps
+COPY requirements.txt .
+
+# Instala torch CPU desde el índice oficial (cache pip)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install --upgrade pip && \
+    pip install --prefer-binary \
+      --extra-index-url https://download.pytorch.org/whl/cpu \
+      torch==2.5.1+cpu torchvision==0.20.1+cpu torchaudio==2.5.1+cpu && \
+    pip install --prefer-binary -r requirements.txt
+
+# ===== runtime =====
+FROM base AS runtime
+COPY --from=deps /usr/local /usr/local
+
+RUN useradd -m appuser && mkdir -p /app/outputs && chown -R appuser:appuser /app
+USER appuser
+
+COPY --chown=appuser:appuser app /app/app
+
+EXPOSE 5050
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5050", "--reload"]
