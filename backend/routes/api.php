@@ -5,6 +5,7 @@ use App\Http\Controllers\DocumentUploadController;
 use App\Http\Controllers\SemanticController;
 use App\Http\Controllers\AnalysisController;
 use App\Http\Controllers\IssueController;
+use App\Http\Controllers\DocumentSummaryController;
 
 
 Route::prefix('v1')->group(function () {
@@ -30,5 +31,6 @@ Route::prefix('v1')->group(function () {
     Route::get('/suggestion-status', [IssueController::class, 'indexStatuses']);
     Route::patch('/issues/{issue}/status', [IssueController::class, 'updateStatus']);
 
+    Route::get('/documents/{id}/summary-excel', [DocumentSummaryController::class, 'downloadSummaryExcel']);
 
 });

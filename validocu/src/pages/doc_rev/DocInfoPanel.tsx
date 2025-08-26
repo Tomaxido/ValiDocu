@@ -19,6 +19,8 @@ import {
   type Issue,
 } from "../../api/analysis";
 import SuggestionsModal from "./SuggestionsModal";
+import { downloadDocumentSummaryExcel } from "../../api/summary_excel";
+
 
 interface Props {
   selectedDoc: Document;
@@ -239,6 +241,19 @@ export default function DocInfoPanel({
         })}
       </Box>
 
+      {/* ====== Generación de Documento Resumen (HdU 05) ====== */}
+      <Button
+        variant="contained"
+        color="primary"
+        sx={{ mb: 2 }}
+        onClick={() => {
+          if (selectedDoc?.id) {
+            downloadDocumentSummaryExcel(selectedDoc.id);
+          }
+        }}
+      >
+        Generar Documento Resumen
+      </Button>
       {/* ====== Modal con toda la lógica de sugerencias ====== */}
       <SuggestionsModal
         open={openSugModal}
