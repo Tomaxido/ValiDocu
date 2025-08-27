@@ -17,25 +17,22 @@ export type SuggestionStatus = {
 };
 
 export type Issue = {
-  id: number;
-  document_analysis_id: number;
-  field_key: string;
-  issue_type: string;
-  message: string;
-  suggestion?: string | null;
-  confidence?: number | null;
-  evidence?: Evidence | any;
-  status_id?: number | null;
-  status_text?: string | null;
-  created_at?: string;
-  updated_at?: string;
-  status?: string | null;
+  issue_id: number;
+  status_id: number;
+  label: string;
+  suggestion_template: string;
+  is_required: boolean;
 };
 
 export type AnalyzeResponse = {
-  doc_type?: string | null;
-  summary?: string | null;
+  // doc_type?: string | null;
+  // summary?: string | null;
   issues: Issue[];
+};
+
+export type AnalyzePerDoc = {
+  doc_id: number;
+  analysis: AnalyzeResponse;
 };
 
 export async function getLastDocumentAnalysis(documentId: number): Promise<AnalyzeResponse> {
@@ -54,6 +51,11 @@ export async function analyzeDocument(documentId: number): Promise<AnalyzeRespon
   });
   if (!res.ok) throw new Error(`Analyze failed: ${res.status}`);
   return res.json();
+}
+
+export async function analyzeImages(imageIds: number[]): Promise<void> {
+  // dispara el análisis por cada imagen (sin esperar a los resultados consolidados)
+  await Promise.all(imageIds.map((id) => analyzeDocument(id)));
 }
 
 export async function listSuggestionStatuses(): Promise<SuggestionStatus[]> {
@@ -83,4 +85,26 @@ export async function updateIssueStatus(issueId: number, statusText: string): Pr
   const found = catalog.find(s => s.status === statusText);
   if (!found) throw new Error(`Estado desconocido: ${statusText}`);
   return updateIssueStatusById(issueId, found.id);
+}
+
+// === Nuevas utilidades para trabajar con IDs de imágenes ===
+
+export async function getAnalysesForImageIds(imageIds: number[]): Promise<AnalyzePerDoc[]> {
+  const results = await Promise.all(
+    imageIds.map(async (docId) => {
+      const analysis = await getLastDocumentAnalysis(docId);
+      return { doc_id: docId, analysis };
+    })
+  );
+  return results;
+}
+
+export async function fetchIssuesByImageIds(imageIds: number[]): Promise<Issue[]> {
+  const analyses = await getAnalysesForImageIds(imageIds);
+  const merged: Issue[] = [];
+  for (const { doc_id, analysis } of analyses) {
+    const issues = (analysis.issues || []).map((iss) => ({ ...iss, source_document_id: doc_id }));
+    merged.push(...issues);
+  }
+  return merged;
 }

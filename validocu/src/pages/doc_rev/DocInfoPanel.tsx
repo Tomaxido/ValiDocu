@@ -13,10 +13,10 @@ import labelColors from "../../utils/labelColors";
 import type { Document } from "../../utils/interfaces";
 
 import {
-  analyzeDocument,
   getLastDocumentAnalysis,
-  type AnalyzeResponse,
+  listSuggestionStatuses,
   type Issue,
+  type SuggestionStatus,
 } from "../../api/analysis";
 import SuggestionsModal from "./SuggestionsModal";
 import { downloadDocumentSummaryExcel } from "../../api/summary_excel";
@@ -42,47 +42,53 @@ export default function DocInfoPanel({
   selectedDoc,
   semanticGroupData,
 }: Readonly<Props>) {
-  const [analysis, setAnalysis] = useState<AnalyzeResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [openSugModal, setOpenSugModal] = useState(false);
 
-  // Ejecuta: trae el último análisis al cambiar documento
-  useEffect(() => {
-    if (!selectedDoc?.id) return;
-    (async () => {
-      setLoading(true);
-      try {
-        const res = await getLastDocumentAnalysis(selectedDoc.id);
-        setAnalysis(res);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [selectedDoc?.id]);
+  const [statuses, setStatuses] = useState<SuggestionStatus[]>([]);
+  const [issuesList, setIssuesList] = useState<Issue[]>([]);
+  const [pendingCount, setPendingCount] = useState(0);
 
-  const handleIssueUpdated = (issue: Issue) => {
-    setAnalysis((prev) =>
-      prev
-        ? { ...prev, issues: prev.issues.map((i) => (i.id === issue.id ? issue : i)) }
-        : prev
-    );
+  useEffect(() => {
+    (async () => {
+      try {
+        const st = await listSuggestionStatuses();
+        setStatuses(st);
+      } catch {}
+    })();
+  }, []);
+
+  useEffect(() => {
+    console.log("Cambio de documento, id actual", selectedDoc.id);
+    reAnalyze();
+  }, [selectedDoc]);
+
+  const computePending = (issues: Issue[]) => {
+    const todoId = 1;
+    return issues.filter(i => i.status_id === todoId).length;
   };
 
-  const reAnalyze = async (documentId: number) => {
-    if (!documentId) return;
+  const handleIssueUpdated = (issue: Issue) => {
+    setIssuesList((prev) => {
+      const next = prev.map((i) => (i.issue_id === issue.issue_id ? issue : i));
+      setPendingCount(computePending(next));
+      return next;
+    });
+  };
+
+  const reAnalyze = async () => {
     setLoading(true);
     try {
-      const res = await analyzeDocument(documentId);
-      setAnalysis(res);
-    } catch (err) {
-      console.error("Error en reAnalyze:", err);
-      alert("Hubo un error al re-analizar el documento");
+      const issues = await getLastDocumentAnalysis(selectedDoc.id);
+
+      // console.log()        
+      setIssuesList(issues.issues);
+      setPendingCount(computePending(issues.issues));
     } finally {
       setLoading(false);
     }
   };
 
-  // Click → foco persistente (con scroll)
   const focusBoxes = (page: number | null, boxes: number[][] | undefined) => {
     window.dispatchEvent(
       new CustomEvent("focus-evidence", {
@@ -91,7 +97,6 @@ export default function DocInfoPanel({
     );
   };
 
-  // Hover → resalta sin scroll
   const hoverBoxes = (page: number | null, boxes: number[][] | undefined) => {
     window.dispatchEvent(
       new CustomEvent("hover-evidence", {
@@ -102,10 +107,6 @@ export default function DocInfoPanel({
   const clearHover = () => {
     window.dispatchEvent(new CustomEvent("hover-evidence", { detail: { items: [] } }));
   };
-
-  // Contadores
-  // const totalIssues = analysis?.issues?.length ?? 0;
-  const pendingIssues = analysis?.issues?.filter((i) => i.status === "TODO").length ?? 0;
 
   return (
     <Paper
@@ -139,6 +140,7 @@ export default function DocInfoPanel({
           ? new Date(selectedDoc.created_at).toLocaleString()
           : "—"}
       </Typography>
+
       <Stack direction="row" spacing={1} alignItems="center">
         <Button
           size="small"
@@ -151,7 +153,7 @@ export default function DocInfoPanel({
           </Badge>
         </Button>
         <Typography variant="body2" color="text.secondary">
-          { !loading && `${pendingIssues} sugerencias pendientes`}
+          { !loading && `${pendingCount} sugerencias pendientes`}
         </Typography>
       </Stack>
 
@@ -159,7 +161,6 @@ export default function DocInfoPanel({
         Datos detectados por IA
       </Typography>
 
-      {/* Zona scrollable */}
       <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", pr: 1 }}>
         {semanticGroupData.map((item, i) => {
           try {
@@ -258,10 +259,11 @@ export default function DocInfoPanel({
       <SuggestionsModal
         open={openSugModal}
         onClose={() => setOpenSugModal(false)}
-        analysis={analysis}
         loading={loading}
-        onReanalyze={async () => await reAnalyze(selectedDoc?.id)}
+        issues={issuesList}
+        onReanalyze={async () => await reAnalyze()}
         onIssueUpdated={handleIssueUpdated}
+        suggestionStatuses={statuses}
       />
     </Paper>
   );

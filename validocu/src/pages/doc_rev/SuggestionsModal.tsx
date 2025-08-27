@@ -7,7 +7,6 @@ import {
   IconButton,
   Button,
   Typography,
-  Badge,
   Stack,
   TextField,
   Select,
@@ -21,94 +20,56 @@ import {
   TableCell,
   TableBody,
   Paper,
+  Chip,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import type { AnalyzeResponse, Issue, SuggestionStatus } from "../../api/analysis";
-import { listSuggestionStatuses, updateIssueStatusById } from "../../api/analysis";
+import type { Issue, SuggestionStatus } from "../../api/analysis";
+import {
+  updateIssueStatusById,
+} from "../../api/analysis";
 
 type Props = {
   open: boolean;
   onClose: () => void;
-  analysis: AnalyzeResponse | null;
+  issues: Issue[];
   loading?: boolean;
   onReanalyze?: () => void | Promise<void>;
   onIssueUpdated: (issue: Issue) => void;
+  suggestionStatuses: SuggestionStatus[],
 };
 
 export default function SuggestionsModal({
   open,
   onClose,
-  analysis,
+  issues,
   loading = false,
   onReanalyze,
   onIssueUpdated,
+  suggestionStatuses,
 }: Readonly<Props>) {
-  const [catalog, setCatalog] = useState<SuggestionStatus[]>([]);
   const [filter, setFilter] = useState<"ALL" | number>("ALL");
   const [search, setSearch] = useState("");
   const [pending, setPending] = useState<Record<number, number>>({});
   const [saving, setSaving] = useState(false);
 
-  const issues = analysis?.issues ?? [];
-
-  useEffect(() => {
-    if (!open) return;
-    (async () => {
-      try {
-        const data = await listSuggestionStatuses();
-        setCatalog(data);
-        setPending({});
-      } catch {}
-    })();
-  }, [open]);
 
   const isDirty = useMemo(() => Object.keys(pending).length > 0, [pending]);
 
   const labelOf = (statusId?: number | null): string => {
-    if (!statusId) return "—";
-    const it = catalog.find((s) => s.id === statusId);
+    if (!statusId ||   suggestionStatuses.length === 0) return "—";
+    const it = suggestionStatuses.find((s) => s.id === statusId);
     return it?.status || "—";
   };
 
   const statusIdOfIssue = (issue: Issue): number | null => {
-    if (typeof issue.status_id === "number") return issue.status_id;
-    if (issue.status) {
-      const match = catalog.find((s) => s.status === issue.status);
-      if (match) return match.id;
-    }
-    return null;
+    return typeof issue.status_id === "number" ? issue.status_id : null;
   };
 
-  const filtered = useMemo(() => {
-    return issues.filter((i) => {
-      const q = search.trim().toLowerCase();
-      const source = `${i.field_key} ${i.issue_type} ${i.message} ${i.suggestion ?? ""}`.toLowerCase();
-      const passSearch = !q || source.includes(q);
-
-      if (filter === "ALL") return passSearch;
-
-      const sid = statusIdOfIssue(i);
-      return passSearch && sid === filter;
-    });
-  }, [issues, filter, search, catalog]);
-
-  const todoId = useMemo(
-    () => catalog.find((s) => s.status === "TODO")?.id,
-    [catalog]
-  );
+  const todoId = 1;
   const pendingIssues = useMemo(
     () => (todoId ? issues.filter((i) => statusIdOfIssue(i) === todoId).length : 0),
-    [issues, todoId, catalog]
+    [issues]
   );
-  const totalIssues = issues.length;
-
-  const handleRowClick = (issue: Issue) => {
-    window.dispatchEvent(new CustomEvent("focus-evidence", { detail: issue.evidence ?? null }));
-  };
-
-  const handleLocalSelect = (issue: Issue, statusId: number) => {
-    setPending((prev) => ({ ...prev, [issue.id]: statusId }));
-  };
 
   const handleConfirm = async () => {
     if (!isDirty) return;
@@ -121,6 +82,12 @@ export default function SuggestionsModal({
         )
       );
       results.forEach(onIssueUpdated);
+
+      // refrescar listado local
+    const updated = issues.map((it) =>
+      pending[it.issue_id] ? { ...it, status_id: pending[it.issue_id] } : it
+    );
+    updated.forEach(onIssueUpdated);
       setPending({});
     } finally {
       setSaving(false);
@@ -149,11 +116,12 @@ export default function SuggestionsModal({
             justifyContent="space-between"
           >
             <Stack direction="row" spacing={2} alignItems="center">
-              <Badge color="warning">
-                <Typography variant="body2" color="text.secondary">
-                  {pendingIssues} sugerencias pendientes de {totalIssues} en total.
-                </Typography>
-              </Badge>
+              { pendingIssues > 0 ? 
+                <Chip label={`${pendingIssues} sugerencias pendientes`} color="warning" size="small" />
+                :
+                <Chip label={`${pendingIssues} sugerencias pendientes`} color="success" size="small" />
+
+              }
             </Stack>
             {onReanalyze && (
               <Button onClick={onReanalyze} variant="contained" disabled={loading || saving}>
@@ -181,7 +149,7 @@ export default function SuggestionsModal({
                 disabled={saving}
               >
                 <MenuItem value="ALL">Todos</MenuItem>
-                {catalog.map((s) => (
+                {suggestionStatuses.map((s) => (
                   <MenuItem key={s.id} value={s.id}>
                     {s.status}
                   </MenuItem>
@@ -196,50 +164,37 @@ export default function SuggestionsModal({
             <TableHead>
               <TableRow>
                 <TableCell sx={{ width: 200 }}>Campo</TableCell>
-                <TableCell sx={{ width: 160 }}>Tipo</TableCell>
-                <TableCell>Mensaje</TableCell>
                 <TableCell>Sugerencia</TableCell>
-                <TableCell sx={{ width: 110 }} align="right">
-                  Confianza
-                </TableCell>
                 <TableCell sx={{ width: 220 }}>Estado</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {filtered.map((i) => {
+              {issues.map((i) => {
                 const currentId = statusIdOfIssue(i);
-                const pendingId = pending[i.id];
+                const pendingId = pending[i.issue_id];
                 const value = pendingId ?? currentId ?? "";
                 return (
                   <TableRow
-                    key={i.id}
+                    key={i.issue_id}
                     hover
                     sx={{ cursor: "pointer" }}
-                    onClick={() => handleRowClick(i)}
                   >
                     <TableCell>
                       <Typography variant="body2" fontWeight={600}>
-                        {i.field_key}
+                        {i.label}
                       </Typography>
                     </TableCell>
-                    <TableCell>{i.issue_type}</TableCell>
-                    <TableCell>{i.message}</TableCell>
-                    <TableCell>{i.suggestion ?? "—"}</TableCell>
-                    <TableCell align="right">
-                      {i.confidence != null
-                        ? `${(Number(i.confidence) * 100).toFixed(1)}%`
-                        : "—"}
-                    </TableCell>
+                    <TableCell>{i.suggestion_template}</TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <FormControl size="small" fullWidth>
                         <Select
                           value={value}
                           displayEmpty
                           renderValue={(v) => (v ? labelOf(Number(v)) : "Seleccionar…")}
-                          onChange={(e) => handleLocalSelect(i, Number(e.target.value))}
+                          onChange={(e) => setPending((prev) => ({ ...prev, [i.issue_id]: Number(e.target.value) }))}
                           disabled={saving}
                         >
-                          {catalog.map((s) => (
+                          {suggestionStatuses.map((s) => (
                             <MenuItem key={s.id} value={s.id}>
                               {s.status}
                             </MenuItem>
@@ -250,9 +205,9 @@ export default function SuggestionsModal({
                   </TableRow>
                 );
               })}
-              {filtered.length === 0 && (
+              {issues.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6}>
+                  <TableCell colSpan={7}>
                     <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 2 }}>
                       Sin resultados
                     </Typography>
