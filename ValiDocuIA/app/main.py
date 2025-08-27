@@ -17,62 +17,59 @@ def _assert_model_dir(path: str):
 @app.post("/procesar/")
 async def procesar_documento(
     file: UploadFile = File(...),
-    doc_id: str = Form(...),
-    group_id: str = Form(...)
+    master_id: str = Form(...),   # <-- ID del documento completo (estable)
+    group_id: str = Form(...),
+    page: int = Form(...),        # <-- índice de página (0,1,2,...)
+    doc_id: str | None = Form(None)  # <-- opcional, si igual lo quieres guardar en tu BD
 ):
     try:
+        suffix = f"_p{page:04d}"  # 0000, 0001, ...
+        base   = f"{master_id}_{doc_id}_{group_id}{suffix}"
+
         # 1) Guardar imagen temporal
-        nombre_img = f"{doc_id}_{group_id}.png"
-        ruta_img = os.path.join("outputs", nombre_img)
-        contents = await file.read()
+        nombre_img = f"{base}.png"
+        ruta_img   = os.path.join("outputs", nombre_img)
+        contents   = await file.read()
         os.makedirs(os.path.dirname(ruta_img), exist_ok=True)
         with open(ruta_img, "wb") as f:
             f.write(contents)
 
-        # 2) Verificar modelo y ejecutar predicción
+        # 2) Ejecutar predicción
         _assert_model_dir(MODEL_DIR)
-
-        prediccion.OUTPUT_IMG = os.path.join("outputs", f"resultado_{nombre_img}")
-        json_output = os.path.join("outputs", f"documento_{doc_id}_{group_id}.json")
+        prediccion.OUTPUT_IMG = os.path.join("outputs", f"resultado_{base}.png")
+        json_output = os.path.join("outputs", f"documento_{base}.json")
 
         prediccion.run_prediction(
             image_path=ruta_img,
-            model_path=MODEL_DIR,  # <- usa env o volumen montado
+            model_path=MODEL_DIR,
             output_img_path=prediccion.OUTPUT_IMG,
             output_json_path=json_output
         )
 
-        # 3) Ejecutar semantic.py con el JSON generado (no romper si falla)
-        semantic_rc = 0
-        semantic_err = None
-        try:
-            completed = subprocess.run(
-                ["python3", "app/semantic.py", json_output],
-                check=False,
-                capture_output=True,
-                text=True
-            )
-            semantic_rc = completed.returncode
-            if semantic_rc != 0:
-                semantic_err = (completed.stderr or completed.stdout or "").strip()
-        except Exception as se:
-            semantic_rc = -1
-            semantic_err = str(se)
+        # 3) Agregación semántica
+        # semantic.py ya busca TODAS las páginas por prefijo:
+        #   "documento_{master_id}_{group_id}_p*.json"
+        completed = subprocess.run(
+            ["python3", "app/semantic.py", json_output],
+            check=False, capture_output=True, text=True
+        )
 
         body = {
-            "mensaje": "✅ Documento procesado",
+            "mensaje": "✅ Página procesada",
+            "master_id": master_id,
+            "group_id": group_id,
+            "page": page,
+            "page_doc_id": doc_id,           # por si lo guardas en tu BD
             "json": json_output,
             "imagen_procesada": prediccion.OUTPUT_IMG,
-            "semantic_status": "ok" if semantic_rc == 0 else "error",
+            "semantic_status": "ok" if completed.returncode == 0 else "error",
+            "semantic_logs": (completed.stderr or completed.stdout or "").strip()[:1000]
         }
-        if semantic_err:
-            body["semantic_error"] = semantic_err[:1000]
-
         return body
 
     except Exception as e:
-        # Devuelve 500 con el error claro, para que puedas verlo en el cliente
         raise HTTPException(status_code=500, detail=f"Error en /procesar: {e}")
+
 
 from pydantic import BaseModel
 
