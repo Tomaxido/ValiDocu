@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { getDocumentGroupById, uploadDocumentsToGroup, deleteDocuments, getSemanticGroupData } from "../../utils/api";
+import { getDocumentGroupById, uploadDocumentsToGroup, deleteDocuments, getSemanticGroupData, obtenerDocumentosVencidos } from "../../utils/api";
 import type { DocumentGroup, Document, GroupedDocument, SemanticGroup } from "../../utils/interfaces";
 import UploadModal from "./UploadModal";
 import DeleteModal from "./DeleteModal";
@@ -32,7 +32,7 @@ function groupDocuments(documents: Document[]): GroupedDocument[] {
   });
 }
 
-function statusChip(status?: number) {
+function StatusChip({ status } : { status?: number }) {
   if (status === 1) return <Chip label="Conforme" color="success" size="small" />;
   if (status === 2) return <Chip label="Inconforme" color="error" size="small" />;
   return <Chip label="Sin procesar" variant="outlined" size="small" />;
@@ -58,6 +58,8 @@ export default function Grupo() {
 
   useEffect(() => {
     if (grupoId) {
+      // TEST
+      obtenerDocumentosVencidos().then(data => console.dir(data));
       getDocumentGroupById(grupoId).then((g) => {
         setGroup(g);
         const grouped = groupDocuments(g.documents);
@@ -259,7 +261,7 @@ export default function Grupo() {
                     primary={
                       <Stack direction="row" spacing={1} alignItems="center">
                         <Typography variant="body2" fontWeight={700}>{grouped.name}</Typography>
-                        {statusChip(grouped.pdf?.status)}
+                        <StatusChip status={grouped.pdf?.status} />
                       </Stack>
                     }
                   />

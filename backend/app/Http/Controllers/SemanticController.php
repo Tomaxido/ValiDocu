@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\FlexibleDateParser;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -25,7 +27,7 @@ class SemanticController extends Controller
         // Use parameter binding for safer queries
         $resultados = DB::select("
             SELECT * FROM (
-                SELECT 
+                SELECT
                     si.id, si.resumen, si.archivo, si.document_id, si.document_group_id,
                     d.filename AS document_name, g.name AS group_name,
                     1 - (si.embedding <=> ?::vector) as score
@@ -84,6 +86,45 @@ class SemanticController extends Controller
         } catch (\Exception $e) {
             \Log::error("❌ Excepción al obtener json_layout", ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Error al obtener json_layout'], 500);
+        }
+    }
+
+    public function obtenerDocumentosVencidos(): JsonResponse
+    {
+        try {
+            $documentos = DB::table('semantic_doc_index')->get();
+            $documentosVencidos = array();
+            $documentosPorVencer = array();
+            foreach ($documentos as $doc) {
+                $jsonGlobal = json_decode($doc->json_global);
+                if (!property_exists($jsonGlobal, 'FECHA_VENCIMIENTO')) {
+                    continue;
+                }
+                $fechaVencimientoStr = $jsonGlobal->FECHA_VENCIMIENTO;
+                $fechaVencimientoStr = str_replace(' del ', ' de ', $fechaVencimientoStr);
+                try {
+                    $fechaVencimiento = FlexibleDateParser::parse($fechaVencimientoStr);
+                } catch (\Throwable $e) {
+                    continue;
+                }
+                $diasDesdeVencimiento = $fechaVencimiento->diffInDays(Carbon::now());
+                if ($diasDesdeVencimiento > 1) {
+                    array_push($documentosVencidos, $doc);
+                }
+                $diasHastaVencimiento = -$diasDesdeVencimiento;
+                if ($diasHastaVencimiento < 30) {
+                    array_push($documentosPorVencer, $doc);
+                }
+            }
+
+            return response()->json(array(
+                "documentosVencidos" => $documentosVencidos,
+                "documentosPorVencer" => $documentosPorVencer,
+            ));
+
+        } catch (\Exception $e) {
+            \Log::error("❌ Excepción al obtener documentos", ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Error al obtener documentos'], 500);
         }
     }
 }

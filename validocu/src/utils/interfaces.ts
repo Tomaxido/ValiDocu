@@ -38,3 +38,21 @@ export interface SemanticGroup {
 export interface GroupedImageViewerProps {
   files: Document[];
 }
+
+export interface SemanticDocIndex {
+  id: number;
+  document_id: number;
+  document_group_id: number;
+  resumen: string;
+  json_layout: string;
+  json_global: string;
+  embedding: string;
+  archivo: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ExpiredDocumentResponse {
+  documentosVencidos: SemanticDocIndex[];
+  documentosPorVencer: SemanticDocIndex[];
+}

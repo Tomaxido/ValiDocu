@@ -1,4 +1,4 @@
-import type { BoxAnnotation, Document, DocumentGroup, SemanticGroup } from "./interfaces";
+import type { BoxAnnotation, Document, DocumentGroup, ExpiredDocumentResponse, SemanticGroup } from "./interfaces";
 
 // let baseURL = "";
 // if (process.env.NODE_ENV === "development") {
@@ -104,4 +104,8 @@ export async function buscarJsonLayoutPorIdDocumento(id: number): Promise<BoxAnn
   }
 
   return await res.json();
+}
+
+export async function obtenerDocumentosVencidos(): Promise<ExpiredDocumentResponse> {
+  return await getJSON("/api/v1/documentos_vencidos");
 }
