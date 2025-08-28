@@ -152,6 +152,7 @@ export default function DocInfoPanel({
             {loading ? "Cargando" : "Ver sugerencias"}
           </Badge>
         </Button>
+        
         <Typography variant="body2" color="text.secondary">
           { !loading && pendingCount > 0 ? 
             <Chip label={`${pendingCount} sugerencias pendientes`} color="warning" size="small" />
@@ -160,6 +161,19 @@ export default function DocInfoPanel({
           }
         </Typography>
       </Stack>
+      {/* ====== Generación de Documento Resumen (HdU 05) ====== */}
+      <Button
+        variant="outlined"
+        color="primary"
+        sx={{ mb: 2,  maxWidth: 280}}
+        onClick={() => {
+          if (selectedDoc?.id) {
+            downloadDocumentSummaryExcel(selectedDoc.id);
+          }
+        }}
+      >
+        Generar Documento Resumen
+      </Button>
 
       <Typography variant="subtitle1" fontWeight={700} sx={{ mt: 1 }}>
         Datos detectados por IA
@@ -246,19 +260,6 @@ export default function DocInfoPanel({
         })}
       </Box>
 
-      {/* ====== Generación de Documento Resumen (HdU 05) ====== */}
-      <Button
-        variant="contained"
-        color="primary"
-        sx={{ mb: 2 }}
-        onClick={() => {
-          if (selectedDoc?.id) {
-            downloadDocumentSummaryExcel(selectedDoc.id);
-          }
-        }}
-      >
-        Generar Documento Resumen
-      </Button>
       {/* ====== Modal con toda la lógica de sugerencias ====== */}
       <SuggestionsModal
         open={openSugModal}
