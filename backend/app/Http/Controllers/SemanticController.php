@@ -89,10 +89,12 @@ class SemanticController extends Controller
         }
     }
 
-    public function obtenerDocumentosVencidos(): JsonResponse
+    public function obtenerDocumentosVencidosDeGrupo(int $id_grupo): JsonResponse
     {
         try {
-            $documentos = DB::table('semantic_doc_index')->get();
+            $documentos = DB::table('semantic_doc_index')
+                ->where('document_group_id', $id_grupo)
+                ->get();
             $documentosVencidos = array();
             $documentosPorVencer = array();
             foreach ($documentos as $doc) {

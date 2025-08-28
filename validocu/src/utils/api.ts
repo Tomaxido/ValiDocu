@@ -44,8 +44,8 @@ export async function getDocumentGroups(): Promise<DocumentGroup[]> {
 	return await getJSON("/api/v1/documents") as DocumentGroup[];
 }
 
-export async function getDocumentGroupById(id: string | number): Promise<DocumentGroup> {
-	return await getJSON(`/api/v1/documents/${id}`) as DocumentGroup;
+export async function getDocumentGroupById(idGrupo: string | number): Promise<DocumentGroup> {
+	return await getJSON(`/api/v1/documents/${idGrupo}`) as DocumentGroup;
 }
 
 export async function createGroup(grupoNombre: string, files: FileList): Promise<void> {
@@ -106,6 +106,6 @@ export async function buscarJsonLayoutPorIdDocumento(id: number): Promise<BoxAnn
   return await res.json();
 }
 
-export async function obtenerDocumentosVencidos(): Promise<ExpiredDocumentResponse> {
-  return await getJSON("/api/v1/documentos_vencidos");
+export async function obtenerDocumentosVencidos(idGrupo: string | number): Promise<ExpiredDocumentResponse> {
+  return await getJSON(`/api/v1/documents/${idGrupo}/vencidos`);
 }

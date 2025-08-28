@@ -59,7 +59,7 @@ export default function Grupo() {
   useEffect(() => {
     if (grupoId) {
       // TEST
-      obtenerDocumentosVencidos().then(data => console.dir(data));
+      obtenerDocumentosVencidos(grupoId).then(data => console.dir(data));
       getDocumentGroupById(grupoId).then((g) => {
         setGroup(g);
         const grouped = groupDocuments(g.documents);
