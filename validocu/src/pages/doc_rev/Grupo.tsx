@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
-import { useEffect, useRef, useState } from "react";
-import { getDocumentGroupById, uploadDocumentsToGroup, deleteDocuments, getSemanticGroupData, obtenerDocumentosVencidos } from "../../utils/api";
-import type { DocumentGroup, Document, GroupedDocument, SemanticGroup } from "../../utils/interfaces";
+import { useEffect, useRef, useState, type JSX } from "react";
+import { getDocumentGroupById, uploadDocumentsToGroup, deleteDocuments, getSemanticGroupData, obtenerDocumentosVencidos as obtenerDocumentosVencidosDeGrupo } from "../../utils/api";
+import { type DocumentGroup, type Document, type GroupedDocument, type SemanticGroup, type ExpiredDocumentResponse } from "../../utils/interfaces";
 import UploadModal from "./UploadModal";
 import DeleteModal from "./DeleteModal";
 import GroupedImageViewer from "./GroupedImageViewer";
@@ -9,7 +9,8 @@ import DocInfoPanel from "./DocInfoPanel";
 
 import {
   Box, Paper, Button, Typography, List, ListItemButton,
-  ListItemText, Chip, Stack, IconButton, Divider
+  ListItemText, Chip, Stack, IconButton, Divider, Snackbar,
+  Alert,
 } from "@mui/material";
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
 
@@ -38,6 +39,52 @@ function StatusChip({ status } : { status?: number }) {
   return <Chip label="Sin procesar" variant="outlined" size="small" />;
 }
 
+function SnackbarDocsVencidos({ respuestaDocsVencidos }: { respuestaDocsVencidos: ExpiredDocumentResponse | null }): JSX.Element {
+  const docsVencidos = respuestaDocsVencidos?.documentosVencidos ?? [];
+  const docsPorVencer = respuestaDocsVencidos?.documentosPorVencer ?? [];
+
+  const [open, setOpen] = useState(docsVencidos.length > 0 || docsPorVencer.length > 0);
+
+  let message = "Hay ";
+  if (docsVencidos.length > 0) {
+    if (docsVencidos.length === 1) {
+      message += "1 documento vencido";
+    } else if (docsVencidos.length > 1) {
+      message += `${docsVencidos.length} documentos vencidos`;
+    }
+    if (docsPorVencer.length > 0) {
+      message += " y ";
+    }
+  }
+
+  if (docsPorVencer.length > 0) {
+    if (docsPorVencer.length === 1) {
+      message += "1 documento por vencer";
+    } else if (docsPorVencer.length > 1) {
+      message += `${docsPorVencer.length} documentos por vencer`;
+    }
+  }
+
+  message += ".";
+
+  return (
+    <Snackbar
+      open={open}
+      anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      autoHideDuration={10000}
+      onClose={() => setOpen(false)}
+    >
+      <Alert
+        severity={docsVencidos.length > 0 ? "error" : "warning"}
+        variant="filled"
+      >
+        {message}
+      </Alert>
+    </Snackbar>
+    
+  )
+}
+
 export default function Grupo() {
   const { grupoId } = useParams<{ grupoId: string }>();
   const [group, setGroup] = useState<DocumentGroup | null>(null);
@@ -47,6 +94,7 @@ export default function Grupo() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [semanticGroupData, setSemanticGroupData] = useState<SemanticGroup[]>([]);
+  const [respuestaDocsVencidos, setRespuestaDocsVencidos] = useState<ExpiredDocumentResponse | null>(null);
 
   // ====== Splitter state ======
   const splitRef = useRef<HTMLDivElement | null>(null);
@@ -59,7 +107,7 @@ export default function Grupo() {
   useEffect(() => {
     if (grupoId) {
       // TEST
-      obtenerDocumentosVencidos(grupoId).then(data => console.dir(data));
+      obtenerDocumentosVencidosDeGrupo(grupoId).then(setRespuestaDocsVencidos);
       getDocumentGroupById(grupoId).then((g) => {
         setGroup(g);
         const grouped = groupDocuments(g.documents);
@@ -162,6 +210,9 @@ export default function Grupo() {
         width: "100%",
       }}
     >
+      {/* Alerta de documentos vencidos */}
+      <SnackbarDocsVencidos respuestaDocsVencidos={respuestaDocsVencidos}/>
+      
       {/* Sidebar */}
       <Paper
         elevation={0}

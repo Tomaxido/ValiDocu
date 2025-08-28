@@ -112,9 +112,7 @@ class SemanticController extends Controller
                 $diasDesdeVencimiento = $fechaVencimiento->diffInDays(Carbon::now());
                 if ($diasDesdeVencimiento > 1) {
                     array_push($documentosVencidos, $doc);
-                }
-                $diasHastaVencimiento = -$diasDesdeVencimiento;
-                if ($diasHastaVencimiento < 30) {
+                } else if ($diasDesdeVencimiento > -30) {
                     array_push($documentosPorVencer, $doc);
                 }
             }
