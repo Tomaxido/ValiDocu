@@ -17,7 +17,7 @@ class DatabaseSeeder extends Seeder
             DocumentFieldSpecSeeder::class,
             DocumentLabelAliasSeeder::class,
             SuggestionStatusSeeder::class,
-            AnalysisIssuesSeeder::class,
+            // AnalysisIssuesSeeder::class, // este era para cuando no se generaban las sugerencias
         ]);
     }
 }

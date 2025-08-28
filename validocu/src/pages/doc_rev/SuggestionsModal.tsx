@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -164,6 +164,7 @@ export default function SuggestionsModal({
             <TableHead>
               <TableRow>
                 <TableCell sx={{ width: 200 }}>Campo</TableCell>
+                <TableCell sx={{ width: 200 }}>Motivo</TableCell>
                 <TableCell>Sugerencia</TableCell>
                 <TableCell sx={{ width: 220 }}>Estado</TableCell>
               </TableRow>
@@ -184,6 +185,7 @@ export default function SuggestionsModal({
                         {i.label}
                       </Typography>
                     </TableCell>
+                    <TableCell>{i.reason === 'missing' ? 'Campo faltante' : 'Campo inválido'}</TableCell>
                     <TableCell>{i.suggestion_template}</TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <FormControl size="small" fullWidth>

@@ -133,6 +133,7 @@ class AnalysisController extends Controller
                 if ((int)$spec->is_required === 1) {
                     $issues[] = [
                         'id' => $spec->id,
+                        'reason' => 'missing',
                         // 'field_key'  => $key,
                         // 'issue_type' => 'missing_field',
                         // 'message'    => "Falta el campo obligatorio «{$label}» en json_global.",
@@ -147,6 +148,7 @@ class AnalysisController extends Controller
             if ((int)$spec->is_required === 1 && trim($strVal) === '') {
                 $issues[] = [
                     'id' => $spec->id,
+                    'reason' => 'missing'
                     // 'field_key'  => $key,
                     // 'issue_type' => 'blank',
                     // 'message'    => "El campo «{$label}» está vacío.",
@@ -162,6 +164,7 @@ class AnalysisController extends Controller
                     if (!preg_match($pattern, $strVal)) {
                         $issues[] = [
                             'id' => $spec->id,
+                            'reason' => 'invalid'
                             // 'field_key'  => $key,
                             // 'issue_type' => 'invalid_format',
                             // 'message'    => "El campo «{$label}» no cumple el formato esperado.",
@@ -199,6 +202,7 @@ class AnalysisController extends Controller
                 'document_analysis_id' => $analysisId,
                 'document_field_spec_id' => $issue['id'],
                 'status_id' => 1,
+                'reason' => $issue['reason'],
             ]);
         }
     }
@@ -231,6 +235,7 @@ class AnalysisController extends Controller
             ->select(
                 'ai.id as issue_id',
                 'ai.status_id',
+                'ai.reason',
                 'dfs.label',
                 'dfs.is_required',
                 'dfs.suggestion_template'                

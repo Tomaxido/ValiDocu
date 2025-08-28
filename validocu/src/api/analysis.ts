@@ -21,6 +21,7 @@ export type Issue = {
   status_id: number;
   label: string;
   suggestion_template: string;
+  reason: string;
   is_required: boolean;
 };
 

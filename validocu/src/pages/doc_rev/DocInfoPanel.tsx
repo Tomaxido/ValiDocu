@@ -153,7 +153,11 @@ export default function DocInfoPanel({
           </Badge>
         </Button>
         <Typography variant="body2" color="text.secondary">
-          { !loading && `${pendingCount} sugerencias pendientes`}
+          { !loading && pendingCount > 0 ? 
+            <Chip label={`${pendingCount} sugerencias pendientes`} color="warning" size="small" />
+            :
+            <Chip label={`${pendingCount} sugerencias pendientes`} color="success" size="small" />
+          }
         </Typography>
       </Stack>
 
