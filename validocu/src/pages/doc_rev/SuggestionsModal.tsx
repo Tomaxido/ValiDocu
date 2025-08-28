@@ -10,6 +10,7 @@ import {
   Stack,
   TextField,
   Select,
+  Menu,
   MenuItem,
   FormControl,
   InputLabel,
@@ -21,12 +22,16 @@ import {
   TableBody,
   Paper,
   Chip,
+  Divider,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import type { Issue, SuggestionStatus } from "../../api/analysis";
 import {
   updateIssueStatusById,
 } from "../../api/analysis";
+import { exportSuggestionsToExcel, exportSuggestionsToPDF } from "../../utils/summary_export";
+import DownloadIcon from "@mui/icons-material/Download";
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 
 type Props = {
   open: boolean;
@@ -51,6 +56,15 @@ export default function SuggestionsModal({
   const [search, setSearch] = useState("");
   const [pending, setPending] = useState<Record<number, number>>({});
   const [saving, setSaving] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const openMenu = Boolean(anchorEl);
+
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
 
 
   const isDirty = useMemo(() => Object.keys(pending).length > 0, [pending]);
@@ -97,14 +111,55 @@ export default function SuggestionsModal({
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
       <DialogTitle sx={{ pr: 5 }}>
-        Sugerencias de corrección
-        <IconButton
-          aria-label="cerrar"
-          onClick={onClose}
-          sx={{ position: "absolute", right: 8, top: 8 }}
-        >
-          <CloseIcon />
-        </IconButton>
+        <Stack direction="row" alignItems="center" justifyContent="space-between">
+          <Typography variant="h6">Sugerencias de corrección</Typography>
+
+          <Stack direction="row" spacing={1} alignItems="center">
+            {/* Botón Descargar con menú */}
+            <Button
+              variant="contained"
+              size="small"
+              onClick={handleClick}
+              // color='secondary'
+              disabled={loading || saving}
+              startIcon={<DownloadIcon />}
+              endIcon={<ArrowDropDownIcon />}
+            >
+              Descargar
+              <Divider orientation="vertical" flexItem sx={{ ml: 1 }} />
+            </Button>
+            <Menu
+              anchorEl={anchorEl}
+              open={openMenu}
+              onClose={handleClose}
+            >
+              <MenuItem
+                onClick={() => {
+                  exportSuggestionsToExcel(issues as any, suggestionStatuses as any);
+                  handleClose();
+                }}
+              >
+                Descargar como Excel
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  exportSuggestionsToPDF(issues as any, suggestionStatuses as any);
+                  handleClose();
+                }}
+              >
+                Descargar como PDF
+              </MenuItem>
+            </Menu>
+
+            {/* Botón cerrar */}
+            <IconButton
+              aria-label="cerrar"
+              onClick={onClose}
+            >
+              <CloseIcon />
+            </IconButton>
+          </Stack>
+        </Stack>
       </DialogTitle>
 
       <DialogContent dividers>

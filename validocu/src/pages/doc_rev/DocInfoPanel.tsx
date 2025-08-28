@@ -20,6 +20,7 @@ import {
 } from "../../api/analysis";
 import SuggestionsModal from "./SuggestionsModal";
 import { downloadDocumentSummaryExcel } from "../../api/summary_excel";
+import DownloadIcon from "@mui/icons-material/Download";
 
 
 interface Props {
@@ -166,6 +167,7 @@ export default function DocInfoPanel({
         variant="outlined"
         color="primary"
         sx={{ mb: 2,  maxWidth: 280}}
+        startIcon={<DownloadIcon />}
         onClick={() => {
           if (selectedDoc?.id) {
             downloadDocumentSummaryExcel(selectedDoc.id);
