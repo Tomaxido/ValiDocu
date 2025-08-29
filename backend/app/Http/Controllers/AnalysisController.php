@@ -98,7 +98,7 @@ class AnalysisController extends Controller
 
     public function createSuggestions(int $documentId)
     {
-        // $doc = Document::findOrFail($documentId);
+        $doc = Document::findOrFail($documentId);
 
         // 1) Inferir doc_type desde semantic_index.json_layout (fallback: 'acuerdo')
         $si = DB::table('semantic_doc_index')->where('document_id', $documentId)->first(['json_global']);
