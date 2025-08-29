@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 import subprocess
 import json
 from app import prediccion
@@ -8,39 +8,68 @@ import os
 
 app = FastAPI()
 
+MODEL_DIR = os.getenv("MODEL_DIR", "/app/modelo_multiclase")
+
+def _assert_model_dir(path: str):
+    if not os.path.isdir(path):
+        raise FileNotFoundError(f"Modelo no encontrado en: {path}")
+
 @app.post("/procesar/")
 async def procesar_documento(
     file: UploadFile = File(...),
-    doc_id: str = Form(...),
-    group_id: str = Form(...)
+    master_id: str = Form(...),   # <-- ID del documento completo (estable)
+    group_id: str = Form(...),
+    page: int = Form(...),        # <-- índice de página (0,1,2,...)
+    doc_id: str | None = Form(None)  # <-- opcional, si igual lo quieres guardar en tu BD
 ):
-    # === 1. Guardar imagen temporal
-    nombre_img = f"{doc_id}_{group_id}.png"
-    ruta_img = f"outputs/{nombre_img}"
-    contents = await file.read()
-    with open(ruta_img, "wb") as f:
-        f.write(contents)
+    try:
+        suffix = f"_p{page:04d}"  # 0000, 0001, ...
+        base   = f"{master_id}_{doc_id}_{group_id}{suffix}"
 
-    # === 2. Ejecutar predicción
-    prediccion.IMAGE_PATH = ruta_img
-    prediccion.MODEL_PATH = "outputs/modelo_multiclase"
-    prediccion.OUTPUT_IMG = f"outputs/resultado_{nombre_img}"
-    json_output = f"outputs/documento_{doc_id}_{group_id}.json"
-    prediccion.OUTPUT_JSON = json_output
-    prediccion.run_prediction(
-        image_path=ruta_img,
-        model_path="modelo_multiclase",
-        output_img_path=prediccion.OUTPUT_IMG,
-        output_json_path=json_output
-    )
-    # === 3. Ejecutar semantic.py con nombre del archivo
-    subprocess.run(["python3", "app/semantic.py", json_output])
+        # 1) Guardar imagen temporal
+        nombre_img = f"{base}.png"
+        ruta_img   = os.path.join("outputs", nombre_img)
+        contents   = await file.read()
+        os.makedirs(os.path.dirname(ruta_img), exist_ok=True)
+        with open(ruta_img, "wb") as f:
+            f.write(contents)
 
-    return {
-        "mensaje": "✅ Documento procesado",
-        "json": json_output,
-        "imagen_procesada": prediccion.OUTPUT_IMG
-    }
+        # 2) Ejecutar predicción
+        _assert_model_dir(MODEL_DIR)
+        prediccion.OUTPUT_IMG = os.path.join("outputs", f"resultado_{base}.png")
+        json_output = os.path.join("outputs", f"documento_{base}.json")
+
+        prediccion.run_prediction(
+            image_path=ruta_img,
+            model_path=MODEL_DIR,
+            output_img_path=prediccion.OUTPUT_IMG,
+            output_json_path=json_output
+        )
+
+        # 3) Agregación semántica
+        # semantic.py ya busca TODAS las páginas por prefijo:
+        #   "documento_{master_id}_{group_id}_p*.json"
+        completed = subprocess.run(
+            ["python3", "app/semantic.py", json_output],
+            check=False, capture_output=True, text=True
+        )
+
+        body = {
+            "mensaje": "✅ Página procesada",
+            "master_id": master_id,
+            "group_id": group_id,
+            "page": page,
+            "page_doc_id": doc_id,           # por si lo guardas en tu BD
+            "json": json_output,
+            "imagen_procesada": prediccion.OUTPUT_IMG,
+            "semantic_status": "ok" if completed.returncode == 0 else "error",
+            "semantic_logs": (completed.stderr or completed.stdout or "").strip()[:1000]
+        }
+        return body
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en /procesar: {e}")
+
 
 from pydantic import BaseModel
 
@@ -49,11 +78,14 @@ class TextoRequest(BaseModel):
 
 @app.post("/vector/")
 async def generar_vector(data: TextoRequest):
-    from subprocess import check_output
+    from subprocess import check_output, CalledProcessError
     import json
 
-    result = check_output(["python3", "app/generar_vector.py", data.texto])
-    return {"embedding": json.loads(result)}
+    try:
+        result = check_output(["python3", "app/generar_vector.py", data.texto])
+        return {"embedding": json.loads(result)}
+    except CalledProcessError as cpe:
+        return {"error": f"vectorizado falló: {cpe}"}
 
 import base64
 
@@ -62,6 +94,7 @@ async def convertir_pdf(file: UploadFile = File(...)):
     nombre_archivo = file.filename
     pdf_path = os.path.join("outputs", nombre_archivo)
 
+    os.makedirs("outputs", exist_ok=True)
     with open(pdf_path, "wb") as f:
         f.write(await file.read())
 

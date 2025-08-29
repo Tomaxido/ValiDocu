@@ -11,11 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('document_groups', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->integer('status')->default(0);
-            $table->timestamps();
+        Schema::table('analysis_issues', function (Blueprint $table) {
+            // agrega la columna reason como ENUM
+            $table->enum('reason', ['missing', 'invalid'])
+                  ->default('missing');
         });
     }
 
@@ -24,6 +23,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('document_groups');
+        Schema::table('analysis_issues', function (Blueprint $table) {
+            $table->dropColumn('reason');
+        });
     }
 };
