@@ -102,8 +102,8 @@ class AnalysisController extends Controller
         // 1) Inferir doc_type desde semantic_index.json_layout (fallback: 'acuerdo')
         $si = DB::table('semantic_doc_index')->where('document_id', $documentId)->first(['json_global']);
         $layout = $si ? json_decode($si->json_global, true) : [];
-        
-        if (!$layout['TIPO_DOCUMENTO'])
+
+        if (!array_key_exists('TIPO_DOCUMENTO', $layout))
         {
             return;
         }
@@ -174,7 +174,7 @@ class AnalysisController extends Controller
                 } else {
                     // (opcional) patrón inválido en BD
                     // $issues[] = [
-                        
+
                     //     'field_key'  => $key,
                     //     'issue_type' => 'spec_regex_invalid',
                     //     'message'    => "Regex inválido en especificación para «{$label}».",
@@ -238,7 +238,7 @@ class AnalysisController extends Controller
                 'ai.reason',
                 'dfs.label',
                 'dfs.is_required',
-                'dfs.suggestion_template'                
+                'dfs.suggestion_template'
             )
             ->get();
 
