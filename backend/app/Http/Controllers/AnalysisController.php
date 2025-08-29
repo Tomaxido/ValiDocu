@@ -98,7 +98,7 @@ class AnalysisController extends Controller
 
     public function createSuggestions(int $documentId)
     {
-        $doc = Document::findOrFail($documentId);
+        // $doc = Document::findOrFail($documentId);
 
         // 1) Inferir doc_type desde semantic_index.json_layout (fallback: 'acuerdo')
         $si = DB::table('semantic_doc_index')->where('document_id', $documentId)->first(['json_global']);
@@ -206,8 +206,10 @@ class AnalysisController extends Controller
                 'reason' => $issue['reason'],
             ]);
         }
-        if(!empty($issues)&& Schema::hasColumn($doc->getTable(), 'normative_gap')) {
-            $doc->update(['normative_gap' => 1]);
+
+        if(!empty($issues)) {
+            // \Log::warning('Buenasssssss voy a actualizar el normative gap del documento con id ' . $documentId . ' a 1');
+            Document::where('id', $documentId)->update(['normative_gap'=> 1]);
         }
     }
 
