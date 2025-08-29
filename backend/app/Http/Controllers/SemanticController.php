@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Support\FlexibleDateParser;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\JsonResponse;
@@ -89,39 +90,81 @@ class SemanticController extends Controller
         }
     }
 
+    function _filtrarDocumentosVencidos(Collection &$documentos): array
+    {
+        $documentosVencidos = array();
+        $documentosPorVencer = array();
+        foreach ($documentos as $doc) {
+            $jsonGlobal = json_decode($doc->json_global);
+            if (!property_exists($jsonGlobal, 'FECHA_VENCIMIENTO')) {
+                continue;
+            }
+            $fechaVencimientoStr = $jsonGlobal->FECHA_VENCIMIENTO;
+            $fechaVencimientoStr = str_replace(' del ', ' de ', $fechaVencimientoStr);
+            try {
+                $fechaVencimiento = FlexibleDateParser::parse($fechaVencimientoStr);
+            } catch (\Throwable $e) {
+                continue;
+            }
+            $diasDesdeVencimiento = $fechaVencimiento->diffInDays(Carbon::now());
+            if ($diasDesdeVencimiento > 1) {
+                array_push($documentosVencidos, $doc);
+            } else if ($diasDesdeVencimiento > -30) {
+                array_push($documentosPorVencer, $doc);
+            }
+        }
+
+        return array($documentosVencidos, $documentosPorVencer);
+    }
+
+    public function obtenerDocumentosVencidos(): JsonResponse
+    {
+        try {
+            $documentos = DB::table('semantic_doc_index')->get();
+
+            list($documentosVencidos, $documentosPorVencer) = $this->_filtrarDocumentosVencidos($documentos);
+
+            return response()->json(array(
+                "documentosVencidos" => $documentosVencidos,
+                "documentosPorVencer" => $documentosPorVencer,
+            ));
+        } catch (\Exception $e) {
+            \Log::error("❌ Excepción al obtener documentos", ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Error al obtener documentos'], 500);
+        }
+    }
+
     public function obtenerDocumentosVencidosDeGrupo(int $id_grupo): JsonResponse
     {
         try {
             $documentos = DB::table('semantic_doc_index')
                 ->where('document_group_id', $id_grupo)
                 ->get();
-            $documentosVencidos = array();
-            $documentosPorVencer = array();
-            foreach ($documentos as $doc) {
-                $jsonGlobal = json_decode($doc->json_global);
-                if (!property_exists($jsonGlobal, 'FECHA_VENCIMIENTO')) {
-                    continue;
-                }
-                $fechaVencimientoStr = $jsonGlobal->FECHA_VENCIMIENTO;
-                $fechaVencimientoStr = str_replace(' del ', ' de ', $fechaVencimientoStr);
-                try {
-                    $fechaVencimiento = FlexibleDateParser::parse($fechaVencimientoStr);
-                } catch (\Throwable $e) {
-                    continue;
-                }
-                $diasDesdeVencimiento = $fechaVencimiento->diffInDays(Carbon::now());
-                if ($diasDesdeVencimiento > 1) {
-                    array_push($documentosVencidos, $doc);
-                } else if ($diasDesdeVencimiento > -30) {
-                    array_push($documentosPorVencer, $doc);
-                }
-            }
+
+            list($documentosVencidos, $documentosPorVencer) = $this->_filtrarDocumentosVencidos($documentos);
 
             return response()->json(array(
                 "documentosVencidos" => $documentosVencidos,
                 "documentosPorVencer" => $documentosPorVencer,
             ));
+        } catch (\Exception $e) {
+            \Log::error("❌ Excepción al obtener documentos", ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Error al obtener documentos'], 500);
+        }
+    }
 
+    public function marcarDocumentosVencidos(): JsonResponse
+    {
+        try {
+            $documentos = DB::table('semantic_doc_index')->get();
+            $documentosVencidos = $this->_filtrarDocumentosVencidos($documentos)[0];
+            $idsVencidas = array();
+            foreach ($documentosVencidos as $doc) {
+                array_push($idsVencidas, $doc->document_id);
+            }
+
+            DB::table('documents')->whereIn('id', $idsVencidas)->update(['due_date' => 1]);
+            return response()->json(['documentosVencidos' => $idsVencidas], 200);
         } catch (\Exception $e) {
             \Log::error("❌ Excepción al obtener documentos", ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Error al obtener documentos'], 500);

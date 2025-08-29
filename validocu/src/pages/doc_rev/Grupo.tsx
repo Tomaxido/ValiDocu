@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
-import { useEffect, useRef, useState, type JSX } from "react";
-import { getDocumentGroupById, uploadDocumentsToGroup, deleteDocuments, getSemanticGroupData, obtenerDocumentosVencidos as obtenerDocumentosVencidosDeGrupo } from "../../utils/api";
+import { useEffect, useRef, useState } from "react";
+import { getDocumentGroupById, uploadDocumentsToGroup, deleteDocuments, getSemanticGroupData, obtenerDocumentosVencidosDeGrupo as obtenerDocumentosVencidosDeGrupo } from "../../utils/api";
 import { type DocumentGroup, type Document, type GroupedDocument, type SemanticGroup, type ExpiredDocumentResponse } from "../../utils/interfaces";
 import UploadModal from "./UploadModal";
 import DeleteModal from "./DeleteModal";
@@ -9,10 +9,10 @@ import DocInfoPanel from "./DocInfoPanel";
 
 import {
   Box, Paper, Button, Typography, List, ListItemButton,
-  ListItemText, Chip, Stack, IconButton, Divider, Snackbar,
-  Alert,
+  ListItemText, Chip, Stack, IconButton, Divider,
 } from "@mui/material";
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
+import { SnackbarDocsVencidos } from "../../components/SnackbarDocsVencidos";
 
 function groupDocuments(documents: Document[]): GroupedDocument[] {
   const pdfs = documents.filter((doc) => doc.filename.toLowerCase().endsWith(".pdf"));
@@ -37,52 +37,6 @@ function StatusChip({ status } : { status?: number }) {
   if (status === 1) return <Chip label="Conforme" color="success" size="small" />;
   if (status === 2) return <Chip label="Inconforme" color="error" size="small" />;
   return <Chip label="Sin procesar" variant="outlined" size="small" />;
-}
-
-function SnackbarDocsVencidos({ respuestaDocsVencidos }: { respuestaDocsVencidos: ExpiredDocumentResponse | null }): JSX.Element {
-  const docsVencidos = respuestaDocsVencidos?.documentosVencidos ?? [];
-  const docsPorVencer = respuestaDocsVencidos?.documentosPorVencer ?? [];
-
-  const [open, setOpen] = useState(docsVencidos.length > 0 || docsPorVencer.length > 0);
-
-  let message = "Hay ";
-  if (docsVencidos.length > 0) {
-    if (docsVencidos.length === 1) {
-      message += "1 documento vencido";
-    } else if (docsVencidos.length > 1) {
-      message += `${docsVencidos.length} documentos vencidos`;
-    }
-    if (docsPorVencer.length > 0) {
-      message += " y ";
-    }
-  }
-
-  if (docsPorVencer.length > 0) {
-    if (docsPorVencer.length === 1) {
-      message += "1 documento por vencer";
-    } else if (docsPorVencer.length > 1) {
-      message += `${docsPorVencer.length} documentos por vencer`;
-    }
-  }
-
-  message += ".";
-
-  return (
-    <Snackbar
-      open={open}
-      anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      autoHideDuration={10000}
-      onClose={() => setOpen(false)}
-    >
-      <Alert
-        severity={docsVencidos.length > 0 ? "error" : "warning"}
-        variant="filled"
-      >
-        {message}
-      </Alert>
-    </Snackbar>
-    
-  )
 }
 
 export default function Grupo() {

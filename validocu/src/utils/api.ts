@@ -106,6 +106,15 @@ export async function buscarJsonLayoutPorIdDocumento(id: number): Promise<BoxAnn
   return await res.json();
 }
 
-export async function obtenerDocumentosVencidos(idGrupo: string | number): Promise<ExpiredDocumentResponse> {
+export async function obtenerDocumentosVencidos(): Promise<ExpiredDocumentResponse> {
+  return await getJSON(`/api/v1/documentos_vencidos`);
+}
+
+export async function marcarDocumentosVencidos(): Promise<void> {
+  return await post(`/api/v1/documentos_vencidos`, "")
+}
+
+
+export async function obtenerDocumentosVencidosDeGrupo(idGrupo: string | number): Promise<ExpiredDocumentResponse> {
   return await getJSON(`/api/v1/documents/group/${idGrupo}/vencidos`);
 }

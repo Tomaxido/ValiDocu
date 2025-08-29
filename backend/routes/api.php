@@ -12,9 +12,11 @@ Route::prefix('v1')->group(function () {
     Route::get('/documents', [DocumentUploadController::class, 'index']);
     Route::get('/documents/{id}', [DocumentUploadController::class, 'show']);
     Route::get('/documents/{id}/layout', [SemanticController::class, 'buscarJsonLayoutByDocumentId']);
+    Route::get('/documentos_vencidos', [SemanticController::class, 'obtenerDocumentosVencidos']);
     Route::get('/documents/group/{group_id}/vencidos', [SemanticController::class, 'obtenerDocumentosVencidosDeGrupo']);
     Route::get('/documents/{id}/vencimiento', [SemanticController::class, 'obtenerVencimientoDocumento']);
 
+    Route::post('/documentos_vencidos', [SemanticController::class, 'marcarDocumentosVencidos']);
     Route::post('/documents', [DocumentUploadController::class, 'storeNewGroup']);
     Route::post('/documents/{group_id}', [DocumentUploadController::class, 'addToGroup']);
 
