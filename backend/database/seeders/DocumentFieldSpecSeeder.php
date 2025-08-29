@@ -24,62 +24,197 @@ class DocumentFieldSpecSeeder extends Seeder
             'updated_at'          => now(),
         ];
 
-        // 2) Lista de doc_types basada en tus PDFs (normalizados)
-        //    Puedes mapear TIPO_DOCUMENTO textual a uno de estos en tu servicio de normalización.
-        $DOC_TYPES = [
-            'contrato',              // genérico por si lo usas como fallback
-            'contrato_simple',
-            'formulario_contrato',
-            'acuerdo_contractual',
-            'contrato_especial',
-            'contrato_servicio',
-            'contrato_individual',
-            'contrato_numerado',
+        // 2) DocType objetivo
+        $DOC_TYPE = 'CONTRATO DE MUTUO Y MANDATO';
+
+        $RUT_REGEX          = '^\d{1,2}\.?\d{3}\.?\d{3}-[\dkK]$';
+        // Revisa fechas validas con formato DD-MM-YYYY, DD/MM/YYYY y DD.MM.YYYY incluyendo años bisiestos
+        $FECHA_ISO_REGEX    = '^(?:(?:29([-./])02(?:\1)(?:(?:(?:1[6-9]|20)(?:04|08|[2468][048]|[13579][26]))|(?:1600|2[048]00)))|(?:(?:(?:0[1-9]|1\d|2[0-8])([-./])(?:0[1-9]|1[0-2]))|(?:29|30)([-./])(?:0(?:1|[3-9])|(?:1[0-2]))|31([-./])(0[13578]|1[02]))(?:\2|\3|\4)(?:1[6-9]|2\d)\d\d)$';
+        $MONEY_REGEX        = '^(?:\d{1,3}(?:\.\d{3})*(?:,\d+)?|\d{1,3}(?:,\d{3})*(?:\.\d+)?)$';               // numero con separador de miles (punto) y decimales (coma)
+        $TASA_REGEX         = '^(?:\d{1,3}(?:\.\d{3})*(?:,\d+)?|\d{1,3}(?:,\d{3})*(?:\.\d+)?)\%$';                      // 0.08%
+        $MONEDA_REGEX       = '^(UF|CLP|USD|UTM)$';                              // UF
+        // Fecha larga insensible a mayuscular, por ejemplo 17 de septiembre del 2024
+        $FECHA_LARGA_REGEX  = '^(0?[1-9]|[12]\d|3[01])\s+(?:de)\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\s+de(?:l)?\s+(\d{4})$';
+
+        $specsMutuoMandato = [
+            // Claves económicas
+            [
+                'field_key' => 'TASA',
+                'label' => 'Tasa de interés',
+                'datatype' => 'string',
+                'regex' => $TASA_REGEX,
+                'is_required' => true,
+                'suggestion_template' => 'Indique la tasa en porcentaje. Ej.: 10%',
+                'example_text' => '0.08%',
+            ],
+            [
+                'field_key' => 'MONTO',
+                'label' => 'Monto',
+                'datatype' => 'money',
+                'regex' => $MONEY_REGEX,
+                'is_required' => true,
+                'suggestion_template' => 'Especifique el monto con separador de miles y coma decimal. Ej.: 1.000.000',
+                'example_text' => '295.000.000,00',
+            ],
+            [
+                'field_key' => 'MONEDA',
+                'label' => 'Moneda',
+                'datatype' => 'string',
+                'regex' => $MONEDA_REGEX,
+                'is_required' => true,
+                'suggestion_template' => 'Indique la moneda (UF, CLP o USD).',
+                'example_text' => 'UF',
+                'options' => json_encode(['UF','CLP','USD'], JSON_UNESCAPED_UNICODE),
+            ],
+
+            // Plazos y fechas
+            [
+                'field_key' => 'PLAZO',
+                'label' => 'Plazo',
+                'datatype' => 'string',
+                'is_required' => true,
+                'suggestion_template' => 'Especifique el plazo en días.',
+                'example_text' => '360 días',
+            ],
+            [
+                'field_key' => 'FECHA_EMISION',
+                'label' => 'Fecha de emisión',
+                'datatype' => 'date',
+                'regex' => $FECHA_ISO_REGEX,
+                'is_required' => true,
+                'suggestion_template' => 'Use formato DD/MM/YYYY',
+                'example_text' => '2023-09-28',
+            ],
+            [
+                'field_key' => 'FECHA_VENCIMIENTO',
+                'label' => 'Fecha de vencimiento',
+                'datatype' => 'date',
+                'regex' => $FECHA_ISO_REGEX,
+                'is_required' => true,
+                'suggestion_template' => 'Use formato DD/MM/YYYY',
+                'example_text' => '2025-12-21',
+            ],
+            [
+                'field_key' => 'FECHA_ESCRITURA',
+                'label' => 'Fecha de escritura (texto)',
+                'datatype' => 'string',
+                'regex' => $FECHA_LARGA_REGEX,
+                'is_required' => true,
+                'suggestion_template' => 'Use formato 17 de septiembre del 2024.',
+                'example_text' => '17 de septiembre del 2024',
+            ],
+
+            // Ubicación
+            [
+                'field_key' => 'CIUDAD',
+                'label' => 'Ciudad',
+                'datatype' => 'string',
+                'is_required' => true,
+                'suggestion_template' => 'Indique la ciudad. Ej: SAN CARLOS',
+                'example_text' => 'SAN CARLOS',
+            ],
+            [
+                'field_key' => 'DIRECCION',
+                'label' => 'Dirección',
+                'datatype' => 'string',
+                'is_required' => true,
+                'suggestion_template' => 'Indique la dirección completa. Ej.: ROBERTO ESPINOZA 8 DPTO. 18 MARÍA PINTO, COMUNA DE PEDRO AGUIRRE CERDA',
+                'example_text' => 'ROBERTO ESPINOZA 8 DPTO. 18 MARÍA PINTO, COMUNA DE PEDRO AGUIRRE CERDA',
+            ],
+
+            // Personas (nombres completos)
+            [
+                'field_key' => 'NOMBRE_COMPLETO_DEUDOR',
+                'label' => 'Nombre completo del deudor',
+                'datatype' => 'string',
+                'is_required' => true,
+                'suggestion_template' => 'Escriba el nombre completo en mayúsculas. Ej.: SIMÓN GABRIEL MÁRQUEZ OLIVARES',
+                'example_text' => 'SIMÓN GABRIEL MÁRQUEZ OLIVARES',
+            ],
+            [
+                'field_key' => 'NOMBRE_COMPLETO_CORREDOR',
+                'label' => 'Nombre completo del corredor',
+                'datatype' => 'string',
+                'is_required' => true,
+                'suggestion_template' => 'Escriba el nombre completo en mayúsculas. Ej.: DANIELA LUISA PEREIRA LÓPEZ',
+                'example_text' => 'DANIELA LUISA PEREIRA LÓPEZ',
+            ],
+
+            // RUT de personas
+            [
+                'field_key' => 'RUT_DEUDOR',
+                'label' => 'RUT del deudor',
+                'datatype' => 'rut',
+                'regex' => $RUT_REGEX,
+                'is_required' => true,
+                'suggestion_template' => 'Ingrese un RUT válido. Ej.: 21294425-7',
+                'example_text' => '21294425-7',
+            ],
+            [
+                'field_key' => 'RUT_CORREDOR',
+                'label' => 'RUT del corredor',
+                'datatype' => 'rut',
+                'regex' => $RUT_REGEX,
+                'is_required' => true,
+                'suggestion_template' => 'Ingrese un RUT válido. Ej.: 21294425-7',
+                'example_text' => '14408828-0',
+            ],
+
+            // Empresas y RUT de empresas
+            [
+                'field_key' => 'EMPRESA_DEUDOR',
+                'label' => 'Razón social deudor',
+                'datatype' => 'string',
+                'is_required' => true,
+                'suggestion_template' => 'Indique la razón social en mayúsculas. Ej.: GRUPO TOLEDO, LABRA Y DÍAZ SPA',
+                'example_text' => 'GRUPO TOLEDO, LABRA Y DÍAZ SPA',
+            ],
+            [
+                'field_key' => 'EMPRESA_CORREDOR',
+                'label' => 'Razón social corredor',
+                'datatype' => 'string',
+                'is_required' => true,
+                'suggestion_template' => 'Indique la razón social en mayúsculas. Ej.: PROYECTOS TOBAR Y SEPÚLVEDA S.A',
+                'example_text' => 'PROYECTOS TOBAR Y SEPÚLVEDA S.A',
+            ],
+            [
+                'field_key' => 'EMPRESA_DEUDOR_RUT',
+                'label' => 'RUT de empresa del deudor',
+                'datatype' => 'rut',
+                'regex' => $RUT_REGEX,
+                'is_required' => true,
+                'suggestion_template' => 'Ingrese el RUT de la empresa del deudor. Ej.: 22316054-2',
+                'example_text' => '22316054-2',
+            ],
+            [
+                'field_key' => 'EMPRESA_CORREDOR_RUT',
+                'label' => 'RUT de empresa del corredor',
+                'datatype' => 'rut',
+                'regex' => $RUT_REGEX,
+                'is_required' => true,
+                'suggestion_template' => 'Ingrese el RUT de la empresa del corredor. Ej.: 22316054-2',
+                'example_text' => '10545076-5',
+            ],
+
+            // Tipo de documento (lo validamos por igualdad, no por regex)
+            [
+                'field_key' => 'TIPO_DOCUMENTO',
+                'label' => 'Tipo de documento',
+                'datatype' => 'string',
+                'is_required' => true,
+                'regex' => null, // se compara por valor exacto en lógica de análisis
+                'suggestion_template' => 'El tipo de documento debe ser exactamente: Contrato de mutuos',
+                'example_text' => $DOC_TYPE,
+            ],
         ];
 
-        // 3) Especificaciones base (se aplican a TODOS los doc_types)
-        //    - RUT chileno
-        $RUT_REGEX = '^\\d{1,2}\\.?\\d{3}\\.?\\d{3}-[\\dkK]$';
-        //    - Fecha DD-MM-YYYY
-        $FECHA_REGEX = '^\\d{2}-\\d{2}-\\d{4}$';
-        //    - Monto CLP: $1.234.567 o 1.234.567, opcional decimales con coma
-        $MONEY_REGEX = '^\\$?\\s?\\d{1,3}(\\.\\d{3})*(,\\d{1,2})?$';
-
-        $baseSpec = [
-            // Identificación de partes
-            ['field_key'=>'nombre_emisor',    'label'=>'Nombre Emisor',     'datatype'=>'string', 'is_required'=>true,  'suggestion_template'=>'Indique el nombre completo del emisor.'],
-            ['field_key'=>'rut_emisor',       'label'=>'RUT Emisor',        'datatype'=>'rut',    'is_required'=>true,  'regex'=>$RUT_REGEX, 'suggestion_template'=>'Ingrese un RUT válido para el emisor (ej: 12.345.678-9).'],
-
-            ['field_key'=>'nombre_receptor',  'label'=>'Nombre Receptor',   'datatype'=>'string', 'is_required'=>true,  'suggestion_template'=>'Indique el nombre completo de la contraparte.'],
-            ['field_key'=>'rut_receptor',     'label'=>'RUT Receptor',      'datatype'=>'rut',    'is_required'=>true,  'regex'=>$RUT_REGEX, 'suggestion_template'=>'Ingrese un RUT válido para la contraparte.'],
-
-            // Razón social (opcionales, según documento)
-            ['field_key'=>'empresa_emisor',   'label'=>'Empresa Emisor',    'datatype'=>'string', 'is_required'=>false, 'suggestion_template'=>'Indique la razón social del emisor si corresponde.'],
-            ['field_key'=>'empresa_receptor', 'label'=>'Empresa Receptor',  'datatype'=>'string', 'is_required'=>false, 'suggestion_template'=>'Indique la razón social de la contraparte si corresponde.'],
-
-            // Metadatos del documento
-            ['field_key'=>'direccion',        'label'=>'Dirección',         'datatype'=>'string', 'is_required'=>true,  'suggestion_template'=>'Indique la dirección completa.'],
-            ['field_key'=>'fecha',            'label'=>'Fecha de inicio',   'datatype'=>'date',   'is_required'=>true,  'regex'=>$FECHA_REGEX, 'suggestion_template'=>'Indique la fecha en formato DD-MM-YYYY (ej: 25-12-2025).'],
-            ['field_key'=>'numero_contrato',  'label'=>'Número de contrato','datatype'=>'string', 'is_required'=>false, 'suggestion_template'=>'Indique el número de contrato si aplica.'],
-
-            // Objeto y monto
-            ['field_key'=>'descripcion_servicio','label'=>'Descripción/Servicio','datatype'=>'string','is_required'=>true,'suggestion_template'=>'Describa brevemente el servicio contratado.'],
-            ['field_key'=>'monto_total',         'label'=>'Monto total (CLP)',  'datatype'=>'money', 'is_required'=>true,'regex'=>$MONEY_REGEX, 'suggestion_template'=>'Especifique el monto total en CLP (ej: $1.000.000).'],
-
-            // Otros
-            ['field_key'=>'observaciones',    'label'=>'Observaciones',     'datatype'=>'string', 'is_required'=>false, 'suggestion_template'=>'Incluya observaciones relevantes si existen.'],
-            ['field_key'=>'firmas',           'label'=>'Firmas',            'datatype'=>'string', 'is_required'=>true,  'suggestion_template'=>'Incluya las firmas de ambas partes.'],
-        ];
-
-        // 4) Expandimos el spec base a todos los doc_types
+        // 5) Construcción de filas para upsert
         $rows = [];
-        foreach ($DOC_TYPES as $dt) {
-            foreach ($baseSpec as $spec) {
-                $rows[] = array_merge($default, array_merge($spec, ['doc_type'=>$dt]));
-            }
+        foreach ($specsMutuoMandato as $spec) {
+            $rows[] = array_merge($default, $spec, ['doc_type' => $DOC_TYPE]);
         }
 
-        // 5) UPSERT (evita duplicados al re-seedear)
+        // 6) UPSERT (evita duplicados al re-seedear)
         DB::table('document_field_specs')->upsert(
             $rows,
             ['doc_type', 'field_key'],

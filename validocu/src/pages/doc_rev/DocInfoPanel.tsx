@@ -1,10 +1,27 @@
 import { useEffect, useState } from "react";
-import { Paper, Typography, Stack, Box, Chip, Alert, Button } from "@mui/material";
+import {
+  Paper,
+  Typography,
+  Stack,
+  Box,
+  Chip,
+  Alert,
+  Button,
+  Badge,
+} from "@mui/material";
 import labelColors from "../../utils/labelColors";
 import type { BoxAnnotation, Document, SemanticGroup } from "../../utils/interfaces";
 
-import SuggestionsPanel from "../../components/SuggestionsPanel";
-import { analyzeDocument, getLastDocumentAnalysis, type AnalyzeResponse, type Issue } from "../../api/analysis";
+import {
+  getLastDocumentAnalysis,
+  listSuggestionStatuses,
+  type Issue,
+  type SuggestionStatus,
+} from "../../api/analysis";
+import SuggestionsModal from "./SuggestionsModal";
+import { downloadDocumentSummaryExcel } from "../../api/summary_excel";
+import DownloadIcon from "@mui/icons-material/Download";
+
 
 interface Props {
   selectedDoc: Document;
@@ -22,47 +39,57 @@ function StatusChip({ status }: { status: number }) {
   return <Chip size="small" label="Sin revisar" variant="outlined" />;
 }
 
-export default function DocInfoPanel({ selectedDoc, semanticGroupData }: Readonly<Props>) {
-  const [analysis, setAnalysis] = useState<AnalyzeResponse | null>(null);
+export default function DocInfoPanel({
+  selectedDoc,
+  semanticGroupData,
+}: Readonly<Props>) {
   const [loading, setLoading] = useState(false);
+  const [openSugModal, setOpenSugModal] = useState(false);
 
-  // Ejecuta análisis al cambiar el documento
+  const [statuses, setStatuses] = useState<SuggestionStatus[]>([]);
+  const [issuesList, setIssuesList] = useState<Issue[]>([]);
+  const [pendingCount, setPendingCount] = useState(0);
+
   useEffect(() => {
-    if (!selectedDoc?.id) return;
     (async () => {
-      setLoading(true);
       try {
-        const res = await getLastDocumentAnalysis(selectedDoc.id);
-        console.log("resultado de ultimo analisis",res);
-        setAnalysis(res);
-      } finally {
-        setLoading(false);
-      }
+        const st = await listSuggestionStatuses();
+        setStatuses(st);
+      } catch {}
     })();
-  }, [selectedDoc?.id]);
+  }, []);
 
-  const handleIssueUpdated = (issue: Issue) => {
-    setAnalysis((prev) =>
-      prev ? { ...prev, issues: prev.issues.map((i) => (i.id === issue.id ? issue : i)) } : prev
-    );
+  useEffect(() => {
+    console.log("Cambio de documento, id actual", selectedDoc.id);
+    reAnalyze();
+  }, [selectedDoc]);
+
+  const computePending = (issues: Issue[]) => {
+    const todoId = 1;
+    return issues.filter(i => i.status_id === todoId).length;
   };
 
-  const reAnalyze = async (documentId: number) => {
-    if (!documentId) return;
+  const handleIssueUpdated = (issue: Issue) => {
+    setIssuesList((prev) => {
+      const next = prev.map((i) => (i.issue_id === issue.issue_id ? issue : i));
+      setPendingCount(computePending(next));
+      return next;
+    });
+  };
 
+  const reAnalyze = async () => {
     setLoading(true);
     try {
-      const res = await analyzeDocument(documentId);
-      setAnalysis(res);
-    } catch (err) {
-      console.error("Error en reAnalyze:", err);
-      alert("Hubo un error al re-analizar el documento");
+      const issues = await getLastDocumentAnalysis(selectedDoc.id);
+
+      // console.log()        
+      setIssuesList(issues.issues);
+      setPendingCount(computePending(issues.issues));
     } finally {
       setLoading(false);
     }
   };
 
-  // Click → foco persistente (con scroll)
   const focusBoxes = (page: number | null, boxes: number[][] | undefined) => {
     window.dispatchEvent(
       new CustomEvent("focus-evidence", {
@@ -71,7 +98,6 @@ export default function DocInfoPanel({ selectedDoc, semanticGroupData }: Readonl
     );
   };
 
-  // Hover → resalta sin scroll
   const hoverBoxes = (page: number | null, boxes: number[][] | undefined) => {
     window.dispatchEvent(
       new CustomEvent("hover-evidence", {
@@ -111,14 +137,50 @@ export default function DocInfoPanel({ selectedDoc, semanticGroupData }: Readonl
 
       <Typography variant="body2">
         <strong>Subido:</strong>{" "}
-        {selectedDoc?.created_at ? new Date(selectedDoc.created_at).toLocaleString() : "—"}
+        {selectedDoc?.created_at
+          ? new Date(selectedDoc.created_at).toLocaleString()
+          : "—"}
       </Typography>
+
+      <Stack direction="row" spacing={1} alignItems="center">
+        <Button
+          size="small"
+          variant="contained"
+          onClick={() => setOpenSugModal(true)}
+          disabled={loading}
+        >
+          <Badge color="warning" overlap="circular">
+            {loading ? "Cargando" : "Ver sugerencias"}
+          </Badge>
+        </Button>
+        
+        <Typography variant="body2" color="text.secondary">
+          { !loading && pendingCount > 0 ? 
+            <Chip label={`${pendingCount} sugerencias pendientes`} color="warning" size="small" />
+            :
+            <Chip label={`${pendingCount} sugerencias pendientes`} color="success" size="small" />
+          }
+        </Typography>
+      </Stack>
+      {/* ====== Generación de Documento Resumen (HdU 05) ====== */}
+      <Button
+        variant="outlined"
+        color="primary"
+        sx={{ mb: 2,  maxWidth: 280}}
+        startIcon={<DownloadIcon />}
+        onClick={() => {
+          if (selectedDoc?.id) {
+            downloadDocumentSummaryExcel(selectedDoc.id);
+          }
+        }}
+      >
+        Generar Documento Resumen
+      </Button>
 
       <Typography variant="subtitle1" fontWeight={700} sx={{ mt: 1 }}>
         Datos detectados por IA
       </Typography>
 
-      {/* Zona scrollable */}
       <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", pr: 1 }}>
         {semanticGroupData.map((item, i) => {
           try {
@@ -128,7 +190,10 @@ export default function DocInfoPanel({ selectedDoc, semanticGroupData }: Readonl
             const page = pageStr ? parseInt(pageStr, 10) : null;
 
             return (
-              <Box key={i} sx={{ pb: 1, mb: 1, borderBottom: 1, borderColor: "divider" }}>
+              <Box
+                key={i}
+                sx={{ pb: 1, mb: 1, borderBottom: 1, borderColor: "divider" }}
+              >
                 <Typography variant="caption" sx={{ display: "block", mb: 1 }}>
                   Página: {pageStr ?? "¿?"}
                 </Typography>
@@ -136,7 +201,8 @@ export default function DocInfoPanel({ selectedDoc, semanticGroupData }: Readonl
                 <Stack spacing={1}>
                   {layout.map((campo: BoxAnnotation, idx: number) => {
                     const isError =
-                      typeof campo.label === "string" && campo.label.endsWith("_E");
+                      typeof campo.label === "string" &&
+                      campo.label.endsWith("_E");
                     const rawLabel = String(campo.label ?? "").replace(/_E$/, "");
                     const displayLabel = rawLabel.replace(/_/g, " ");
                     const color = isError
@@ -169,7 +235,9 @@ export default function DocInfoPanel({ selectedDoc, semanticGroupData }: Readonl
                         onMouseLeave={clearHover}
                         title="Click para resaltar en el documento"
                       >
-                        <Box sx={{ width: 14, height: 14, borderRadius: 1, bgcolor: color }} />
+                        <Box
+                          sx={{ width: 14, height: 14, borderRadius: 1, bgcolor: color }}
+                        />
                         <Typography variant="body2">
                           <strong>{displayLabel}:</strong> {campo.text}
                           {isError && (
@@ -186,43 +254,25 @@ export default function DocInfoPanel({ selectedDoc, semanticGroupData }: Readonl
               </Box>
             );
           } catch {
-            return <Alert key={i} severity="warning">⚠️ Error al procesar datos IA</Alert>;
+            return (
+              <Alert key={i} severity="warning">
+                ⚠️ Error al procesar datos IA
+              </Alert>
+            );
           }
         })}
       </Box>
 
-      {/* ====== Sugerencias de corrección ====== */}
-      <Box
-        sx={{
-          mt: 1,
-          border: 1,
-          borderColor: "divider",
-          borderRadius: 1,
-          p: 2,
-          bgcolor: "background.paper",
-        }}
-      >
-        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-          <Typography variant="subtitle1" fontWeight={700}>
-            Sugerencias de corrección
-          </Typography>
-
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={async () => await reAnalyze(selectedDoc?.id)}
-            disabled={loading}
-          >
-            {loading ? "Cargando" : "Re-analizar"}
-          </Button>
-        </Stack>
-
-        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-          Tipo: <b>{analysis?.doc_type ?? "—"}</b> · Resumen: {analysis?.summary ?? "—"}
-        </Typography>
-
-        <SuggestionsPanel issues={analysis?.issues ?? []} onIssueUpdated={handleIssueUpdated} />
-      </Box>
+      {/* ====== Modal con toda la lógica de sugerencias ====== */}
+      <SuggestionsModal
+        open={openSugModal}
+        onClose={() => setOpenSugModal(false)}
+        loading={loading}
+        issues={issuesList}
+        onReanalyze={async () => await reAnalyze()}
+        onIssueUpdated={handleIssueUpdated}
+        suggestionStatuses={statuses}
+      />
     </Paper>
   );
 }

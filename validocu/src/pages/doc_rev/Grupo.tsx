@@ -96,9 +96,7 @@ export default function Grupo() {
   const [semanticGroupData, setSemanticGroupData] = useState<SemanticGroup[]>([]);
   const [respuestaDocsVencidos, setRespuestaDocsVencidos] = useState<ExpiredDocumentResponse | null>(null);
 
-  // ====== Splitter state ======
   const splitRef = useRef<HTMLDivElement | null>(null);
-  // ratio = porcentaje del ancho destinado al viewer (0..1)
   const [ratio, setRatio] = useState(0.66);
   const MIN_LEFT_PX = 360;  // ancho mínimo del viewer
   const MIN_RIGHT_PX = 280; // ancho mínimo del panel info
@@ -122,13 +120,11 @@ export default function Grupo() {
     }
   }, [grupoId]);
 
-  // ====== Drag logic ======
   const beginDrag = (clientX: number) => {
     const el = splitRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
 
-    // limites duros por anchos mínimos
     const minLeft = MIN_LEFT_PX;
     const minRight = MIN_RIGHT_PX;
     const minX = rect.left + minLeft;
@@ -197,9 +193,13 @@ export default function Grupo() {
     }
   };
 
-  // Cálculo de columnas del grid (viewer | handle | info)
   const leftPct = Math.round(ratio * 100);
   const rightPct = 100 - leftPct;
+
+  const currentGroup = selectedDoc
+    ? groupedDocs.find(g => g.pdf?.id === selectedDoc.id)
+    : undefined;
+  const currentImageIds = currentGroup ? currentGroup.images.map(d => d.id) : [];
 
   return (
     <Box
@@ -239,20 +239,19 @@ export default function Grupo() {
             position: "absolute",
             top: 8,
             right: 8,
-            zIndex: (t) => t.zIndex.drawer + 2, // ⬅️ por sobre el contenido
-            width: 40,  // área clickeable completa
-            height: 40, // (aunque el ícono sea pequeño)
+            zIndex: (t) => t.zIndex.drawer + 2,
+            width: 40,
+            height: 40,
           }}
         >
           {sidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
         </IconButton>
 
-        {/* 👉 En vez de {sidebarOpen && (...)}, SIEMPRE renderiza y anima visibilidad */}
         <Box
           aria-hidden={!sidebarOpen}
           sx={(theme) => ({
             position: "relative",
-            zIndex: 1, // ⬅️ debajo del IconButton (que está en zIndex drawer+2)
+            zIndex: 1,
             opacity: sidebarOpen ? 1 : 0,
             transform: `translateX(${sidebarOpen ? 0 : -8}px)`,
             pointerEvents: sidebarOpen ? "auto" : "none",
@@ -323,8 +322,6 @@ export default function Grupo() {
         </Box>
       </Paper>
 
-
-      {/* Content con splitter */}
       <Box sx={{ flex: 1, p: 3, minWidth: 0 }}>
         {selectedDoc ? (
             <Box
@@ -332,7 +329,7 @@ export default function Grupo() {
               sx={(theme) => {
                 const GAP_PX = parseInt(theme.spacing(2));
                 const handle = HANDLE_PX;
-                const SAFE   = 2;                          // buffer para que se vea el borde
+                const SAFE   = 2;
 
                 const left  = `calc(${leftPct}% - ${(handle + GAP_PX) / 2}px)`;
                 const right = `calc(${rightPct}% - ${(handle + GAP_PX) / 2 + SAFE}px)`;
@@ -344,21 +341,18 @@ export default function Grupo() {
                   alignItems: "stretch",
                   minHeight: "calc(100dvh - 96px)",
                   width: "100%",
-                  // overflow: "hidden",
                   pr: `${SAFE}px`,
                   boxSizing: "border-box",
                 };
               }}
             >
 
-            {/* Viewer */}
             <Box sx={{ minWidth: 0 }}>
               <GroupedImageViewer
                 files={groupedDocs.find(g => g.pdf?.id === selectedDoc.id)?.images || [selectedDoc]}
               />
             </Box>
 
-            {/* Handle arrastrable */}
             <Box
               onMouseDown={onMouseDown}
               onTouchStart={onTouchStart}
@@ -375,9 +369,12 @@ export default function Grupo() {
               }}
             />
 
-            {/* Panel de información */}
             <Box sx={{ minWidth: MIN_RIGHT_PX, minHeight: 0, display: "flex" }}>
-              <DocInfoPanel selectedDoc={selectedDoc} semanticGroupData={semanticGroupData} />
+              <DocInfoPanel
+                selectedDoc={selectedDoc}
+                semanticGroupData={semanticGroupData}
+                // imageIds={currentImageIds}
+              />
             </Box>
           </Box>
         ) : (
@@ -385,7 +382,6 @@ export default function Grupo() {
         )}
       </Box>
 
-      {/* Modales */}
       <UploadModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

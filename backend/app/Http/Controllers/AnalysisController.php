@@ -95,6 +95,118 @@ class AnalysisController extends Controller
         ]);
     }
 
+    public function createSuggestions(int $documentId)
+    {
+        // $doc = Document::findOrFail($documentId);
+
+        // 1) Inferir doc_type desde semantic_index.json_layout (fallback: 'acuerdo')
+        $si = DB::table('semantic_doc_index')->where('document_id', $documentId)->first(['json_global']);
+        $layout = $si ? json_decode($si->json_global, true) : [];
+        
+        if (!$layout['TIPO_DOCUMENTO'])
+        {
+            return;
+        }
+
+        $tipo_documento = $layout['TIPO_DOCUMENTO'];
+        $field_specs = DB::table('document_field_specs')->where('doc_type', $tipo_documento)->get(['id', 'field_key', 'label', 'is_required', 'datatype', 'regex']);
+
+        // ==========================================================
+        // 2) Evaluación: existencia y regex contra json_global
+        // ==========================================================
+        $issues = [];
+
+        foreach ($field_specs as $spec) {
+            $key   = (string)$spec->field_key;
+            $label = $spec->label ?: $key;
+
+            $exists = array_key_exists($key, $layout);
+            $value  = $exists ? $layout[$key] : null;
+
+            // Normalizar a string para validaciones simples
+            $strVal = is_scalar($value)
+                ? (string)$value
+                : (is_null($value) ? '' : json_encode($value, JSON_UNESCAPED_UNICODE));
+
+            // 2.1) Clave faltante (y requerida)
+            if (!$exists) {
+                if ((int)$spec->is_required === 1) {
+                    $issues[] = [
+                        'id' => $spec->id,
+                        'reason' => 'missing',
+                        // 'field_key'  => $key,
+                        // 'issue_type' => 'missing_field',
+                        // 'message'    => "Falta el campo obligatorio «{$label}» en json_global.",
+                        // 'evidence'   => ['path' => $key],
+                    ];
+                }
+                // Si no existe, no seguimos evaluando regex
+                continue;
+            }
+
+            // 2.2) Vacío si es requerido
+            if ((int)$spec->is_required === 1 && trim($strVal) === '') {
+                $issues[] = [
+                    'id' => $spec->id,
+                    'reason' => 'missing'
+                    // 'field_key'  => $key,
+                    // 'issue_type' => 'blank',
+                    // 'message'    => "El campo «{$label}» está vacío.",
+                    // 'evidence'   => ['value' => $strVal],
+                ];
+            }
+
+            // 2.3) Regex (si viene definido y hay valor no vacío)
+            if (!empty($spec->regex) && trim($strVal) !== '') {
+                $pattern = '#'.$spec->regex.'#u';
+                // validar que el patrón sea compilable
+                if (@preg_match($pattern, '') !== false) {
+                    if (!preg_match($pattern, $strVal)) {
+                        $issues[] = [
+                            'id' => $spec->id,
+                            'reason' => 'invalid'
+                            // 'field_key'  => $key,
+                            // 'issue_type' => 'invalid_format',
+                            // 'message'    => "El campo «{$label}» no cumple el formato esperado.",
+                            // 'evidence'   => ['value' => $strVal, 'regex' => $spec->regex],
+                        ];
+                    }
+                } else {
+                    // (opcional) patrón inválido en BD
+                    // $issues[] = [
+                        
+                    //     'field_key'  => $key,
+                    //     'issue_type' => 'spec_regex_invalid',
+                    //     'message'    => "Regex inválido en especificación para «{$label}».",
+                    //     'evidence'   => ['regex' => $spec->regex],
+                    // ];
+                    \Log::alert('Se detectó un patron invalido en bd');
+                }
+            }
+        }
+
+        // ==========================================================
+        // 3) Guardar issues en DB
+        // ==========================================================
+        \Log::info('Issues: ' . json_encode($issues, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+        $analysisId = DB::table('document_analyses')->insertGetId([
+            'document_id' => $documentId,
+            'status' => 'TODO',
+            'summary'     => null,
+            'meta'        => null,
+            'created_at'  => now(),
+            'updated_at'  => now(),
+        ]);
+        foreach ($issues as $issue) {
+            DB::table('analysis_issues')->insert([
+                'document_analysis_id' => $analysisId,
+                'document_field_spec_id' => $issue['id'],
+                'status_id' => 1,
+                'reason' => $issue['reason'],
+            ]);
+        }
+    }
+
     public function showAnalysis(int $documentId, int $analysisId)
     {
         $analysis = DocumentAnalysis::where('document_id', $documentId)->findOrFail($analysisId);
@@ -117,12 +229,21 @@ class AnalysisController extends Controller
         }
 
         // Traer también los issues relacionados
-        $issues = DB::table('analysis_issues')
-            ->where('document_analysis_id', $analysis->id)
+        $issues = DB::table('analysis_issues as ai')
+            ->join('document_field_specs as dfs', 'ai.document_field_spec_id', '=', 'dfs.id')
+            ->where('ai.document_analysis_id', $analysis->id)
+            ->select(
+                'ai.id as issue_id',
+                'ai.status_id',
+                'ai.reason',
+                'dfs.label',
+                'dfs.is_required',
+                'dfs.suggestion_template'                
+            )
             ->get();
 
         return response()->json([
-            'analysis' => $analysis,
+            // 'analysis' => $analysis,
             'issues'   => $issues,
         ]);
     }
