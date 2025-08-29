@@ -6,9 +6,10 @@ import {
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow
 } from "@mui/material";
 import { Folder, Plus, Search as SearchIcon, Settings2 } from "lucide-react";
-import { createGroup, getDocumentGroups, buscarDocumentosPorTexto } from "../../utils/api";
-import type { DocumentGroup } from "../../utils/interfaces";
+import { createGroup, getDocumentGroups, buscarDocumentosPorTexto, obtenerDocumentosVencidos, marcarDocumentosVencidos } from "../../utils/api";
+import type { DocumentGroup, ExpiredDocumentResponse } from "../../utils/interfaces";
 import NewGroupModal from "./NewGroupModal";
+import { SnackbarDocsVencidos } from "../../components/SnackbarDocsVencidos";
 
 export default function Home() {
   const navigate = useNavigate();
@@ -18,9 +19,12 @@ export default function Home() {
   const [resultados, setResultados] = useState<any[]>([]);
   const [buscando, setBuscando] = useState(false);
   const [busquedaRealizada, setBusquedaRealizada] = useState(false);
+  const [respuestaDocsVencidos, setRespuestaDocsVencidos] = useState<ExpiredDocumentResponse | null>(null);
 
   useEffect(() => {
-    (async () => setDocumentGroups(await getDocumentGroups()))();
+    getDocumentGroups().then(groups => setDocumentGroups(groups));
+    obtenerDocumentosVencidos().then(docs => setRespuestaDocsVencidos(docs));
+    marcarDocumentosVencidos();
   }, []);
 
   const buscar = async () => {
@@ -54,6 +58,10 @@ export default function Home() {
 
   return (
     <Box sx={{ p: 3, bgcolor: "background.default", minHeight: "100dvh" }}>
+      {/* Alerta de documentos vencidos 
+      // TODO: aunque se crea el mensaje de alerta, no se ve la alerta como tal */}
+      <SnackbarDocsVencidos respuestaDocsVencidos={respuestaDocsVencidos}/>
+
       {/* Header */}
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Typography variant="h5" fontWeight={700}>Unidad de PMV</Typography>
