@@ -107,5 +107,5 @@ export async function buscarJsonLayoutPorIdDocumento(id: number): Promise<BoxAnn
 }
 
 export async function obtenerDocumentosVencidos(idGrupo: string | number): Promise<ExpiredDocumentResponse> {
-  return await getJSON(`/api/v1/documents/${idGrupo}/vencidos`);
+  return await getJSON(`/api/v1/documents/group/${idGrupo}/vencidos`);
 }

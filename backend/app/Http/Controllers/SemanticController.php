@@ -127,4 +127,13 @@ class SemanticController extends Controller
             return response()->json(['message' => 'Error al obtener documentos'], 500);
         }
     }
+
+    public function obtenerVencimientoDocumento(int $id_documento): JsonResponse
+    {
+        try {
+
+        } catch (\Exception $e) {
+
+        }
+    }
 }
