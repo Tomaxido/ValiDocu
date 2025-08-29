@@ -3,6 +3,9 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DocumentUploadController;
 use App\Http\Controllers\SemanticController;
+use App\Http\Controllers\AnalysisController;
+use App\Http\Controllers\IssueController;
+use App\Http\Controllers\DocumentSummaryController;
 
 
 Route::prefix('v1')->group(function () {
@@ -19,7 +22,15 @@ Route::prefix('v1')->group(function () {
     Route::post('/buscar-similar', [SemanticController::class, 'buscarSimilares']);
     Route::post('/semantic-data/by-filenames', [DocumentUploadController::class, 'getSemanticDataByFilenames']);
 
+    Route::post('/documents/{id}/analyze', [AnalysisController::class, 'analyze']);
+    Route::get('/documents/{id}/analysis', [AnalysisController::class, 'showLastAnalysis']);
+    Route::get('/documents/{id}/analysis/{analysis}', [AnalysisController::class, 'showAnalysis']);
 
 
+    Route::patch('/issues/{id}', [IssueController::class, 'update']);
+    Route::get('/suggestion-status', [IssueController::class, 'indexStatuses']);
+    Route::patch('/issues/{issue}/status', [IssueController::class, 'updateStatus']);
+
+    Route::get('/documents/{id}/summary-excel', [DocumentSummaryController::class, 'downloadSummaryExcel']);
 
 });

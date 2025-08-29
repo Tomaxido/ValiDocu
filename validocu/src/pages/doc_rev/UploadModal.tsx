@@ -1,4 +1,10 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
+import {
+  Dialog, DialogTitle, DialogContent, DialogActions,
+  Button, List, ListItem, ListItemText, IconButton,
+  Box, Typography
+} from "@mui/material";
+import { X } from "lucide-react";
 
 interface Props {
   isOpen: boolean;
@@ -6,25 +12,63 @@ interface Props {
   onUpload: (files: FileList) => Promise<void>;
 }
 
+function formatBytes(bytes: number) {
+  if (bytes === 0) return "0 B";
+  const k = 1024, sizes = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+}
+
 export default function UploadModal({ isOpen, onClose, onUpload }: Readonly<Props>) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const [fileList, setFileList] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
 
-  if (!isOpen) return null;
+  const dedupeMerge = (incoming: File[]) => {
+    setFileList(prev => {
+      const map = new Map<string, File>();
+      for (const f of prev) map.set(`${f.name}-${f.size}-${f.lastModified}`, f);
+      for (const f of incoming) map.set(`${f.name}-${f.size}-${f.lastModified}`, f);
+      return Array.from(map.values());
+    });
+  };
 
-  const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    setFileList((prev) => [...prev, ...files]);
+    if (files.length) dedupeMerge(files);
+    // reset input to allow re-selecting the same files later
+    if (inputRef.current) inputRef.current.value = "";
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragging(false);
+    const files = Array.from(e.dataTransfer.files || []);
+    if (files.length) dedupeMerge(files);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!dragging) setDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    // Solo si salimos realmente del área
+    if ((e.target as HTMLElement).contains(e.relatedTarget as Node)) return;
+    setDragging(false);
   };
 
   const removeFile = (index: number) => {
-    setFileList((prev) => prev.filter((_, i) => i !== index));
+    setFileList(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async () => {
     if (fileList.length === 0) return;
     const dt = new DataTransfer();
-    fileList.forEach(file => dt.items.add(file));
+    fileList.forEach(f => dt.items.add(f));
     setIsUploading(true);
     await onUpload(dt.files);
     setIsUploading(false);
@@ -33,25 +77,87 @@ export default function UploadModal({ isOpen, onClose, onUpload }: Readonly<Prop
   };
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal">
-        <h2>Subir documentos</h2>
-        <input type="file" multiple onChange={handleFiles} />
-        <ul>
+    <Dialog open={isOpen} onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>Subir documentos</DialogTitle>
+
+      <DialogContent dividers>
+        {/* Dropzone clickeable */}
+        <Box
+          onClick={() => inputRef.current?.click()}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          sx={(t) => ({
+            cursor: "pointer",
+            border: "2px dashed",
+            borderColor: dragging ? "warning.main" : "divider",
+            bgcolor: dragging ? t.palette.action.hover : "background.paper",
+            borderRadius: 2,
+            p: 4,
+            textAlign: "center",
+            transition: t.transitions.create(["border-color", "background-color"], {
+              duration: 150,
+              easing: t.transitions.easing.easeInOut,
+            }),
+            outline: "none",
+            "&:focus-visible": {
+              boxShadow: `0 0 0 3px ${t.palette.warning.main}33`,
+            },
+          })}
+          tabIndex={0}
+          aria-label="Zona para arrastrar o seleccionar archivos"
+        >
+          <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 0.5 }}>
+            Arrastra tus archivos aquí
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            o haz clic para seleccionar desde tu equipo
+          </Typography>
+
+          {/* input oculto para abrir el picker */}
+          <input
+            ref={inputRef}
+            type="file"
+            multiple
+            onChange={handleInput}
+            style={{ display: "none" }}
+          />
+        </Box>
+
+        {/* Lista de seleccionados */}
+        <List dense sx={{ mt: 2 }}>
           {fileList.map((file, i) => (
-            <li key={file.name}>
-              {file.name}
-              <button onClick={() => removeFile(i)} style={{ marginLeft: "8px" }}>❌</button>
-            </li>
+            <ListItem
+              key={`${file.name}-${file.size}-${file.lastModified}-${i}`}
+              secondaryAction={
+                <IconButton edge="end" aria-label="quitar" onClick={() => removeFile(i)}>
+                  <X size={16} />
+                </IconButton>
+              }
+            >
+              <ListItemText primary={file.name} secondary={formatBytes(file.size)} />
+            </ListItem>
           ))}
-        </ul>
-        <div className="modal-buttons">
-          <button onClick={onClose}>Cancelar</button>
-          <button onClick={handleSubmit} disabled={isUploading || fileList.length === 0}>
-            { isUploading ? "Subiendo..." : "Subir" + (fileList.length > 0 ? ` (${fileList.length})` : "") }
-          </button>
-        </div>
-      </div>
-    </div>
+        </List>
+
+        {fileList.length === 0 && (
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Aún no has seleccionado archivos.
+          </Typography>
+        )}
+      </DialogContent>
+
+      <DialogActions>
+        <Button onClick={onClose}>Cancelar</Button>
+        <Button
+          onClick={handleSubmit}
+          disabled={isUploading || fileList.length === 0}
+          variant="contained"
+          color="primary"
+        >
+          {isUploading ? "Subiendo..." : `Subir (${fileList.length})`}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
