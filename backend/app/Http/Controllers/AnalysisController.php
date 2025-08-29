@@ -85,6 +85,7 @@ class AnalysisController extends Controller
         // (Opcional) si hay issues, marcar documento como inconforme (status=2)
         if (count($rawIssues) > 0 && Schema::hasColumn($doc->getTable(), 'status')) {
             $doc->update(['status' => 2]);
+            $doc->update(['normative_gap' => 1]);
         }
 
         return response()->json([
@@ -204,6 +205,9 @@ class AnalysisController extends Controller
                 'status_id' => 1,
                 'reason' => $issue['reason'],
             ]);
+        }
+        if(!empty($issues)&& Schema::hasColumn($doc->getTable(), 'normative_gap')) {
+            $doc->update(['normative_gap' => 1]);
         }
     }
 
