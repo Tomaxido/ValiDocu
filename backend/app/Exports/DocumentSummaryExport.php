@@ -7,14 +7,13 @@ use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithCustomStartCell;
+use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Color;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
-use PhpOffice\PhpSpreadsheet\Worksheet\PageSetup;
-use PhpOffice\PhpSpreadsheet\Cell\DataType;
 
 class DocumentSummaryExport implements
     FromArray,
@@ -22,20 +21,24 @@ class DocumentSummaryExport implements
     WithStyles,
     WithEvents,
     WithColumnWidths,
-    WithCustomStartCell
+    WithCustomStartCell,
+    WithTitle
 {
     protected array $rows;
     protected array $headings;
     protected array $headerRows; // Deudor, Rut, Empresa (u otras)
+    protected string $title;
 
     public function __construct(
         array $rows,
-        array $headings = ['VARIABLE','INFORMACIÓN'],
-        array $headerRows = [] // ej: [['Deudor','...'], ['RUT','...'], ['Empresa','...']]
+        array $headings = ['VARIABLE','INFORMACIÓN','ESTADO','COMENTARIO'],
+        array $headerRows = [], // ej: [['Deudor','...'], ['RUT','...'], ['Empresa','...']]
+        string $title = 'Hoja'
     ) {
         $this->rows       = $rows;
         $this->headings   = $headings;
         $this->headerRows = $headerRows;
+        $this->title      = $this->sanitizeSheetTitle($title);
     }
 
     /** Solo la tabla (no insertes el bloque del deudor aquí) */
@@ -86,12 +89,14 @@ class DocumentSummaryExport implements
         return [];
     }
 
-    /** Anchos (dos columnas) */
+    /** Anchos */
     public function columnWidths(): array
     {
         return [
             'A' => 35, // VARIABLE
             'B' => 70, // INFORMACIÓN
+            'C' => 35, // ESTADO
+            'D' => 35, // COMENTARIO
         ];
     }
 
@@ -105,7 +110,7 @@ class DocumentSummaryExport implements
                 // Cálculo de filas dinámicas
                 $n            = count($this->headerRows);     // filas del bloque deudor
                 $headerRow    = 3 + $n;                       // fila del encabezado de tabla
-                $blankRow     = $headerRow - 1;               // fila en blanco entre bloque y tabla (con N=3 => 5)
+                $blankRow     = $headerRow - 1;               // fila en blanco entre bloque y tabla
                 $firstDataRow = $headerRow + 1;               // 1ª fila de datos
                 $dataCount    = count($this->rows);
                 $lastRow      = $dataCount > 0 ? $headerRow + $dataCount : $headerRow;
@@ -153,8 +158,7 @@ class DocumentSummaryExport implements
                 $delegate->getStyle("A{$headerRow}:{$colEnd}{$headerRow}")->applyFromArray($headerStyle);
                 $delegate->getRowDimension($headerRow)->setRowHeight(26);
 
-                // 4) *** Fila en blanco sin formato *** (ni bordes ni fill)
-                //    Con N=3 => $blankRow = 5 => A5:B5 limpio
+                // 4) *** Fila en blanco sin formato ***
                 $delegate->getStyle("A{$blankRow}:{$colEnd}{$blankRow}")
                     ->applyFromArray([
                         'borders' => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_NONE]],
@@ -162,20 +166,27 @@ class DocumentSummaryExport implements
                         'font'    => ['bold' => false, 'color' => ['argb' => \PhpOffice\PhpSpreadsheet\Style\Color::COLOR_BLACK]],
                         'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_GENERAL],
                     ]);
-                // También borra cualquier valor residual, por si acaso
                 $delegate->setCellValue("A{$blankRow}", null);
                 $delegate->setCellValue("B{$blankRow}", null);
 
                 // 5) Bordes SOLO para la tabla (desde encabezado hasta el final de datos)
                 $delegate->getStyle("A{$headerRow}:{$colEnd}{$lastRow}")->applyFromArray($thinBorder);
 
-                // 6) Alineaciones de la tabla: A izq, B centrado + wrap
+                // 6) Alineaciones de la tabla: A izq, B/C/D centrado + wrap
                 if ($lastRow >= $firstDataRow) {
                     $delegate->getStyle("A{$firstDataRow}:A{$lastRow}")
                         ->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_LEFT)
                         ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
                         ->setWrapText(true);
                     $delegate->getStyle("B{$firstDataRow}:B{$lastRow}")
+                        ->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+                        ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+                        ->setWrapText(true);
+                    $delegate->getStyle("C{$firstDataRow}:C{$lastRow}")
+                        ->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
+                        ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
+                        ->setWrapText(true);
+                    $delegate->getStyle("D{$firstDataRow}:D{$lastRow}")
                         ->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER)
                         ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER)
                         ->setWrapText(true);
@@ -201,7 +212,38 @@ class DocumentSummaryExport implements
                     ->setFitToWidth(1)->setFitToHeight(0);
                 $delegate->getPageMargins()
                     ->setTop(0.25)->setBottom(0.25)->setLeft(0.25)->setRight(0.25);
+
+                // 10) Pintar SOLO la columna C en rojo cuando ESTADO = 'INVÁLIDO'
+                $firstDataRow = $headerRow + 1;
+                for ($r = $firstDataRow; $r <= $lastRow; $r++) {
+                    $cellValue = $delegate->getCell("C{$r}")->getValue();
+                    if (mb_strtoupper((string)$cellValue, 'UTF-8') === 'INVÁLIDO') {
+                        $delegate->getStyle("C{$r}")->applyFromArray([
+                            'font' => [
+                                'color' => ['argb' => \PhpOffice\PhpSpreadsheet\Style\Color::COLOR_WHITE],
+                                'bold'  => true,
+                            ],
+                            'fill' => [
+                                'fillType'   => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                                'startColor' => ['argb' => 'FFFF0000'], // rojo
+                            ],
+                        ]);
+                    }
+                }
             },
         ];
+    }
+
+    public function title(): string
+    {
+        return $this->title ?: 'Hoja';
+    }
+
+    private function sanitizeSheetTitle(string $title): string
+    {
+        // Excel: máx 31 chars y no permite : \ / ? * [ ]
+        $title = preg_replace('/[:\\\\\\/\\?\\*\\[\\]]/', ' ', $title);
+        $title = trim($title) ?: 'Hoja';
+        return mb_substr($title, 0, 31, 'UTF-8');
     }
 }

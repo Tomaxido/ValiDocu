@@ -27,6 +27,6 @@ Route::prefix('v1')->group(function () {
     Route::get('/documents/{id}/analysis/{analysis}', [AnalysisController::class, 'showAnalysis']);
     Route::patch('/issues/{id}', [IssueController::class, 'update']);
 
-    Route::get('/documents/{id}/summary-excel', [DocumentSummaryController::class, 'downloadSummaryExcel']);
+    Route::get('/documents/{groupId}/summary-excel', [DocumentSummaryController::class, 'downloadGroupSummaryExcel']);
 
 });
