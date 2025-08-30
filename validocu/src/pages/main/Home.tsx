@@ -3,7 +3,10 @@ import { useNavigate } from "react-router-dom";
 import {
   Box, Typography, IconButton, Button, Paper, InputBase, Stack,
   Card, CardActionArea, CardContent,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+  Chip,
+  Tooltip,
+  Alert,
 } from "@mui/material";
 import { Folder, Plus, Search as SearchIcon, Settings2 } from "lucide-react";
 import { createGroup, getDocumentGroups, buscarDocumentosPorTexto, obtenerDocumentosVencidos, marcarDocumentosVencidos } from "../../utils/api";
@@ -163,32 +166,102 @@ export default function Home() {
           </TableContainer>
         </Box>
       )}
-      <Box
-        sx={{
-          mt: 2,
-          display: "grid",
-          gap: 2,
-          gridTemplateColumns: {
-            xs: "1fr",
-            sm: "repeat(2, 1fr)",
-            md: "repeat(3, 1fr)",
-            lg: "repeat(4, 1fr)",
-          },
-        }}
-      >
-        {documentGroups
-          .filter(g => !query || g.name.toLowerCase().includes(query.toLowerCase()))
-          .map(g => (
-            <Card key={g.id} variant="outlined" sx={{ borderColor: "divider" }}>
-              <CardActionArea onClick={() => navigate(`/grupos/${g.id}`)}>
-                <CardContent sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                  <Folder size={22} />
-                  <Typography>{g.name}</Typography>
-                </CardContent>
-              </CardActionArea>
-            </Card>
-          ))
-        }
+      <Box sx={{ mt: 2 }}>
+        <TableContainer component={Paper} variant="outlined">
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Grupo</TableCell>
+                <TableCell>Estados</TableCell>
+                <TableCell>Acción</TableCell>
+                <TableCell>Acceso</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {documentGroups
+                .filter(g => !query || g.name.toLowerCase().includes(query.toLowerCase()))
+                .map(g => {
+                  const doc = g.documents && g.documents.length > 0 ? g.documents[0] : null;
+                  let estadoVenc = doc?.due_date ?? 0;
+                  let estadoNorm = doc?.normative_gap ?? 0;
+                  let acciones = null;
+                  let alerta = null;
+
+                  if (doc) {
+                    if (estadoVenc === 1) {
+                      acciones = <Button color="error" variant="contained" size="small">Actualizar urgente</Button>;
+                      alerta = <Alert severity="error" sx={{ mb: 1, width: '100%' }}>Documento vencido</Alert>;
+                    } else if (estadoVenc === 2) {
+                      acciones = <Button color="warning" variant="contained" size="small">Renovar</Button>;
+                      alerta = <Alert severity="warning" sx={{ mb: 1, width: '100%' }}>Documento por vencer</Alert>;
+                    } else {
+                      acciones = <Button color="primary" variant="contained" size="small">Renovar</Button>;
+                    }
+                    if (estadoNorm === 1) {
+                      acciones = <Tooltip title="El documento presenta observaciones normativas."><span><Button color="warning" variant="outlined" size="small">Revisar observaciones</Button></span></Tooltip>;
+                    }
+                  }
+
+                  return (
+                    <TableRow key={g.id}>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Folder size={22} />
+                          <Typography variant="subtitle1" fontWeight={600}>{g.name}</Typography>
+                        </Box>
+                        {doc && alerta}
+                      </TableCell>
+                      <TableCell>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          {/* Peor estado de vencimiento: solo negativos */}
+                          {(() => {
+                            const isPdf = d => d.filename && d.filename.toLowerCase().endsWith('.pdf');
+                            const docsPdf = g.documents.filter(isPdf);
+                            const docsVencidos = docsPdf.filter(d => d.due_date === 1);
+                            const docsPorVencer = docsPdf.filter(d => d.due_date === 2);
+                            if (docsVencidos.length > 0) {
+                              return (
+                                <Tooltip title={"Vencido: " + docsVencidos.map(d => d.filename).join(", ")}>
+                                  <Chip label={`Vencido (${docsVencidos.length})`} color="error" size="small" />
+                                </Tooltip>
+                              );
+                            } else if (docsPorVencer.length > 0) {
+                              return (
+                                <Tooltip title={"Por vencer: " + docsPorVencer.map(d => d.filename).join(", ")}>
+                                  <Chip label={`Por Vencer (${docsPorVencer.length})`} color="warning" size="small" />
+                                </Tooltip>
+                              );
+                            } else {
+                              return null;
+                            }
+                          })()}
+                          {/* Peor estado normativo: solo negativos */}
+                          {(() => {
+                            const isPdf = d => d.filename && d.filename.toLowerCase().endsWith('.pdf');
+                            const docsPdf = g.documents.filter(isPdf);
+                            const docsObs = docsPdf.filter(d => d.normative_gap === 1);
+                            if (docsObs.length > 0) {
+                              return (
+                                <Tooltip title={"En observación: " + docsObs.map(d => d.filename).join(", ")}>
+                                  <Chip label={`En observación (${docsObs.length})`} color="warning" size="small" />
+                                </Tooltip>
+                              );
+                            } else {
+                              return null;
+                            }
+                          })()}
+                        </Stack>
+                      </TableCell>
+                      <TableCell>{acciones}</TableCell>
+                      <TableCell>
+                        <Button variant="outlined" onClick={() => navigate(`/grupos/${g.id}`)}>Ver grupo</Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+            </TableBody>
+          </Table>
+        </TableContainer>
       </Box>
     </Box>
   );
