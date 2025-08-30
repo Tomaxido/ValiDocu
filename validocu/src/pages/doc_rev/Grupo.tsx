@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { getDocumentGroupById, uploadDocumentsToGroup, deleteDocuments, getSemanticGroupData, obtenerDocumentosVencidosDeGrupo as obtenerDocumentosVencidosDeGrupo } from "../../utils/api";
+import { getDocumentGroupById, uploadDocumentsToGroup, deleteDocuments, getSemanticGroupData, marcarDocumentosVencidos, obtenerDocumentosVencidosDeGrupo as obtenerDocumentosVencidosDeGrupo } from "../../utils/api";
 import { type DocumentGroup, type Document, type GroupedDocument, type SemanticGroup, type ExpiredDocumentResponse } from "../../utils/interfaces";
 import UploadModal from "./UploadModal";
 import DeleteModal from "./DeleteModal";
@@ -57,6 +57,7 @@ export default function Grupo() {
   const HANDLE_PX = 8;      // ancho del resizer
 
   useEffect(() => {
+    marcarDocumentosVencidos();
     if (grupoId) {
       // TEST
       obtenerDocumentosVencidosDeGrupo(grupoId).then(setRespuestaDocsVencidos);

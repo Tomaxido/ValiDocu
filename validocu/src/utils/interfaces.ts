@@ -7,6 +7,8 @@ export interface Document {
     status: number;
     created_at: string;
     updated_at: string;
+    normative_gap: number;
+    due_date: number;
 };
 
 export interface DocumentGroup {

@@ -158,13 +158,20 @@ class SemanticController extends Controller
     {
         try {
             $documentos = DB::table('semantic_doc_index')->get();
-            $documentosVencidos = $this->_filtrarDocumentosVencidos($documentos)[0];
+            list($documentosVencidos, $documentosPorVencer) = $this->_filtrarDocumentosVencidos($documentos);
             $idsVencidas = array();
+            $idsPorVencer = array();
             foreach ($documentosVencidos as $doc) {
                 array_push($idsVencidas, $doc->document_id);
             }
 
             DB::table('documents')->whereIn('id', $idsVencidas)->update(['due_date' => 1]);
+
+            foreach ($documentosPorVencer as $doc) {
+                array_push($idsPorVencer, $doc->document_id);
+            }
+
+            DB::table('documents')->whereIn('id', $idsPorVencer)->update(['due_date' => 2]);
             return response()->json(['documentosVencidos' => $idsVencidas], 200);
         } catch (\Exception $e) {
             \Log::error("❌ Excepción al obtener documentos", ['error' => $e->getMessage()]);
