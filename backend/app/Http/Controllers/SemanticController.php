@@ -9,6 +9,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\JsonResponse;
+use PhpParser\Node\Stmt\TryCatch;
 
 
 class SemanticController extends Controller
@@ -179,4 +180,124 @@ class SemanticController extends Controller
 
         }
     }
+
+    public function obtenerFiltrosUnicos(): JsonResponse
+    {
+        $statuses = DB::table('documents')
+            ->whereNotNull('status')->distinct()->orderBy('status')->pluck('status')->all();
+
+        $gaps = DB::table('documents')
+            ->whereNotNull('normative_gap')->distinct()->orderBy('normative_gap')->pluck('normative_gap')->all();
+
+        // Mapea aquí tus etiquetas oficiales
+        $STATUS_LABELS = [
+            0 => 'Vigente',
+            1 => 'Vencido',
+            2 => 'Por vencer',
+        ];
+        $GAP_LABELS = [
+            0 => 'No tiene',
+            1 => 'Si tiene',
+        ];
+
+        return response()->json([
+            'status_values' => array_values(array_map(
+                fn($v) => ['value' => is_numeric($v) ? (int)$v : $v, 'label' => $STATUS_LABELS[$v] ?? (string)$v],
+                $statuses
+            )),
+            'normative_gap_values' => array_values(array_map(
+                fn($v) => ['value' => (int)$v, 'label' => $GAP_LABELS[(int)$v] ?? (string)$v],
+                $gaps
+            )),
+        ]);
+    }
+
+    public function buscarSimilaresConFiltros(Request $request)
+    {
+        $query = $request->input('texto');
+        $embedding = $this->generarEmbedding($query);
+
+        if (!is_array($embedding)) {
+            return response()->json(['message' => 'Error al generar embedding'], 500);
+        }
+
+        // ---- (1) Leer filtros: aceptar array o valor único
+        $status = $request->input('status');             // p.ej. [0,1,2] o "1"
+        $normGap = $request->input('normative_gap');     // p.ej. [0,2,3] o 2
+
+        // Normalizar a arrays si vienen valores simples
+        if (!is_null($status) && !is_array($status)) {
+            $status = [$status];
+        }
+        if (!is_null($normGap) && !is_array($normGap)) {
+            $normGap = [$normGap];
+        }
+
+        // ---- (2) Construir WHERE dinámico y sus bindings
+        $whereParts = [];
+        $whereBinds = [];
+
+        if (!empty($status)) {
+            $placeholders = implode(',', array_fill(0, count($status), '?'));
+            $whereParts[] = "d.status IN ($placeholders)";
+            // Opcional: castear a int si tu status es entero
+            foreach ($status as $s) { $whereBinds[] = is_numeric($s) ? (int)$s : $s; }
+        }
+
+        if (!empty($normGap)) {
+            $placeholders = implode(',', array_fill(0, count($normGap), '?'));
+            $whereParts[] = "d.normative_gap IN ($placeholders)";
+            foreach ($normGap as $g) { $whereBinds[] = (int)$g; }
+        }
+
+        $whereSql = count($whereParts) ? 'WHERE ' . implode(' AND ', $whereParts) : '';
+
+        // ---- (3) Preparar embedding como vector literal
+        $embeddingStr = '[' . implode(',', $embedding) . ']';
+
+        // ---- (4) (Opcional) umbral y límite configurables
+        $minScore = (float)($request->input('min_score', 0.4));
+        $limit    = (int)($request->input('limit', 10));
+
+        // IMPORTANTE: el orden de los placeholders define el orden de $bindings.
+        // Aquí ponemos primero el embedding (aparece antes en el SQL), luego los filtros,
+        // luego el min_score y el limit.
+        $sql = "
+            SELECT * FROM (
+                SELECT
+                    si.id,
+                    si.resumen,
+                    si.archivo,
+                    si.document_id,
+                    si.document_group_id,
+                    d.filename AS document_name,
+                    g.name     AS group_name,
+                    1 - (si.embedding <=> ?::vector) AS score
+                FROM semantic_index si
+                LEFT JOIN documents d       ON d.id = si.document_id
+                LEFT JOIN document_groups g ON g.id = si.document_group_id
+                $whereSql
+            ) AS sub
+            WHERE score >= ?
+            ORDER BY score DESC
+            LIMIT ?;
+        ";
+
+        // ---- (5) Bindings en el MISMO orden que los placeholders del SQL
+        $bindings = array_merge(
+            [$embeddingStr],   // para ?::vector
+            $whereBinds,       // IN (...) de status / normative_gap
+            [$minScore, $limit]
+        );
+
+        
+
+        \Log::info(message: 'Consulta'. $sql. ' | bindings: ' . json_encode($bindings));
+
+        $resultados = DB::select($sql, $bindings);
+
+        return response()->json($resultados);
+    }
+
+
 }

@@ -3,13 +3,19 @@ import { useNavigate } from "react-router-dom";
 import {
   Box, Typography, IconButton, Button, Paper, InputBase, Stack,
   Card, CardActionArea, CardContent,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+  Menu, Divider,
+  FormControl, InputLabel, Select, OutlinedInput, MenuItem,
+  Checkbox, ListItemText, CircularProgress
+  
 } from "@mui/material";
 import { Folder, Plus, Search as SearchIcon, Settings2 } from "lucide-react";
-import { createGroup, getDocumentGroups, buscarDocumentosPorTexto, obtenerDocumentosVencidos, marcarDocumentosVencidos } from "../../utils/api";
+import { createGroup, getDocumentGroups, buscarDocumentosPorTexto, obtenerDocumentosVencidos, marcarDocumentosVencidos, buscarSemanticaConFiltros } from "../../utils/api";
 import type { DocumentGroup, ExpiredDocumentResponse } from "../../utils/interfaces";
 import NewGroupModal from "./NewGroupModal";
 import { SnackbarDocsVencidos } from "../../components/SnackbarDocsVencidos";
+import { getDocumentFilters, type Filters } from "../../utils/api";
+
 
 export default function Home() {
   const navigate = useNavigate();
@@ -21,29 +27,100 @@ export default function Home() {
   const [busquedaRealizada, setBusquedaRealizada] = useState(false);
   const [respuestaDocsVencidos, setRespuestaDocsVencidos] = useState<ExpiredDocumentResponse | null>(null);
 
+  // Ancla del menú
+  const [filtersAnchor, setFiltersAnchor] = useState<null | HTMLElement>(null);
+  const filtersOpen = Boolean(filtersAnchor);
+
+  // Opciones y selección
+  const [filtersLoading, setFiltersLoading] = useState(false);
+  const [statusOptions, setStatusOptions] = useState<Filters[]>([]);
+  const [gapOptions, setGapOptions] = useState<Filters[]>([]);
+  const [selectedStatus, setSelectedStatus] = useState<(number | string)[]>([]);
+  const [selectedGap, setSelectedGap] = useState<number[]>([]);
+  
+
+  // Abrir/cerrar menú
+  const handleOpenFilters = (e: React.MouseEvent<HTMLElement>) => {
+    setFiltersAnchor(e.currentTarget);
+  };
+  const handleCloseFilters = () => setFiltersAnchor(null);
+
+  // al abrir el menú
+  useEffect(() => {
+    if (!filtersOpen) return;
+    (async () => {
+      setFiltersLoading(true);
+      try {
+        const data = await getDocumentFilters();
+        setStatusOptions(data.status_values ?? []);
+        setGapOptions(data.normative_gap_values ?? []);
+      } finally {
+        setFiltersLoading(false);
+      }
+    })();
+  }, [filtersOpen]);
+
+  // Aplicar filtros (aquí puedes enganchar tu búsqueda semántica/textual)
+  const applyFilters = async () => {
+    // Ejemplo: si tu `buscarDocumentosPorTexto` acepta filtros, pásalos aquí.
+    // await buscar({ query, status: selectedStatus, normative_gap: selectedGap });
+    handleCloseFilters();
+  };
+
+  // Limpiar filtros
+  const clearFilters = () => {
+    setSelectedStatus([]);
+    setSelectedGap([]);
+  };
+
   useEffect(() => {
     getDocumentGroups().then(groups => setDocumentGroups(groups));
     obtenerDocumentosVencidos().then(docs => setRespuestaDocsVencidos(docs));
     marcarDocumentosVencidos();
   }, []);
 
+  // const buscar = async () => {
+  //   if (!query.trim()) {
+  //     setResultados([]);
+  //     setBusquedaRealizada(false);
+  //     return;
+  //   }
+  //   setBuscando(true);
+  //   setBusquedaRealizada(true);
+  //   try {
+  //     const data = await buscarDocumentosPorTexto(query);
+  //     setResultados(data);
+  //   } catch (err: any) {
+  //     alert("Error al buscar: " + err.message);
+  //   } finally {
+  //     setBuscando(false);
+  //   }
+  // };
+
   const buscar = async () => {
-    if (!query.trim()) {
-      setResultados([]);
-      setBusquedaRealizada(false);
-      return;
-    }
-    setBuscando(true);
-    setBusquedaRealizada(true);
-    try {
-      const data = await buscarDocumentosPorTexto(query);
-      setResultados(data);
-    } catch (err: any) {
-      alert("Error al buscar: " + err.message);
-    } finally {
-      setBuscando(false);
-    }
-  };
+  if (!query.trim()) {
+    setResultados([]);
+    setBusquedaRealizada(false);
+    return;
+  }
+  setBuscando(true);
+  setBusquedaRealizada(true);
+  try {
+    const filas = await buscarSemanticaConFiltros({
+      texto: query,
+      status: selectedStatus.length ? selectedStatus : undefined,
+      normative_gap: selectedGap.length ? selectedGap : undefined,
+      // opcional:
+      // min_score: 0.45,
+      // limit: 20,
+    });
+    setResultados(filas);
+  } catch (err: any) {
+    alert("Error al buscar: " + err.message);
+  } finally {
+    setBuscando(false);
+  }
+};
 
   const handleFileUpload = async (groupName: string, files: FileList) => {
     try {
@@ -67,15 +144,102 @@ export default function Home() {
         <Typography variant="h5" fontWeight={700}>Unidad de PMV</Typography>
         <IconButton
           color="inherit"
-          sx={{
-            bgcolor: "background.paper",
-            border: 1, borderColor: "divider",
-            "&:hover": { bgcolor: "action.hover" },
-          }}
+          onClick={(e) => setFiltersAnchor(e.currentTarget)}
+          sx={{ bgcolor: "background.paper", border: 1, borderColor: "divider", "&:hover": { bgcolor: "action.hover" } }}
+          aria-label="Abrir filtros"
         >
           <Settings2 size={20} />
         </IconButton>
       </Stack>
+
+      <Menu
+        anchorEl={filtersAnchor}
+        open={filtersOpen}
+        onClose={() => setFiltersAnchor(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+        PaperProps={{ sx: { p: 2, width: 320 } }}
+      >
+        <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 1 }}>
+          Filtros
+        </Typography>
+
+        {filtersLoading ? (
+          <Box sx={{ py: 3, display: "flex", justifyContent: "center" }}>
+            <CircularProgress size={22} />
+          </Box>
+        ) : (
+          <Stack spacing={2}>
+            {/* Estado */}
+            <FormControl fullWidth size="small">
+              <InputLabel id="status-label">Estado del documento</InputLabel>
+              <Select
+                labelId="status-label"
+                multiple
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value as (number | string)[])}
+                input={<OutlinedInput label="Estado del documento" />}
+                renderValue={(selected) =>
+                  (selected as (number | string)[])
+                    .map(v => statusOptions.find(o => o.value === v)?.label ?? String(v))
+                    .join(", ")
+                }
+                MenuProps={{ PaperProps: { style: { maxHeight: 320 } } }}
+              >
+                {statusOptions.map((opt) => (
+                  <MenuItem key={String(opt.value)} value={opt.value}>
+                    <Checkbox checked={selectedStatus.indexOf(opt.value) > -1} />
+                    <ListItemText primary={opt.label} />
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Brecha normativa */}
+            <FormControl fullWidth size="small">
+              <InputLabel id="gap-label">Brecha normativa</InputLabel>
+              <Select
+                labelId="gap-label"
+                multiple
+                value={selectedGap}
+                onChange={(e) => setSelectedGap(e.target.value as number[])}
+                input={<OutlinedInput label="Brecha normativa" />}
+                renderValue={(selected) =>
+                  (selected as number[])
+                    .map(v => gapOptions.find(o => Number(o.value) === v)?.label ?? String(v))
+                    .join(", ")
+                }
+                MenuProps={{ PaperProps: { style: { maxHeight: 320 } } }}
+              >
+                {gapOptions.map((opt) => (
+                  <MenuItem key={String(opt.value)} value={Number(opt.value)}>
+                    <Checkbox checked={selectedGap.indexOf(Number(opt.value)) > -1} />
+                    <ListItemText primary={opt.label} />
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <Divider />
+
+            <Stack direction="row" gap={1} justifyContent="flex-end">
+              <Button
+                variant="text"
+                onClick={() => { setSelectedStatus([]); setSelectedGap([]); setFiltersAnchor(null); buscar(); }}
+              >
+                Limpiar
+              </Button>
+              <Button
+                variant="contained"
+                onClick={() => { setFiltersAnchor(null); buscar(); }}
+              >
+                Aplicar
+              </Button>
+            </Stack>
+          </Stack>
+        )}
+      </Menu>
+
 
       {/* Filtros / búsqueda */}
       <Stack direction="row" gap={2} alignItems="center" sx={{ mb: 3 }}>
