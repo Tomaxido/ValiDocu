@@ -11,8 +11,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 1234
     volumes:
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-      - pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data  # ← quitamos el init.sql
 
 volumes:
   pgdata:

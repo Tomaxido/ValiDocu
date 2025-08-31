@@ -25,7 +25,11 @@ Route::prefix('v1')->group(function () {
     Route::post('/documents/{id}/analyze', [AnalysisController::class, 'analyze']);
     Route::get('/documents/{id}/analysis', [AnalysisController::class, 'showLastAnalysis']);
     Route::get('/documents/{id}/analysis/{analysis}', [AnalysisController::class, 'showAnalysis']);
+
+
     Route::patch('/issues/{id}', [IssueController::class, 'update']);
+    Route::get('/suggestion-status', [IssueController::class, 'indexStatuses']);
+    Route::patch('/issues/{issue}/status', [IssueController::class, 'updateStatus']);
 
     Route::get('/documents/{groupId}/summary-excel', [DocumentSummaryController::class, 'downloadGroupSummaryExcel']);
 

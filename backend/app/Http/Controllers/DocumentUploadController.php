@@ -56,6 +56,7 @@ class DocumentUploadController extends Controller
                 $document->status = 1;
                 $document->save();
             }
+            app(\App\Http\Controllers\AnalysisController::class)->createSuggestions($document_master_id);
         }
 
         return response()->json(['message' => 'Grupo creado y documentos subidos.', 'group_id' => $group->id]);
@@ -254,6 +255,7 @@ class DocumentUploadController extends Controller
                 $document->status = 1; // o el estado que consideres
                 $document->save();
             }
+            app(\App\Http\Controllers\AnalysisController::class)->createSuggestions($document_master_id);
         }
 
         return response()->json(['message' => 'Documentos añadidos al grupo ' . $group->name]);

@@ -1,4 +1,3 @@
-// Ajusta la BASE_URL si usas proxy o .env
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
 
 export type EvidenceItem = {
@@ -12,26 +11,39 @@ export type Evidence = {
   items?: EvidenceItem[];
 };
 
-export type Issue = {
+export type SuggestionStatus = {
   id: number;
-  document_analysis_id: number;
-  field_key: string;
-  issue_type: 'MISSING' | 'INCONSISTENT' | 'FORMAT' | 'OUTDATED';
-  message: string;
-  suggestion?: string | null;
-  confidence?: number | string | null;
-  status: 'TODO' | 'NO_APLICA' | 'RESUELTO';
-  evidence?: Evidence | null;
-  created_at?: string;
-  updated_at?: string;
+  status: string;
+};
+
+export type Issue = {
+  issue_id: number;
+  status_id: number;
+  label: string;
+  suggestion_template: string;
+  reason: string;
+  is_required: boolean;
 };
 
 export type AnalyzeResponse = {
-  analysis_id: number;
-  doc_type: string;
-  summary: string | null;
+  // doc_type?: string | null;
+  // summary?: string | null;
   issues: Issue[];
 };
+
+export type AnalyzePerDoc = {
+  doc_id: number;
+  analysis: AnalyzeResponse;
+};
+
+export async function getLastDocumentAnalysis(documentId: number): Promise<AnalyzeResponse> {
+  const res = await fetch(`${BASE_URL}/api/v1/documents/${documentId}/analysis`, {
+    method: 'GET',
+    headers: { 'Accept': 'application/json' },
+  });
+  if (!res.ok) throw new Error(`Analyze fetch failed: ${res.status}`);
+  return res.json();
+}
 
 export async function analyzeDocument(documentId: number): Promise<AnalyzeResponse> {
   const res = await fetch(`${BASE_URL}/api/v1/documents/${documentId}/analyze`, {
@@ -42,22 +54,58 @@ export async function analyzeDocument(documentId: number): Promise<AnalyzeRespon
   return res.json();
 }
 
-export async function getLastDocumentAnalysis(documentId: number): Promise<AnalyzeResponse> {
-  const res = await fetch(`${BASE_URL}/api/v1/documents/${documentId}/analysis`, {
+export async function analyzeImages(imageIds: number[]): Promise<void> {
+  // dispara el análisis por cada imagen (sin esperar a los resultados consolidados)
+  await Promise.all(imageIds.map((id) => analyzeDocument(id)));
+}
+
+export async function listSuggestionStatuses(): Promise<SuggestionStatus[]> {
+  const res = await fetch(`${BASE_URL}/api/v1/suggestion-status`, {
     method: 'GET',
     headers: { 'Accept': 'application/json' },
   });
-  if (!res.ok) throw new Error(`Analyze failed: ${res.status}`);
+  if (!res.ok) throw new Error(`Statuses load failed: ${res.status}`);
   return res.json();
 }
 
-export async function updateIssueStatus(issueId: number, status: Issue['status']): Promise<Issue> {
-  const res = await fetch(`${BASE_URL}/api/v1/issues/${issueId}`, {
+export async function updateIssueStatusById(issueId: number, status_id: number): Promise<Issue> {
+  const res = await fetch(`${BASE_URL}/api/v1/issues/${issueId}/status`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status_id }),
   });
-  if (!res.ok) throw new Error(`Update failed: ${res.status}`);
-  const data = await res.json();
-  return data.issue as Issue;
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Update failed: ${res.status} ${body}`);
+  }
+  return await res.json();
+}
+
+export async function updateIssueStatus(issueId: number, statusText: string): Promise<Issue> {
+  const catalog = await listSuggestionStatuses();
+  const found = catalog.find(s => s.status === statusText);
+  if (!found) throw new Error(`Estado desconocido: ${statusText}`);
+  return updateIssueStatusById(issueId, found.id);
+}
+
+// === Nuevas utilidades para trabajar con IDs de imágenes ===
+
+export async function getAnalysesForImageIds(imageIds: number[]): Promise<AnalyzePerDoc[]> {
+  const results = await Promise.all(
+    imageIds.map(async (docId) => {
+      const analysis = await getLastDocumentAnalysis(docId);
+      return { doc_id: docId, analysis };
+    })
+  );
+  return results;
+}
+
+export async function fetchIssuesByImageIds(imageIds: number[]): Promise<Issue[]> {
+  const analyses = await getAnalysesForImageIds(imageIds);
+  const merged: Issue[] = [];
+  for (const { doc_id, analysis } of analyses) {
+    const issues = (analysis.issues || []).map((iss) => ({ ...iss, source_document_id: doc_id }));
+    merged.push(...issues);
+  }
+  return merged;
 }
