@@ -49,6 +49,7 @@ Para habilitar HTTPS deber crear los certificado para que el navegador detecte e
 Instala mkcert
 
 * Windows (Chocolatey): `choco install mkcert`
+    * Si no tienes Chocolatey instalado instalalo :V
 * macOS (Homebrew): `brew install mkcert nss`
 * Linux: instala desde releases y ejecuta `mkcert -install` (requiere NSS para Firefox).
 
