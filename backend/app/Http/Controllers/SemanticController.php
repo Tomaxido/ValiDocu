@@ -32,10 +32,10 @@ class SemanticController extends Controller
                 SELECT
                     si.id, si.resumen, si.archivo, si.document_id, si.document_group_id,
                     d.filename AS document_name, g.name AS group_name,
-                    1 - (si.embedding <=> ?::vector) as score
-                FROM semantic_index si
-                LEFT JOIN documents d ON d.id = si.document_id
-                LEFT JOIN document_groups g ON g.id = si.document_group_id
+                    1 - (sdi.embedding <=> ?::vector) as score
+                FROM semantic_doc_index sdi
+                LEFT JOIN documents d ON d.id = sdi.document_id
+                LEFT JOIN document_groups g ON g.id = sdi.document_group_id
             ) AS sub
             WHERE score >= 0.4
             ORDER BY score DESC
@@ -246,7 +246,7 @@ class SemanticController extends Controller
 
         if (!empty($status)) {
             $placeholders = implode(',', array_fill(0, count($status), '?'));
-            $whereParts[] = "d.status IN ($placeholders)";
+            $whereParts[] = "d.due_date IN ($placeholders)";
             // Opcional: castear a int si tu status es entero
             foreach ($status as $s) { $whereBinds[] = is_numeric($s) ? (int)$s : $s; }
         }
@@ -302,6 +302,8 @@ class SemanticController extends Controller
         \Log::info(message: 'Consulta'. $sql. ' | bindings: ' . json_encode($bindings));
 
         $resultados = DB::select($sql, $bindings);
+
+        \Log::info('Resultados: ' . json_encode($resultados));
 
         return response()->json($resultados);
     }

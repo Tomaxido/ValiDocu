@@ -289,41 +289,98 @@ export default function Home() {
         <Typography sx={{ ml: 1 }}>❌ No existen resultados</Typography>
       )}
 
-      {/* Resultados en tabla */}
+      {/* Resultados en tabla con el mismo formato que la tabla principal */}
       {resultados.length > 0 && (
         <Box sx={{ mt: 2 }}>
           <Typography variant="h6" sx={{ mb: 1 }}>🔍 Resultados encontrados:</Typography>
-          <TableContainer component={Paper} sx={{ border: 1, borderColor: "divider" }}>
-            <Table size="small">
+          <TableContainer component={Paper} variant="outlined">
+            <Table>
               <TableHead>
-                <TableRow sx={{ bgcolor: "action.hover" }}>
-                  <TableCell>#</TableCell>
-                  <TableCell>📂 Grupo</TableCell>
-                  <TableCell>📄 Documento</TableCell>
-                  <TableCell>🎯 Score</TableCell>
+                <TableRow>
+                  <TableCell>Grupo</TableCell>
+                  <TableCell>Documento</TableCell>
+                  <TableCell>Estados</TableCell>
+                  <TableCell>Acción</TableCell>
+                  <TableCell>Acceso</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {resultados.map((res, idx) => (
-                  <TableRow
-                    key={idx}
-                    hover
-                    sx={{
-                      cursor: "pointer",
-                      "&:hover": {
-                        bgcolor: "action.hover",
-                        borderLeft: 3,
-                        borderColor: "secondary.main",
-                      },
-                    }}
-                    onClick={() => navigate(`/grupos/${res.document_group_id}`)}
-                  >
-                    <TableCell>{idx + 1}</TableCell>
-                    <TableCell>{res.group_name}</TableCell>
-                    <TableCell>{res.document_name}</TableCell>
-                    <TableCell>{(res.score * 100).toFixed(2)}%</TableCell>
-                  </TableRow>
-                ))}
+                {resultados.map((res, idx) => {
+                  // Simulación de la lógica de la tabla principal
+                  const doc = res;
+                  let estadoVenc = doc?.due_date ?? 0;
+                  let estadoNorm = doc?.normative_gap ?? 0;
+                  let acciones = null;
+                  let alerta = null;
+
+                  if (doc) {
+                    if (estadoVenc === 1) {
+                      acciones = <Button color="error" variant="contained" size="small">Actualizar urgente</Button>;
+                      alerta = <Alert severity="error" sx={{ mb: 1, width: '100%' }}>Documento vencido</Alert>;
+                    } else if (estadoVenc === 2) {
+                      acciones = <Button color="warning" variant="contained" size="small">Renovar</Button>;
+                      alerta = <Alert severity="warning" sx={{ mb: 1, width: '100%' }}>Documento por vencer</Alert>;
+                    } else {
+                      acciones = <Button color="primary" variant="contained" size="small">Renovar</Button>;
+                    }
+                    if (estadoNorm === 1) {
+                      acciones = <Tooltip title="El documento presenta observaciones normativas."><span><Button color="warning" variant="outlined" size="small">Revisar observaciones</Button></span></Tooltip>;
+                    }
+                  }
+
+                  return (
+                    <TableRow key={idx} hover>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Folder size={22} />
+                          <Typography variant="subtitle1" fontWeight={600}>{doc.group_name}</Typography>
+                        </Box>
+                        {alerta}
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color="text.secondary">{doc.document_name}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          {/* Estado vencimiento */}
+                          {(() => {
+                            if (doc.due_date === 1) {
+                              return (
+                                <Tooltip title={"Vencido: " + doc.document_name}>
+                                  <Chip label={`Vencido`} color="error" size="small" />
+                                </Tooltip>
+                              );
+                            } else if (doc.due_date === 2) {
+                              return (
+                                <Tooltip title={"Por vencer: " + doc.document_name}>
+                                  <Chip label={`Por Vencer`} color="warning" size="small" />
+                                </Tooltip>
+                              );
+                            } else {
+                              return null;
+                            }
+                          })()}
+                          {/* Estado normativo */}
+                          {(() => {
+                            if (doc.normative_gap === 1) {
+                              return (
+                                <Tooltip title={"En observación: " + doc.document_name}>
+                                  <Chip label={`En observación`} color="warning" size="small" />
+                                </Tooltip>
+                              );
+                            } else {
+                              return null;
+                            }
+                          })()}
+                        </Stack>
+                      </TableCell>
+                      <TableCell>{acciones}</TableCell>
+                      <TableCell>
+                        <Button variant="outlined" onClick={() => navigate(`/grupos/${doc.document_group_id}`)}>Ver grupo</Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>
