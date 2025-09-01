@@ -234,13 +234,6 @@ class SemanticController extends Controller
 
     public function buscarSimilaresConFiltros(Request $request)
     {
-        $query = $request->input('texto');
-        $embedding = $this->generarEmbedding($query);
-
-        if (!is_array($embedding)) {
-            return response()->json(['message' => 'Error al generar embedding'], 500);
-        }
-
         // ---- (1) Leer filtros: aceptar array o valor único
         $status = $request->input('status');             // p.ej. [0,1,2] o "1"
         $docType = $request->input('doc_type');
@@ -291,20 +284,19 @@ class SemanticController extends Controller
             }
         }
 
-        $whereSql = count($whereParts) ? 'WHERE ' . implode(' AND ', $whereParts) : '';
+        $whereFiltersSql = count($whereParts) ? 'WHERE ' . implode(' AND ', $whereParts) : '';
 
-        // ---- (3) Preparar embedding como vector literal
-        $embeddingStr = '[' . implode(',', $embedding) . ']';
-
-        // ---- (4) (Opcional) umbral y límite configurables
+        // ---- (3) (Opcional) umbral y límite configurables
         $minScore = (float)($request->input('min_score', 0.4));
         $limit    = (int)($request->input('limit', 10));
 
-        // IMPORTANTE: el orden de los placeholders define el orden de $bindings.
-        // Aquí ponemos primero el embedding (aparece antes en el SQL), luego los filtros,
-        // luego el min_score y el limit.
-        $sql = "
-            SELECT * FROM (
+        // ---- (4) Generar dinámicamente la query SQL
+        $query = $request->input('texto');
+        if (trim($query) === '') {
+            // 4.a. Si no hay una query en la petición, solo aplicar filtros en la tabla
+            // IMPORTANTE: el orden de los placeholders define el orden de $bindings.
+            // Aquí ponemos primero los filtros, luego el min_score y el limit.
+            $sqlQuery = "
                 SELECT
                     sdi.id,
                     sdi.resumen,
@@ -312,30 +304,54 @@ class SemanticController extends Controller
                     sdi.document_id,
                     sdi.document_group_id,
                     d.filename AS document_name,
-                    g.name     AS group_name,
-                    1 - (sdi.embedding <=> ?::vector) AS score
+                    g.name     AS group_name
                 FROM semantic_doc_index sdi
                 LEFT JOIN documents d       ON d.id = sdi.document_id
                 LEFT JOIN document_groups g ON g.id = sdi.document_group_id
-                $whereSql
-            ) AS sub
-            WHERE score >= ?
-            ORDER BY score DESC
-            LIMIT ?;
-        ";
+                $whereFiltersSql
+                LIMIT ?;
+            ";
+            $bindings = array_merge($whereBinds, [$limit]);
+        } else {
+            // 4.b. Si hay una query en la petición, generar un embedding
+            $embedding = $this->generarEmbedding($query);
+            if (!is_array($embedding)) {
+                return response()->json(['message' => 'Error al generar embedding'], 500);
+            }
 
-        // ---- (5) Bindings en el MISMO orden que los placeholders del SQL
-        $bindings = array_merge(
-            [$embeddingStr],   // para ?::vector
-            $whereBinds,       // IN (...) de status / normative_gap
-            [$minScore, $limit]
-        );
+            // Preparar embedding como vector literal
+            $embeddingStr = '[' . implode(',', $embedding) . ']';
 
 
+            // IMPORTANTE: el orden de los placeholders define el orden de $bindings.
+            // Aquí ponemos primero el embedding (aparece antes en el SQL), luego los filtros,
+            // luego el min_score y el limit.
+            $sqlQuery = "
+                SELECT * FROM (
+                    SELECT
+                        sdi.id,
+                        sdi.resumen,
+                        sdi.archivo,
+                        sdi.document_id,
+                        sdi.document_group_id,
+                        d.filename AS document_name,
+                        g.name     AS group_name,
+                        1 - (sdi.embedding <=> ?::vector) AS score
+                    FROM semantic_doc_index sdi
+                    LEFT JOIN documents d       ON d.id = sdi.document_id
+                    LEFT JOIN document_groups g ON g.id = sdi.document_group_id
+                    $whereFiltersSql
+                ) AS sub
+                WHERE score >= ?
+                ORDER BY score DESC
+                LIMIT ?;
+            ";
+            $bindings = array_merge([$embeddingStr], $whereBinds, [$minScore, $limit]);
+        }
 
-        \Log::info(message: 'Consulta'. $sql. ' | bindings: ' . json_encode($bindings));
+        \Log::info(message: 'Consulta'. $sqlQuery. ' | bindings: ' . json_encode($bindings));
 
-        $resultados = DB::select($sql, $bindings);
+        $resultados = DB::select($sqlQuery, $bindings);
 
         return response()->json($resultados);
     }

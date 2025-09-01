@@ -104,30 +104,32 @@ export default function Home() {
   // };
 
   const buscar = async () => {
-  if (!query.trim()) {
-    setResultados([]);
-    setBusquedaRealizada(false);
-    return;
-  }
-  setBuscando(true);
-  setBusquedaRealizada(true);
-  try {
-    const filas = await buscarSemanticaConFiltros({
-      texto: query,
-      status: selectedStatus.length ? selectedStatus : undefined,
-      doc_type: selectedDocType.length ? selectedDocType : undefined,
-      normative_gap: selectedGap.length ? selectedGap : undefined,
-      // opcional:
-      // min_score: 0.45,
-      // limit: 20,
-    });
-    setResultados(filas);
-  } catch (err: any) {
-    alert("Error al buscar: " + err.message);
-  } finally {
-    setBuscando(false);
-  }
-};
+    // Si todos los campos están vacíos...
+    const trimmedQuery = query.trim();
+    if (trimmedQuery === "" && [selectedStatus, selectedDocType, selectedGap].every(arr => arr.length === 0)) {
+      setResultados([]);
+      setBusquedaRealizada(false);
+      return;
+    }
+    setBuscando(true);
+    setBusquedaRealizada(true);
+    try {
+      const filas = await buscarSemanticaConFiltros({
+        texto: trimmedQuery,
+        status: selectedStatus.length ? selectedStatus : undefined,
+        doc_type: selectedDocType.length ? selectedDocType : undefined,
+        normative_gap: selectedGap.length ? selectedGap : undefined,
+        // opcional:
+        // min_score: 0.45,
+        // limit: 20,
+      });
+      setResultados(filas);
+    } catch (err: any) {
+      alert("Error al buscar: " + err.message);
+    } finally {
+      setBuscando(false);
+    }
+  };
 
   const handleFileUpload = async (groupName: string, files: FileList) => {
     try {

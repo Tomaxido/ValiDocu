@@ -139,7 +139,7 @@ export interface SemanticRow {
   document_group_id: number | null;
   document_name: string | null;
   group_name: string | null;
-  score: number; // 0..1
+  score?: number; // 0..1
 }
 
 export async function buscarSemanticaConFiltros(params: {
