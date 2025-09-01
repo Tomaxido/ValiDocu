@@ -6,6 +6,7 @@ import UploadModal from "./UploadModal";
 import DeleteModal from "./DeleteModal";
 import GroupedImageViewer from "./GroupedImageViewer";
 import DocInfoPanel from "./DocInfoPanel";
+import { downloadDocumentSummaryExcel } from "../../api/summary_excel";
 
 import {
   Box, Paper, Button, Typography, List, ListItemButton,
@@ -236,6 +237,19 @@ export default function Grupo() {
               Eliminar
             </Button>
           </Stack>
+          {/* ====== Generación de Documento Resumen (HdU 05) ====== */}
+          <Button
+            variant="contained"
+            color="primary"
+            sx={{ mb: 2 }}
+            onClick={() => {
+              // if (selectedDoc?.id) {
+              downloadDocumentSummaryExcel(group.id);
+              // }
+            }}
+          >
+            Generar Documento Resumen
+          </Button>
 
           <Divider sx={{ mb: 1 }} />
           <Typography variant="subtitle2" sx={{ mb: 1 }}>Listado de documentos</Typography>

@@ -31,6 +31,6 @@ Route::prefix('v1')->group(function () {
     Route::get('/suggestion-status', [IssueController::class, 'indexStatuses']);
     Route::patch('/issues/{issue}/status', [IssueController::class, 'updateStatus']);
 
-    Route::get('/documents/{id}/summary-excel', [DocumentSummaryController::class, 'downloadSummaryExcel']);
+    Route::get('/documents/{groupId}/summary-excel', [DocumentSummaryController::class, 'downloadGroupSummaryExcel']);
 
 });
