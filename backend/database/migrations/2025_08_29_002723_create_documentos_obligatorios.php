@@ -20,13 +20,19 @@ return new class extends Migration
         DB::table('documentos_obligatorios')->insert([
             [
                 'nombre_doc' => 'ESCRITURA MUTUO',
-                'analizar' => true,
+                'analizar' => 1,
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
             [
-                'nombre_doc' => 'CARNET IDENTIDAD',
-                'analizar' => false,
+                'nombre_doc' => 'CARNET IDENTIDAD DEUDOR',
+                'analizar' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'nombre_doc' => 'CARNET IDENTIDAD CODEUDOR',
+                'analizar' => 0,
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
