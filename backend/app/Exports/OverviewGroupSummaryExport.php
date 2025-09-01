@@ -15,9 +15,10 @@ class OverviewGroupSummaryExport implements WithEvents, WithColumnWidths, WithTi
     public function __construct(
         private Carbon $fechaGeneracion,
         private string $usuarioResponsable,
-        private array  $tablaNoAnalizar,   // [ ['nombre_documento' => ..., 'estado' => 'OK'], ...]
-        private array  $tablaUnmatched,    // [ ['nombre_documento' => ...], ...]
-        private array  $tablaAnalizar      // [ ['nombre_documento'=>..., 'estado'=>int, 'observaciones'=>..., 'porcentaje'=>'50%'], ...]
+        private array  $tablaNoAnalizar,   // [ ['nombre_documento'=>'...', 'estado'=>'OK'], ... ]
+        private array  $tablaUnmatched,    // [ ['nombre_documento'=>'...'], ... ]
+        private array  $tablaAnalizar,     // [ ['nombre_documento'=>'...', 'estado'=>int, 'observaciones'=>'...', 'porcentaje'=>'..%'], ... ]
+        private array  $tablaPendientes = [] // NUEVO: [ ['nombre_documento'=>'...', 'estado'=>'Pendiente'], ... ]
     ) {}
 
     public function title(): string
@@ -42,7 +43,6 @@ class OverviewGroupSummaryExport implements WithEvents, WithColumnWidths, WithTi
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet    = $event->sheet->getDelegate();
 
-                // Estilos base
                 $headerStyle = [
                     'font'      => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
                     'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '2F5597']],
@@ -69,6 +69,47 @@ class OverviewGroupSummaryExport implements WithEvents, WithColumnWidths, WithTi
                 $sheet->setCellValue("B{$r}", $this->usuarioResponsable);
                 $sheet->mergeCells("B{$r}:D{$r}");
                 $r += 2;
+
+                // ===== NUEVA Tabla: Obligatorios no encontrados (Pendientes) =====
+                $sheet->setCellValue("A{$r}", 'Documentos obligatorios no encontrados (Pendientes)');
+                $sheet->mergeCells("A{$r}:D{$r}");
+                $sheet->getStyle("A{$r}:D{$r}")->applyFromArray($headerStyle);
+                $sheet->getRowDimension($r)->setRowHeight(22);
+                $r++;
+
+                $sheet->mergeCells("A{$r}:B{$r}");
+                $sheet->mergeCells("C{$r}:D{$r}");
+                $sheet->setCellValue("A{$r}", 'Nombre Documento');
+                $sheet->setCellValue("C{$r}", 'Estado');
+                $sheet->getStyle("A{$r}:D{$r}")->applyFromArray($headerStyle);
+                $sheet->getRowDimension($r)->setRowHeight(20);
+                $r++;
+
+                $start = $r;
+                foreach ($this->tablaPendientes as $item) {
+                    $sheet->mergeCells("A{$r}:B{$r}");
+                    $sheet->mergeCells("C{$r}:D{$r}");
+                    $sheet->setCellValue("A{$r}", (string)$item['nombre_documento']);
+                    $sheet->setCellValue("C{$r}", (string)$item['estado']); // "Pendiente"
+                    $sheet->getStyle("A{$r}:D{$r}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    $r++;
+                }
+                if ($r > $start) {
+                    $sheet->mergeCells("A{$r}:B{$r}");
+                    $sheet->mergeCells("C{$r}:D{$r}");
+                    $sheet->getStyle("A{$start}:D" . ($r-1))->applyFromArray($box);
+                    $sheet->getStyle("A{$start}:D" . ($r-1))->applyFromArray($box);
+                    $sheet->getStyle("A{$start}:D" . ($r-1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                } else {
+                    // caja vacía si no hay pendientes
+                    $sheet->mergeCells("A{$r}:B{$r}");
+                    $sheet->mergeCells("C{$r}:D{$r}");
+                    $sheet->getStyle("A{$r}:D{$r}")->applyFromArray($box);
+                    $sheet->getStyle("A{$r}:D{$r}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    $r++;
+                }
+
+                $r++;
 
                 // ===== Tabla 1: No analizar =====
                 $sheet->setCellValue("A{$r}", 'Documentos que NO se deben analizar');
@@ -177,7 +218,6 @@ class OverviewGroupSummaryExport implements WithEvents, WithColumnWidths, WithTi
                     $r++;
                 }
 
-                // Ajustes
                 $event->sheet->setShowGridlines(false);
             },
         ];

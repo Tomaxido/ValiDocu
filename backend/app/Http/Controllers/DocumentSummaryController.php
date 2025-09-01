@@ -82,16 +82,29 @@ class DocumentSummaryController extends Controller
                 abort(404, 'No hay documentos asociados a este grupo.');
             }
 
-            // 2) Documentos obligatorios
+            // 2) Documentos obligatorios (ordenados por largo desc para matches más específicos)
             $obligatorios = DB::table('documentos_obligatorios')
                 ->get(['nombre_doc', 'analizar'])
                 ->sortByDesc(function($o) { return mb_strlen((string)$o->nombre_doc, 'UTF-8'); })
                 ->values();
 
+            // Índice por nombre_doc normalizado para contar coincidencias (1..n permitidas, pero necesitamos >=1)
+            $oblIndex = []; // key = normNombreDoc => ['nombre_doc'=>orig, 'analizar'=>int, 'count'=>0]
+            foreach ($obligatorios as $obl) {
+                $norm = $this->normalizeName((string)$obl->nombre_doc);
+                if (!isset($oblIndex[$norm])) {
+                    $oblIndex[$norm] = [
+                        'nombre_doc' => (string)$obl->nombre_doc,
+                        'analizar'   => (int)$obl->analizar,
+                        'count'      => 0,
+                    ];
+                }
+            }
+
             // 3) Clasificación
-            $matchedAnalyze   = [];
-            $matchedNoAnalyze = [];
-            $unmatched        = [];
+            $matchedAnalyze         = []; // analizar = 1 (generan hoja)
+            $matchedNoAnalyzeStrict = []; // analizar = 0 (no generan hoja; Tabla 1 Overview)
+            $unmatched              = []; // sin match en documentos_obligatorios (no generan hoja; Tabla 2 Overview)
 
             foreach ($docs as $doc) {
                 $filename = (string)$doc->filename;
@@ -104,27 +117,46 @@ class DocumentSummaryController extends Controller
                     $analizar  = (int)$obl->analizar;
                     Log::info("Nombre Documento Obligatorio: {$nombreDoc}, analizar: {$analizar}");
 
-                    if ($this->matchFilenameToNombreDoc($normFile, $this->normalizeName($nombreDoc))) {
+                    $normNombre = $this->normalizeName($nombreDoc);
+                    if ($this->matchFilenameToNombreDoc($normFile, $normNombre)) {
                         $found = true;
-                        if ($analizar === 1) {
-                            $matchedAnalyze[] = $doc;
-                        } else {
-                            $matchedNoAnalyze[] = $doc;
+
+                        // Contabiliza que este tipo de obligatorio sí apareció al menos una vez
+                        if (isset($oblIndex[$normNombre])) {
+                            $oblIndex[$normNombre]['count']++;
                         }
-                        break;
+
+                        if ($analizar === 1) {
+                            $matchedAnalyze[] = $doc;             // => sí generan hoja
+                        } else {
+                            $matchedNoAnalyzeStrict[] = $doc;     // => no generan hoja (Tabla 1)
+                        }
+                        break; // un doc queda asociado al primer nombre_doc que calce
                     }
                 }
 
                 if (!$found) {
-                    $unmatched[] = $doc;
+                    $unmatched[] = $doc; // => no generan hoja (Tabla 2)
+                }
+            }
+
+            // 3.1) Obligatorios no encontrados (>=1 requerido, si count == 0 => Pendiente)
+            $obligatoriosPendientes = [];
+            foreach ($oblIndex as $norm => $info) {
+                if ((int)$info['count'] === 0) {
+                    $obligatoriosPendientes[] = [
+                        'nombre_documento' => (string)$info['nombre_doc'],
+                        'estado'           => 'Pendiente',
+                    ];
                 }
             }
 
             Log::info("downloadGroupSummaryExcel | group {$groupId}", [
-                'docs_total'           => $docs->count(),
-                'matched_analyze'      => count($matchedAnalyze),
-                'matched_no_analyze'   => count($matchedNoAnalyze),
-                'unmatched'            => count($unmatched),
+                'docs_total'                 => $docs->count(),
+                'matched_analyze'            => count($matchedAnalyze),
+                'matched_no_analyze_strict'  => count($matchedNoAnalyzeStrict),
+                'unmatched'                  => count($unmatched),
+                'obligatorios_pendientes'    => count($obligatoriosPendientes),
             ]);
 
             // 4) Construir hojas de "analizar" y a la vez calcular % cumplimiento por documento
@@ -231,13 +263,13 @@ class DocumentSummaryController extends Controller
                 ];
             }
 
-            // 5) Construir Overview con las 3 tablas (usando % calculado)
+            // 5) Construir Overview con las 4 tablas (incluye PENDIENTES)
             $tablaNoAnalizar = array_map(function($d) {
                 return [
                     'nombre_documento' => (string)$d->filename,
                     'estado'           => 'OK',
                 ];
-            }, $matchedNoAnalyze);
+            }, $matchedNoAnalyzeStrict);
 
             $tablaUnmatched = array_map(function($d) {
                 return [
@@ -245,12 +277,14 @@ class DocumentSummaryController extends Controller
                 ];
             }, $unmatched);
 
-            $overview = new \App\Exports\OverviewGroupSummaryExport(
+            // NUEVO: pasar también "pendientes"
+            $overview = new OverviewGroupSummaryExport(
                 fechaGeneracion: \Carbon\Carbon::now('America/Santiago'),
                 usuarioResponsable: 'Administrador',
                 tablaNoAnalizar: $tablaNoAnalizar,
                 tablaUnmatched:  $tablaUnmatched,
-                tablaAnalizar:   $tablaAnalizar
+                tablaAnalizar:   $tablaAnalizar,        // con % calculado
+                tablaPendientes: $obligatoriosPendientes
             );
 
             // Insertar Overview como PRIMERA hoja
