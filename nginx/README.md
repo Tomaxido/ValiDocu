@@ -59,6 +59,12 @@ Crea/instala la CA local:
 mkcert -install
 ```
 
+Usa el siguiente comando para generar los certificados:
+
+```bash
+mkcert validocu.cl
+```
+
 Esto generará dos archivos:
 
 * `validocu.cl.pem` (certificado)
