@@ -8,9 +8,10 @@ import {
   Alert,
   Button,
   Badge,
+  Tooltip,
 } from "@mui/material";
 import labelColors from "../../utils/labelColors";
-import type { Document } from "../../utils/interfaces";
+import type { BoxAnnotation, Document, SemanticGroup } from "../../utils/interfaces";
 
 import {
   getLastDocumentAnalysis,
@@ -25,7 +26,7 @@ import DownloadIcon from "@mui/icons-material/Download";
 
 interface Props {
   selectedDoc: Document;
-  semanticGroupData: any[];
+  semanticGroupData: SemanticGroup[];
 }
 
 function getBaseFilename(filename: string): string {
@@ -37,6 +38,40 @@ function StatusChip({ status }: { status: number }) {
   if (status === 1) return <Chip size="small" label="Conforme" color="success" />;
   if (status === 2) return <Chip size="small" label="Inconforme" color="error" />;
   return <Chip size="small" label="Sin revisar" variant="outlined" />;
+}
+
+function StatusVenc({ status }: { status: number }) {
+  if (status === 2)
+    return (
+      <Tooltip title="El documento está próximo a vencer. Se recomienda revisar su vigencia y tomar acciones preventivas.">
+        <Chip size="small" label="Por Vencer" color="warning" />
+      </Tooltip>
+    );
+  if (status === 1)
+    return (
+      <Tooltip title="El documento ha vencido. No es válido para uso normativo.">
+        <Chip size="small" label="Vencido" color="error" />
+      </Tooltip>
+    );
+  return (
+    <Tooltip title="El documento está vigente y es válido para uso normativo.">
+      <Chip size="small" label="Vigente" color="success" />
+    </Tooltip>
+  );
+}
+
+function StatusNorm({ status }: { status: number }) {
+  if (status === 1)
+    return (
+      <Tooltip title="El documento presenta observaciones o posibles brechas normativas que requieren atención.">
+        <Chip size="small" label="En observación" color="warning" />
+      </Tooltip>
+    );
+  return (
+    <Tooltip title="El documento cumple con los requisitos normativos y no presenta brechas.">
+      <Chip size="small" label="Sin brechas normativas" color="success" />
+    </Tooltip>
+  );
 }
 
 export default function DocInfoPanel({
@@ -127,12 +162,24 @@ export default function DocInfoPanel({
       <Typography variant="h6" fontWeight={700}>
         {getBaseFilename(selectedDoc.filename)}
       </Typography>
-
+      {/* Estado de la sugerencia 
       <Stack direction="row" spacing={1} alignItems="center">
         <Typography variant="body2" color="text.secondary">
           Estado:
         </Typography>
         <StatusChip status={selectedDoc.status ?? 0} />
+      </Stack>*/}
+      <Stack direction="row" spacing={1} alignItems="center">
+        <Typography variant="body2" color="text.secondary">
+          Estado vencimiento:
+        </Typography>
+        <StatusVenc status={selectedDoc.due_date ?? 0} />
+      </Stack>
+      <Stack direction="row" spacing={1} alignItems="center">
+        <Typography variant="body2" color="text.secondary">
+          Estado normativo:
+        </Typography>
+        <StatusNorm status={selectedDoc.normative_gap ?? 0} />
       </Stack>
 
       <Box component="div" sx={{ color: 'text.secondary', fontSize: '1rem', mb: 1 }}>
@@ -163,90 +210,12 @@ export default function DocInfoPanel({
         </Box>
       </Stack>
 
-      <Typography variant="subtitle1" fontWeight={700} sx={{ mt: 1 }}>
-        Datos detectados por IA
+      <Typography variant="body2">
+        <strong>Resumen:</strong>{" "}
+        {selectedDoc?.created_at
+          ? new Date(selectedDoc.created_at).toLocaleString()
+          : "—"}
       </Typography>
-
-      <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", pr: 1 }}>
-        {semanticGroupData.map((item, i) => {
-          try {
-            const layout = JSON.parse(item.json_layout);
-            const pageStr = item.filename?.match(/_p(\d+)\./)?.[1] || null;
-            const page = pageStr ? parseInt(pageStr, 10) : null;
-
-            return (
-              <Box
-                key={i}
-                sx={{ pb: 1, mb: 1, borderBottom: 1, borderColor: "divider" }}
-              >
-                <Typography variant="caption" sx={{ display: "block", mb: 1 }}>
-                  Página: {pageStr ?? "¿?"}
-                </Typography>
-
-                <Stack spacing={1}>
-                  {layout.map((campo: any, idx: number) => {
-                    const isError =
-                      typeof campo.label === "string" &&
-                      campo.label.endsWith("_E");
-                    const rawLabel = String(campo.label ?? "").replace(/_E$/, "");
-                    const displayLabel = rawLabel.replace(/_/g, " ");
-                    const color = isError
-                      ? "rgba(255, 0, 0, 0.4)"
-                      : labelColors[campo.label] || "rgba(200,200,200,0.4)";
-
-                    return (
-                      <Stack
-                        key={idx}
-                        direction="row"
-                        spacing={1}
-                        alignItems="center"
-                        role="button"
-                        tabIndex={0}
-                        sx={{
-                          cursor: "pointer",
-                          "&:hover": { bgcolor: "action.hover" },
-                          borderRadius: 1,
-                          px: 0.5,
-                          py: 0.25,
-                        }}
-                        onClick={() => focusBoxes(page, campo.boxes)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            focusBoxes(page, campo.boxes);
-                          }
-                        }}
-                        onMouseEnter={() => hoverBoxes(page, campo.boxes)}
-                        onMouseLeave={clearHover}
-                        title="Click para resaltar en el documento"
-                      >
-                        <Box
-                          sx={{ width: 14, height: 14, borderRadius: 1, bgcolor: color }}
-                        />
-                        <Typography variant="body2">
-                          <strong>{displayLabel}:</strong> {campo.text}
-                          {isError && (
-                            <Box component="span" sx={{ color: "error.main" }}>
-                              {" "}
-                              (inválido)
-                            </Box>
-                          )}
-                        </Typography>
-                      </Stack>
-                    );
-                  })}
-                </Stack>
-              </Box>
-            );
-          } catch {
-            return (
-              <Alert key={i} severity="warning">
-                ⚠️ Error al procesar datos IA
-              </Alert>
-            );
-          }
-        })}
-      </Box>
 
       {/* ====== Modal con toda la lógica de sugerencias ====== */}
       <SuggestionsModal

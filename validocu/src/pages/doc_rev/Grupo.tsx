@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { getDocumentGroupById, uploadDocumentsToGroup, deleteDocuments } from "../../utils/api";
-import type { DocumentGroup, Document, GroupedDocument } from "../../utils/interfaces";
+import { getDocumentGroupById, uploadDocumentsToGroup, deleteDocuments, getSemanticGroupData, marcarDocumentosVencidos, obtenerDocumentosVencidosDeGrupo as obtenerDocumentosVencidosDeGrupo } from "../../utils/api";
+import { type DocumentGroup, type Document, type GroupedDocument, type SemanticGroup, type ExpiredDocumentResponse } from "../../utils/interfaces";
 import UploadModal from "./UploadModal";
 import DeleteModal from "./DeleteModal";
 import GroupedImageViewer from "./GroupedImageViewer";
@@ -10,9 +10,10 @@ import { downloadDocumentSummaryExcel } from "../../api/summary_excel";
 
 import {
   Box, Paper, Button, Typography, List, ListItemButton,
-  ListItemText, Chip, Stack, IconButton, Divider
+  ListItemText, Chip, Stack, IconButton, Divider,
 } from "@mui/material";
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
+import { SnackbarDocsVencidos } from "../../components/SnackbarDocsVencidos";
 
 function groupDocuments(documents: Document[]): GroupedDocument[] {
   const pdfs = documents.filter((doc) => doc.filename.toLowerCase().endsWith(".pdf"));
@@ -33,7 +34,7 @@ function groupDocuments(documents: Document[]): GroupedDocument[] {
   });
 }
 
-function statusChip(status?: number) {
+function StatusChip({ status } : { status?: number }) {
   if (status === 1) return <Chip label="Conforme" color="success" size="small" />;
   if (status === 2) return <Chip label="Inconforme" color="error" size="small" />;
   return <Chip label="Sin procesar" variant="outlined" size="small" />;
@@ -47,34 +48,29 @@ export default function Grupo() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [semanticGroupData, setSemanticGroupData] = useState<any[]>([]);
+  const [semanticGroupData, setSemanticGroupData] = useState<SemanticGroup[]>([]);
+  const [respuestaDocsVencidos, setRespuestaDocsVencidos] = useState<ExpiredDocumentResponse | null>(null);
 
   const splitRef = useRef<HTMLDivElement | null>(null);
   const [ratio, setRatio] = useState(0.66);
-  const MIN_LEFT_PX = 360;
-  const MIN_RIGHT_PX = 280;
-  const HANDLE_PX = 8;
-
-  const fetchSemanticGroupData = async (groupFiles: Document[]) => {
-    const ids = groupFiles.map(doc => doc.id);
-    const res = await fetch(`http://localhost:8000/api/v1/semantic-data/by-filenames`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids })
-    });
-    const data = await res.json();
-    setSemanticGroupData(data);
-  };
+  const MIN_LEFT_PX = 360;  // ancho mínimo del viewer
+  const MIN_RIGHT_PX = 280; // ancho mínimo del panel info
+  const HANDLE_PX = 8;      // ancho del resizer
 
   useEffect(() => {
+    marcarDocumentosVencidos();
     if (grupoId) {
+      // TEST
+      obtenerDocumentosVencidosDeGrupo(grupoId).then(setRespuestaDocsVencidos);
       getDocumentGroupById(grupoId).then((g) => {
         setGroup(g);
         const grouped = groupDocuments(g.documents);
         setGroupedDocs(grouped);
         if (grouped.length > 0 && grouped[0].pdf) {
           setSelectedDoc(grouped[0].pdf);
-          fetchSemanticGroupData(grouped[0].images);
+          getSemanticGroupData(grouped[0].images).then(
+            data => setSemanticGroupData(data)
+          );
         }
       });
     }
@@ -170,6 +166,10 @@ export default function Grupo() {
         width: "100%",
       }}
     >
+      {/* Alerta de documentos vencidos */}
+      <SnackbarDocsVencidos respuestaDocsVencidos={respuestaDocsVencidos}/>
+      
+      {/* Sidebar */}
       <Paper
         elevation={0}
         sx={(theme) => ({
@@ -264,7 +264,9 @@ export default function Grupo() {
                   onClick={() => {
                     if (grouped.pdf) {
                       setSelectedDoc(grouped.pdf);
-                      fetchSemanticGroupData(grouped.images);
+                      getSemanticGroupData(grouped.images).then(
+                        data => setSemanticGroupData(data)
+                      );
                     }
                   }}
                   sx={{
@@ -278,7 +280,7 @@ export default function Grupo() {
                     primary={
                       <Stack direction="row" spacing={1} alignItems="center">
                         <Typography variant="body2" fontWeight={700}>{grouped.name}</Typography>
-                        {statusChip(grouped.pdf?.status)}
+                        <StatusChip status={grouped.pdf?.status} />
                       </Stack>
                     }
                   />

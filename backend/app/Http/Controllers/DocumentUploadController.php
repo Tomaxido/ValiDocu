@@ -11,27 +11,17 @@ use Illuminate\Support\Facades\Log;
 
 class DocumentUploadController extends Controller
 {
-    public function storeNewGroup(Request $request)
-    {
-        $request->validate([
-            'group_name' => 'required|string|max:255',
-            'documents.*' => 'required|file',
-        ]);
 
-        $group = DocumentGroup::create([
-            'name' => $request->group_name,
-            'status' => 0,
-        ]);
-
+    function _addDocumentsToGroup(Request $request, DocumentGroup &$group) {
         foreach ($request->file('documents') as $file) {
-
             //tranformar a png
             //mandar los png a la ia
             //recibir el json y ver que hacer, ademas de respuesta del rut
 
             $path = $file->store('documents', 'public');
+            $originalFilename = $file->getClientOriginalName();
             $document = $group->documents()->create([
-                'filename' => $file->getClientOriginalName(),
+                'filename' => $originalFilename,
                 'filepath' => $path,
                 'mime_type' => $file->getClientMimeType(),
                 'status' => 0,
@@ -40,7 +30,7 @@ class DocumentUploadController extends Controller
             $document_master_id = $document->id;
 
             // Obtener nombre base sin extensión, por ejemplo: contrato_12
-            $originalBaseName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+            $originalBaseName = pathinfo($originalFilename, PATHINFO_FILENAME);
 
             // Convertir PDF a imágenes
             $images = $this->convertPdfToImages($path,$group);
@@ -58,8 +48,24 @@ class DocumentUploadController extends Controller
             }
             app(\App\Http\Controllers\AnalysisController::class)->createSuggestions($document_master_id);
         }
+    }
 
-        return response()->json(['message' => 'Grupo creado y documentos subidos.', 'group_id' => $group->id]);
+    public function storeNewGroup(Request $request)
+    {
+        $request->validate([
+            'group_name' => 'required|string|max:255',
+            'documents.*' => 'required|file',
+        ]);
+
+        $group = DocumentGroup::create([
+            'name' => $request->group_name,
+            'status' => 0,
+        ]);
+        $this->_addDocumentsToGroup($request, $group);
+        return response()->json([
+            'message' => 'Grupo creado y documentos subidos.',
+            'group_id' => $group->id
+        ]);
     }
 
     public function saveImages($images, $originalBaseName, $group, $document_master_id)
@@ -230,35 +236,11 @@ class DocumentUploadController extends Controller
         ]);
 
         $group = DocumentGroup::findOrFail($group_id);
+        $this->_addDocumentsToGroup($request, $group);
 
-        foreach ($request->file('documents') as $file) {
-            $path = $file->store('documents', 'public');
-            $originalBaseName = $file->getClientOriginalName();
-            $document = $group->documents()->create([
-                'filename' => $originalBaseName,
-                'filepath' => $path,
-                'mime_type' => $file->getClientMimeType(),
-                'status' => 0,
-            ]);
-
-            // Obtener ID del documento maestro
-            $document_master_id = $document->id;
-
-            $images = $this->convertPdfToImages($path, $group);
-            $rechazado = $this->saveImages($images, $originalBaseName, $group, $document_master_id);
-            if ($rechazado) {
-                // Cambiar status del documento a 2 = Rechazado
-                $document->status = 2;
-                $document->save();
-            } else {
-                // Cambiar status del documento a 1 = Conforme
-                $document->status = 1; // o el estado que consideres
-                $document->save();
-            }
-            app(\App\Http\Controllers\AnalysisController::class)->createSuggestions($document_master_id);
-        }
-
-        return response()->json(['message' => 'Documentos añadidos al grupo ' . $group->name]);
+        return response()->json([
+            'message' => 'Documentos añadidos al grupo ' . $group->name
+        ]);
     }
     public function show($id)
     {

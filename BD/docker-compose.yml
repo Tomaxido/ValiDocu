@@ -12,6 +12,12 @@ services:
       POSTGRES_PASSWORD: 1234
     volumes:
       - pgdata:/var/lib/postgresql/data  # ← quitamos el init.sql
+    networks:
+      - validocu_network
 
 volumes:
   pgdata:
+
+networks:
+  validocu_network:
+    external: true

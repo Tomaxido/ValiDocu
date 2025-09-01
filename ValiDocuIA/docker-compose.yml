@@ -13,3 +13,9 @@ services:
       - ./outputs:/app/outputs
       - ./outputs/modelo_multiclase:/app/modelo_multiclase
     command: uvicorn app.main:app --host 0.0.0.0 --port 5050 --reload
+    networks:
+      - validocu_network
+
+networks:
+  validocu_network:
+    external: true

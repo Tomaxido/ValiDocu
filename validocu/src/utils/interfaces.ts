@@ -7,6 +7,8 @@ export interface Document {
     status: number;
     created_at: string;
     updated_at: string;
+    normative_gap: number;
+    due_date: number;
 };
 
 export interface DocumentGroup {
@@ -30,6 +32,29 @@ export interface BoxAnnotation {
   boxes: number[][];
 }
 
+export interface SemanticGroup {
+  filename: string;
+  json_layout: BoxAnnotation[]
+}
+
 export interface GroupedImageViewerProps {
   files: Document[];
+}
+
+export interface SemanticDocIndex {
+  id: number;
+  document_id: number;
+  document_group_id: number;
+  resumen: string;
+  json_layout: string;
+  json_global: string;
+  embedding: string;
+  archivo: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ExpiredDocumentResponse {
+  documentosVencidos: SemanticDocIndex[];
+  documentosPorVencer: SemanticDocIndex[];
 }
