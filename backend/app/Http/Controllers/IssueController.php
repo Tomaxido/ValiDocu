@@ -39,7 +39,24 @@ class IssueController extends Controller
 
         $issue->status_id = $data['status_id'];
         $issue->save();
+        $relatedIssueIds = AnalysisIssue::where('document_analysis_id', $issue->document_analysis_id)
+            ->where('status_id', '!=', 2)
+            ->pluck('id');
 
+        if ($relatedIssueIds->isEmpty()) {
+            // Usar Eloquent para obtener el DocumentAnalysis y el Document
+            $analysis = \App\Models\DocumentAnalysis::find($issue->document_analysis_id);
+            if ($analysis && $analysis->document) {
+                $analysis->document->normative_gap = 0;
+                $analysis->document->save();
+            }
+        }else{
+            $analysis = \App\Models\DocumentAnalysis::find($issue->document_analysis_id);
+            if ($analysis && $analysis->document) {
+                $analysis->document->normative_gap = 1;
+                $analysis->document->save();
+            } 
+        }
         // Opcional: incluir el texto del estado en la respuesta
         $issue->load('status');
         return response()->json([
