@@ -135,12 +135,12 @@ export default function DocInfoPanel({
         <StatusChip status={selectedDoc.status ?? 0} />
       </Stack>
 
-      <Typography variant="body2">
+      <Box component="div" sx={{ color: 'text.secondary', fontSize: '1rem', mb: 1 }}>
         <strong>Subido:</strong>{" "}
         {selectedDoc?.created_at
           ? new Date(selectedDoc.created_at).toLocaleString()
           : "—"}
-      </Typography>
+      </Box>
 
       <Stack direction="row" spacing={1} alignItems="center">
         <Button
@@ -154,28 +154,14 @@ export default function DocInfoPanel({
           </Badge>
         </Button>
         
-        <Typography variant="body2" color="text.secondary">
+        <Box component="div" sx={{ color: 'text.secondary', fontSize: '1rem' }}>
           { !loading && pendingCount > 0 ? 
             <Chip label={`${pendingCount} sugerencias pendientes`} color="warning" size="small" />
             :
             <Chip label={`${pendingCount} sugerencias pendientes`} color="success" size="small" />
           }
-        </Typography>
+        </Box>
       </Stack>
-      {/* ====== Generación de Documento Resumen (HdU 05) ====== */}
-      <Button
-        variant="outlined"
-        color="primary"
-        sx={{ mb: 2,  maxWidth: 280}}
-        startIcon={<DownloadIcon />}
-        onClick={() => {
-          if (selectedDoc?.id) {
-            downloadDocumentSummaryExcel(selectedDoc.id);
-          }
-        }}
-      >
-        Generar Documento Resumen
-      </Button>
 
       <Typography variant="subtitle1" fontWeight={700} sx={{ mt: 1 }}>
         Datos detectados por IA
@@ -262,19 +248,6 @@ export default function DocInfoPanel({
         })}
       </Box>
 
-      {/* ====== Generación de Documento Resumen (HdU 05) ====== */}
-      <Button
-        variant="contained"
-        color="primary"
-        sx={{ mb: 2 }}
-        onClick={() => {
-          if (selectedDoc?.id) {
-            downloadDocumentSummaryExcel(selectedDoc.id);
-          }
-        }}
-      >
-        Generar Documento Resumen
-      </Button>
       {/* ====== Modal con toda la lógica de sugerencias ====== */}
       <SuggestionsModal
         open={openSugModal}
@@ -285,48 +258,6 @@ export default function DocInfoPanel({
         onIssueUpdated={handleIssueUpdated}
         suggestionStatuses={statuses}
       />
-      {/* ====== Sugerencias de corrección ====== */}
-      <Box
-        sx={{
-          mt: 1,
-          border: 1,
-          borderColor: "divider",
-          borderRadius: 1,
-          p: 2,
-          bgcolor: "background.paper",
-        }}
-      >
-              {/* ====== Modal con toda la lógica de sugerencias ====== */}
-      <SuggestionsModal
-        open={openSugModal}
-        onClose={() => setOpenSugModal(false)}
-        loading={loading}
-        issues={issuesList}
-        onReanalyze={async () => await reAnalyze()}
-        onIssueUpdated={handleIssueUpdated}
-        suggestionStatuses={statuses}
-      />
-        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-          <Typography variant="subtitle1" fontWeight={700}>
-            Sugerencias de corrección
-          </Typography>
-
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={async () => await reAnalyze(selectedDoc?.id)}
-            disabled={loading}
-          >
-            {loading ? "Cargando" : "Re-analizar"}
-          </Button>
-        </Stack>
-
-        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-          Tipo: <b>{analysis?.doc_type ?? "—"}</b> · Resumen: {analysis?.summary ?? "—"}
-        </Typography>
-
-        <SuggestionsPanel issues={analysis?.issues ?? []} onIssueUpdated={handleIssueUpdated} />
-      </Box>
     </Paper>
   );
 }
