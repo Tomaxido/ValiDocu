@@ -256,7 +256,7 @@ class SemanticController extends Controller
 
         if (!empty($status)) {
             $placeholders = implode(',', array_fill(0, count($status), '?'));
-            $whereParts[] = "d.status IN ($placeholders)";
+            $whereParts[] = "d.due_date IN ($placeholders)";
             // Opcional: castear a int si tu status es entero
             foreach ($status as $s) {
                 $whereBinds[] = is_numeric($s) ? (int)$s : $s;
