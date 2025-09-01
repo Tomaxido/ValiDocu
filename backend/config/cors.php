@@ -6,7 +6,11 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['http://localhost:5173'], // ← tu frontend Vite
+    'allowed_origins' => [
+        'http://localhost:5173',
+        'http://validocu.cl',
+        'https://validocu.cl',
+        ],
 
     'allowed_headers' => ['*'],
 

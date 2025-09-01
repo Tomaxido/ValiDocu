@@ -123,6 +123,7 @@ import type { BoxAnnotation, Document, DocumentGroup, ExpiredDocumentResponse, S
   
   export async function getDocumentFilters(): Promise<{
     status_values: Filters[];
+    doc_type_values: Filters[];
     normative_gap_values: Filters[];
   }> {
     const res = await fetch(`${baseURL}/api/v1/document-filters`);
@@ -144,6 +145,7 @@ export interface SemanticRow {
 export async function buscarSemanticaConFiltros(params: {
   texto: string;
   status?: (number | string)[];
+  doc_type?: number[];
   normative_gap?: number[];
   min_score?: number; // opcional (default 0.4 en backend)
   limit?: number;     // opcional (default 10 en backend)

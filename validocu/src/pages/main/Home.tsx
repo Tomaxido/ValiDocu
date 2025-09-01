@@ -36,8 +36,10 @@ export default function Home() {
   // Opciones y selección
   const [filtersLoading, setFiltersLoading] = useState(false);
   const [statusOptions, setStatusOptions] = useState<Filters[]>([]);
+  const [docTypeOptions, setDocTypeOptions] = useState<Filters[]>([]);
   const [gapOptions, setGapOptions] = useState<Filters[]>([]);
   const [selectedStatus, setSelectedStatus] = useState<(number | string)[]>([]);
+  const [selectedDocType, setSelectedDocType] = useState<number[]>([]);
   const [selectedGap, setSelectedGap] = useState<number[]>([]);
   
 
@@ -55,6 +57,7 @@ export default function Home() {
       try {
         const data = await getDocumentFilters();
         setStatusOptions(data.status_values ?? []);
+        setDocTypeOptions(data.doc_type_values ?? []);
         setGapOptions(data.normative_gap_values ?? []);
       } finally {
         setFiltersLoading(false);
@@ -72,6 +75,7 @@ export default function Home() {
   // Limpiar filtros
   const clearFilters = () => {
     setSelectedStatus([]);
+    setSelectedDocType([]);
     setSelectedGap([]);
   };
 
@@ -111,6 +115,7 @@ export default function Home() {
     const filas = await buscarSemanticaConFiltros({
       texto: query,
       status: selectedStatus.length ? selectedStatus : undefined,
+      doc_type: selectedDocType.length ? selectedDocType : undefined,
       normative_gap: selectedGap.length ? selectedGap : undefined,
       // opcional:
       // min_score: 0.45,
@@ -191,6 +196,31 @@ export default function Home() {
                 {statusOptions.map((opt) => (
                   <MenuItem key={String(opt.value)} value={opt.value}>
                     <Checkbox checked={selectedStatus.indexOf(opt.value) > -1} />
+                    <ListItemText primary={opt.label} />
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {/* Tipo de documento */}
+            <FormControl fullWidth size="small">
+              <InputLabel id="status-label">Tipo de documento</InputLabel>
+              <Select
+                labelId="gap-label"
+                multiple
+                value={selectedDocType}
+                onChange={(e) => setSelectedDocType(e.target.value as number[])}
+                input={<OutlinedInput label="Brecha normativa" />}
+                renderValue={(selected) =>
+                  (selected as number[])
+                    .map(v => docTypeOptions.find(o => Number(o.value) === v)?.label ?? String(v))
+                    .join(", ")
+                }
+                MenuProps={{ PaperProps: { style: { maxHeight: 320 } } }}
+              >
+                {docTypeOptions.map((opt) => (
+                  <MenuItem key={String(opt.value)} value={Number(opt.value)}>
+                    <Checkbox checked={selectedDocType.indexOf(Number(opt.value)) > -1} />
                     <ListItemText primary={opt.label} />
                   </MenuItem>
                 ))}
