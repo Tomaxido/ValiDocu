@@ -12,13 +12,6 @@ use Illuminate\Support\Facades\Log;
 class DocumentUploadController extends Controller
 {
 
-    protected $siiService;
-
-    public function __construct(SiiService $siiService)
-    {
-        $this->siiService = $siiService;
-    }
-
     function _addDocumentsToGroup(Request $request, DocumentGroup &$group) {
         foreach ($request->file('documents') as $file) {
             //tranformar a png
