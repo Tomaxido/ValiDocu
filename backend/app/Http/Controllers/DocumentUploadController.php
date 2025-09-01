@@ -6,10 +6,8 @@ use Illuminate\Http\Request;
 use App\Models\DocumentGroup;
 use App\Models\Document;
 use Illuminate\Support\Facades\Http;
-use App\Services\SiiService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-
 
 class DocumentUploadController extends Controller
 {
@@ -327,30 +325,5 @@ class DocumentUploadController extends Controller
         return response()->json($data->map(function ($item) {
             return (array) $item;
         }));
-    }
-
-    public function checkRut($rut, $dv)
-    {
-        $max_intentos = 10;
-        $intentos = 0;
-        $ultimoError = null;
-
-        while ($intentos < $max_intentos) {
-            try {
-                $datos = $this->siiService->checkDte($rut, $dv);
-                return response()->json($datos, 200);
-            } catch (\Exception $e) {
-                $intentos++;
-                $ultimoError = $e; // Guarda el último error
-                \Log::error("Intento $intentos fallido: " . $e->getMessage());
-            }
-        }
-
-        // Fuera del while: si llegamos aquí, todos los intentos fallaron
-        return response()->json([
-            'code' => 400,
-            'intentos' => $intentos,
-            'message' => $ultimoError ? $ultimoError->getMessage() : 'Error desconocido.'
-        ], 400);
     }
 }

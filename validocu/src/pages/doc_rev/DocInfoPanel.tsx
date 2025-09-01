@@ -182,12 +182,12 @@ export default function DocInfoPanel({
         <StatusNorm status={selectedDoc.normative_gap ?? 0} />
       </Stack>
 
-      <Typography variant="body2">
+      <Box component="div" sx={{ color: 'text.secondary', fontSize: '1rem', mb: 1 }}>
         <strong>Subido:</strong>{" "}
         {selectedDoc?.created_at
           ? new Date(selectedDoc.created_at).toLocaleString()
           : "—"}
-      </Typography>
+      </Box>
 
       <Stack direction="row" spacing={1} alignItems="center">
         <Button
@@ -201,28 +201,15 @@ export default function DocInfoPanel({
           </Badge>
         </Button>
         
-        <Typography variant="body2" color="text.secondary">
+        <Box component="div" sx={{ color: 'text.secondary', fontSize: '1rem' }}>
           { !loading && pendingCount > 0 ? 
             <Chip label={`${pendingCount} sugerencias pendientes`} color="warning" size="small" />
             :
             <Chip label={`${pendingCount} sugerencias pendientes`} color="success" size="small" />
           }
-        </Typography>
+        </Box>
       </Stack>
-      {/* ====== Generación de Documento Resumen (HdU 05) ====== */}
-      <Button
-        variant="outlined"
-        color="primary"
-        sx={{ mb: 2,  maxWidth: 280}}
-        startIcon={<DownloadIcon />}
-        onClick={() => {
-          if (selectedDoc?.id) {
-            downloadDocumentSummaryExcel(selectedDoc.id);
-          }
-        }}
-      >
-        Generar Documento Resumen
-      </Button>
+
       <Typography variant="body2">
         <strong>Resumen:</strong>{" "}
         {selectedDoc?.created_at
