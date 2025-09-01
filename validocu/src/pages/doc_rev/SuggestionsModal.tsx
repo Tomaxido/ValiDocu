@@ -279,7 +279,10 @@ export default function SuggestionsModal({
       <DialogActions>
         <Button onClick={onClose} disabled={saving}>Cerrar</Button>
         <Button
-          onClick={handleConfirm}
+          onClick={async () => {
+        await handleConfirm();
+        window.location.reload(); // Recargar la página después de confirmar cambios
+          }}
           variant="contained"
           disabled={!isDirty || saving}
         >

@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Document extends Model
 {
-    protected $fillable = ['filename', 'filepath', 'mime_type', 'status', 'document_group_id'];
+    protected $fillable = ['filename', 'filepath', 'mime_type', 'status', 'document_group_id', 'normative_gap'];
 
     public function group()
     {
