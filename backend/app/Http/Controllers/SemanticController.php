@@ -193,6 +193,10 @@ class SemanticController extends Controller
         $statuses = DB::table('documents')
             ->whereNotNull('status')->distinct()->orderBy('status')->pluck('status')->all();
 
+        // TODO: reemplazar este placeholder por una query de verdad que
+        // obtenga todos los tipos de documentos presentes en 'documents'
+        $docTypes = [0, 1, 2];
+
         $gaps = DB::table('documents')
             ->whereNotNull('normative_gap')->distinct()->orderBy('normative_gap')->pluck('normative_gap')->all();
 
@@ -201,6 +205,11 @@ class SemanticController extends Controller
             0 => 'Vigente',
             1 => 'Vencido',
             2 => 'Por vencer',
+        ];
+        $DOC_TYPE_LABELS = [
+            0 => 'Cédula de identidad',
+            1 => 'Mutuos',
+            2 => 'Otros',
         ];
         $GAP_LABELS = [
             0 => 'No tiene',
@@ -211,6 +220,10 @@ class SemanticController extends Controller
             'status_values' => array_values(array_map(
                 fn($v) => ['value' => is_numeric($v) ? (int)$v : $v, 'label' => $STATUS_LABELS[$v] ?? (string)$v],
                 $statuses
+            )),
+            'doc_type_values' => array_values(array_map(
+                fn($v) => ['value' => (int)$v, 'label' => $DOC_TYPE_LABELS[(int)$v] ?? (string)$v],
+                $docTypes
             )),
             'normative_gap_values' => array_values(array_map(
                 fn($v) => ['value' => (int)$v, 'label' => $GAP_LABELS[(int)$v] ?? (string)$v],
@@ -230,11 +243,15 @@ class SemanticController extends Controller
 
         // ---- (1) Leer filtros: aceptar array o valor único
         $status = $request->input('status');             // p.ej. [0,1,2] o "1"
+        $docType = $request->input('doc_type');
         $normGap = $request->input('normative_gap');     // p.ej. [0,2,3] o 2
 
         // Normalizar a arrays si vienen valores simples
         if (!is_null($status) && !is_array($status)) {
             $status = [$status];
+        }
+        if (!is_null($docType) && !is_array($docType)) {
+            $docType = [$docType];
         }
         if (!is_null($normGap) && !is_array($normGap)) {
             $normGap = [$normGap];
@@ -248,13 +265,30 @@ class SemanticController extends Controller
             $placeholders = implode(',', array_fill(0, count($status), '?'));
             $whereParts[] = "d.status IN ($placeholders)";
             // Opcional: castear a int si tu status es entero
-            foreach ($status as $s) { $whereBinds[] = is_numeric($s) ? (int)$s : $s; }
+            foreach ($status as $s) {
+                $whereBinds[] = is_numeric($s) ? (int)$s : $s;
+            }
         }
+
+        // TODO: descomentar esto cuando exista, efectivamente, una columna
+        // llamada 'doc_type'. Si la columna va a tener otro nombre, entonces
+        // hay que reemplazar "d.doc_type IN ($placeholders)"
+        // por "d.<COLUMNA> IN ($placeholders)".
+        // if (!empty($docType)) {
+        //     $placeholders = implode(',', array_fill(0, count($docType), '?'));
+        //     $whereParts[] = "d.doc_type IN ($placeholders)";
+        //     // Opcional: castear a int si tu docType es entero
+        //     foreach ($docType as $s) {
+        //         $whereBinds[] = is_numeric($s) ? (int)$s : $s;
+        //     }
+        // }
 
         if (!empty($normGap)) {
             $placeholders = implode(',', array_fill(0, count($normGap), '?'));
             $whereParts[] = "d.normative_gap IN ($placeholders)";
-            foreach ($normGap as $g) { $whereBinds[] = (int)$g; }
+            foreach ($normGap as $g) {
+                $whereBinds[] = (int)$g;
+            }
         }
 
         $whereSql = count($whereParts) ? 'WHERE ' . implode(' AND ', $whereParts) : '';
@@ -272,17 +306,17 @@ class SemanticController extends Controller
         $sql = "
             SELECT * FROM (
                 SELECT
-                    si.id,
-                    si.resumen,
-                    si.archivo,
-                    si.document_id,
-                    si.document_group_id,
+                    sdi.id,
+                    sdi.resumen,
+                    sdi.archivo,
+                    sdi.document_id,
+                    sdi.document_group_id,
                     d.filename AS document_name,
                     g.name     AS group_name,
-                    1 - (si.embedding <=> ?::vector) AS score
-                FROM semantic_index si
-                LEFT JOIN documents d       ON d.id = si.document_id
-                LEFT JOIN document_groups g ON g.id = si.document_group_id
+                    1 - (sdi.embedding <=> ?::vector) AS score
+                FROM semantic_doc_index sdi
+                LEFT JOIN documents d       ON d.id = sdi.document_id
+                LEFT JOIN document_groups g ON g.id = sdi.document_group_id
                 $whereSql
             ) AS sub
             WHERE score >= ?
@@ -297,7 +331,7 @@ class SemanticController extends Controller
             [$minScore, $limit]
         );
 
-        
+
 
         \Log::info(message: 'Consulta'. $sql. ' | bindings: ' . json_encode($bindings));
 
