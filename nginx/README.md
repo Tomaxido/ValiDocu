@@ -53,12 +53,6 @@ Instala mkcert
 * Linux: instala desde releases y ejecuta `mkcert -install` (requiere NSS para Firefox).
 
 
-Crea/instala la CA local:
-
-```bash
-mkcert -install
-```
-
 Usa el siguiente comando para generar los certificados:
 
 ```bash
@@ -69,6 +63,12 @@ Esto generará dos archivos:
 
 * `validocu.cl.pem` (certificado)
 * `validocu.cl-key.pem` (clave)
+
+instala la CA local:
+
+```bash
+mkcert -install
+```
 
 ## Paso 5: Sube el certificado a Nginx Proxy Manager
 
