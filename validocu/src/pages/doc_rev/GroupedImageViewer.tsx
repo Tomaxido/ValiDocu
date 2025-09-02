@@ -4,6 +4,7 @@ import type { BoxAnnotation, GroupedImageViewerProps } from "../../utils/interfa
 
 import labelColors from "../../utils/labelColors.ts";
 import { Box, Button, Stack } from "@mui/material";
+import jsPDF from "jspdf";
 
 type BBox = [number, number, number, number];
 
@@ -147,11 +148,60 @@ export default function GroupedImageViewer({ files }: Readonly<GroupedImageViewe
     return () => window.removeEventListener("hover-evidence", onHover as any);
   }, [files.length]);
 
+  // Exportar a PDF con marcas (usa las anotaciones del extractor)
+  async function exportToPdf() {
+    const pdf = new jsPDF();
+    for (let pageIndex = 0; pageIndex < files.length; pageIndex++) {
+      const file = files[pageIndex];
+      const filename = file.filepath.split("/").pop();
+      const imageUrl = `${baseURL}/secure-pdf/${filename}`;
+
+      try {
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        const bitmap = await createImageBitmap(blob);
+
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        if (!ctx) continue;
+
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+
+        // 1) Imagen
+        ctx.drawImage(bitmap, 0, 0);
+
+        // 2) Marcas
+        const annotations = annotationsByPage[pageIndex] || [];
+        for (const anno of annotations) {
+          const color = anno.label.endsWith("_E")
+            ? "rgba(255, 0, 0, 0.4)" // rojo para error
+            : labelColors[anno.label] || "rgba(255,255,0,0.4)";
+
+          ctx.fillStyle = color;
+          for (const [x1, y1, x2, y2] of anno.boxes as unknown as BBox[]) {
+            ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+          }
+        }
+
+        // 3) A PDF
+        const imgData = canvas.toDataURL("image/jpeg", 1.0);
+        const width = pdf.internal.pageSize.getWidth();
+        const height = (canvas.height * width) / canvas.width;
+        if (pageIndex > 0) pdf.addPage();
+        pdf.addImage(imgData, "JPEG", 0, 0, width, height);
+      } catch (err) {
+        console.error(`No se pudo exportar la imagen ${filename}`, err);
+      }
+    }
+    pdf.save("documento_con_marcas.pdf");
+  }
+
   if (files.length === 0) return <Box>No hay imágenes para mostrar.</Box>;
 
   return (
     <Box>
-      <Button onClick={() => {}} variant="contained" color="warning" sx={{ mb: 2 }}>
+      <Button onClick={exportToPdf} variant="contained" color="warning" sx={{ mb: 2 }}>
         Descargar como PDF
       </Button>
 
