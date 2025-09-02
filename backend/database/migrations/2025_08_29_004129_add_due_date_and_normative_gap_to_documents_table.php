@@ -13,6 +13,8 @@ return new class extends Migration {
 
             // Brecha normativa como entero (estado)
             $table->integer('normative_gap')->nullable()->default(0);
+
+            $table->integer('tipo')->nullable()->default(0);
         });
     }
 

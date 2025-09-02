@@ -76,7 +76,6 @@ function StatusNorm({ status }: { status: number }) {
 
 export default function DocInfoPanel({
   selectedDoc,
-  semanticGroupData,
 }: Readonly<Props>) {
   const [loading, setLoading] = useState(false);
   const [openSugModal, setOpenSugModal] = useState(false);
@@ -84,6 +83,7 @@ export default function DocInfoPanel({
   const [statuses, setStatuses] = useState<SuggestionStatus[]>([]);
   const [issuesList, setIssuesList] = useState<Issue[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
+  const [docSummary, setDocSummary] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -97,6 +97,20 @@ export default function DocInfoPanel({
   useEffect(() => {
     console.log("Cambio de documento, id actual", selectedDoc.id);
     reAnalyze();
+    // Obtener resumen del documento
+    (async () => {
+      try {
+        const res = await fetch(`/api/v1/document-summary/${selectedDoc.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setDocSummary(data.summary);
+        } else {
+          setDocSummary(null);
+        }
+      } catch {
+        setDocSummary(null);
+      }
+    })();
   }, [selectedDoc]);
 
   const computePending = (issues: Issue[]) => {
@@ -208,14 +222,11 @@ export default function DocInfoPanel({
             <Chip label={`${pendingCount} sugerencias pendientes`} color="success" size="small" />
           }
         </Box>
+        <Box component="div" sx={{ color: 'text.secondary', fontSize: '1rem', mb: 1 }}>
+          <strong>Resumen:</strong>{" "}
+          {docSummary ? docSummary : <span style={{ color: '#aaa' }}>No disponible</span>}
+        </Box>
       </Stack>
-
-      <Typography variant="body2">
-        <strong>Resumen:</strong>{" "}
-        {selectedDoc?.created_at
-          ? new Date(selectedDoc.created_at).toLocaleString()
-          : "—"}
-      </Typography>
 
       {/* ====== Modal con toda la lógica de sugerencias ====== */}
       <SuggestionsModal

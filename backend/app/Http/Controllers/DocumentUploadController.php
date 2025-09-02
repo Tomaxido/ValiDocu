@@ -8,11 +8,17 @@ use App\Models\Document;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+
 
 class DocumentUploadController extends Controller
 {
 
     function _addDocumentsToGroup(Request $request, DocumentGroup &$group) {
+        $obligatorios = DB::table('documentos_obligatorios')
+            ->get(['id','nombre_doc', 'analizar'])
+            ->sortByDesc(function($o) { return mb_strlen((string)$o->nombre_doc, 'UTF-8'); })
+            ->values();
         foreach ($request->file('documents') as $file) {
             //tranformar a png
             //mandar los png a la ia
@@ -46,8 +52,65 @@ class DocumentUploadController extends Controller
                 $document->status = 1;
                 $document->save();
             }
+
+            $filename = (string)$document->filename;
+            $normFile = $this->normalizeName($filename);
+            Log::info("Analizando documento: {$filename}, normalizado: {$normFile}");
+
+            $found = false;
+            foreach ($obligatorios as $obl) {
+                $nombreDoc = (string)$obl->nombre_doc;
+                $analizar  = (int)$obl->analizar;
+                $idObligatorio = $obl->id ?? null;
+                Log::info("Nombre Documento Obligatorio: {$nombreDoc}, analizar: {$analizar}");
+
+                if ($this->matchFilenameToNombreDoc($normFile, $this->normalizeName($nombreDoc))) {
+                    $found = true;
+                    $tipo = $idObligatorio;
+                    break;
+                }
+            }
+
+            if (!$found) {
+                $tipo = 0;
+            }
+            $document->tipo = $tipo;
+            $document->save();
             app(\App\Http\Controllers\AnalysisController::class)->createSuggestions($document_master_id);
         }
+    }
+    private function normalizeName(string $name): string
+    {
+        $ascii = Str::ascii($name);
+        $upper = mb_strtoupper($ascii, 'UTF-8');
+        // reemplazar múltiples espacios y signos por un solo espacio
+        $upper = preg_replace('/[^A-Z0-9]+/u', ' ', $upper);
+        $upper = trim(preg_replace('/\s+/', ' ', $upper) ?? '');
+        return $upper;
+    }
+
+    private function matchFilenameToNombreDoc(string $normFile, string $normNombre): bool
+    {
+        if ($normNombre === '') return false;
+        $parts = array_filter(preg_split('/\s+/', $normNombre) ?: [], function($w) {
+            return $w !== 'DE';
+        });
+        // construir regex: WORD1 (?:\s+(?:DE\s+)?WORD2) (?:\s+(?:DE\s+)?WORD3) ...
+        if (empty($parts)) return false;
+
+        $regex = '';
+        $first = true;
+        foreach ($parts as $w) {
+            $w = preg_quote($w, '/');
+            if ($first) {
+                $regex .= $w;
+                $first = false;
+            } else {
+                $regex .= '(?:\s+(?:DE\s+)?' . $w . ')';
+            }
+        }
+        // buscar en cualquier parte, case-insensitive (ya está upper), U para unicode
+        return (bool) preg_match('/' . $regex . '/u', $normFile);
     }
 
     public function storeNewGroup(Request $request)
@@ -318,5 +381,17 @@ class DocumentUploadController extends Controller
         return response()->json($data->map(function ($item) {
             return (array) $item;
         }));
+    }
+
+        // Nuevo endpoint para obtener el resumen de un documento
+    public function getDocumentSummary($document_id){
+        $data = DB::table('semantic_doc_index')
+            ->where('document_id', $document_id)
+            ->select('resumen')
+            ->first();
+        if (!$data) {
+            return response()->json(['resumen' => null], 404);
+        }
+        return response()->json(['resumen' => $data->resumen]);
     }
 }
