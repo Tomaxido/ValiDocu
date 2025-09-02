@@ -112,3 +112,12 @@ export async function fetchIssuesByImageIds(imageIds: number[]): Promise<Issue[]
   }
   return merged;
 }
+
+export async function summaryDoc(doc_id: number): Promise<string> {
+  const res = await fetch(`${BASE_URL}/api/v1/document-summary/${doc_id}`, {
+    method: 'GET',
+    headers: { 'Accept': 'application/json' },
+  });
+  if (!res.ok) throw new Error(`Statuses load failed: ${res.status}`);
+  return res.json();
+}
