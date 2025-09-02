@@ -212,9 +212,11 @@ class OverviewGroupSummaryExport implements WithEvents, WithColumnWidths, WithTi
                 if ($r > $start) {
                     $sheet->getStyle("A{$start}:D" . ($r-1))->applyFromArray($box);
                     $sheet->getStyle("B{$start}:D" . ($r-1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    $sheet->getStyle("C{$start}:C" . ($r-1))->getAlignment()->setWrapText(true); // Ajuste de texto en columna C
                 } else {
                     $sheet->getStyle("A{$r}:D{$r}")->applyFromArray($box);
                     $sheet->getStyle("B{$r}:D{$r}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    $sheet->getStyle("C{$r}:C{$r}")->getAlignment()->setWrapText(true); // Ajuste de texto en columna C
                     $r++;
                 }
 

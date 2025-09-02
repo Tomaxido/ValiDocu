@@ -10,55 +10,23 @@ use App\Exports\DocumentSummaryExport;
 use App\Exports\GroupDocumentSummaryExport;
 use App\Exports\OverviewGroupSummaryExport;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Services\GroupSummaryService;
+use App\Services\SiiService;
 
 class DocumentSummaryController extends Controller
 {
-    // --- existente, lo dejo por si lo sigues usando ---
-    public function downloadDocSummaryExcel($documentId)
+
+    protected GroupSummaryService $service;
+
+    public function __construct(SiiService $siiService, GroupSummaryService $service)
     {
-        $si = DB::table('semantic_doc_index')
-            ->where('document_id', $documentId)
-            ->first(['json_global']);
-
-        if (!$si) {
-            Log::info('No se encontró el layout para este documento', ['document_id' => $documentId]);
-            abort(404, 'No se encontró el layout para este documento.');
-        }
-
-        $data = json_decode($si->json_global, true);
-
-        if (!is_array($data)) {
-            Log::info('json_global no tiene formato válido.', ['document_id' => $documentId]);
-            abort(400, 'El layout no tiene formato válido.');
-        }
-
-        $headerRows = [
-            ['Deudor',  $data['NOMBRE_COMPLETO_DEUDOR'] ?? ''],
-            ['RUT',     $data['RUT_DEUDOR'] ?? ($data['EMPRESA_DEUDOR_RUT'] ?? '')],
-            ['Empresa', $data['EMPRESA_DEUDOR'] ?? ''],
-        ];
-
-        $rows = [];
-        $invalidKeys = ['RUT_DEUDOR', 'RUT_CORREDOR', 'EMPRESA_DEUDOR_RUT', 'EMPRESA_CORREDOR_RUT'];
-
-        foreach ($data as $key => $value) {
-            if (is_array($value) || is_object($value)) {
-                $value = json_encode($value, JSON_UNESCAPED_UNICODE);
-            }
-            $state   = in_array((string)$key, $invalidKeys, true) ? 'INVÁLIDO' : 'OK';
-            $comment = $state === 'INVÁLIDO' ? 'NO EXISTE EN SII' : 'OK';
-            $rows[]  = [(string)$key, (string)$value, $state, $comment];
-        }
-
-        $export = new DocumentSummaryExport(
-            rows: $rows,
-            headings: ['VARIABLE','INFORMACIÓN', 'ESTADO', 'COMENTARIO'],
-            headerRows: $headerRows,
-            title: "Doc_{$documentId}" // aquí puedes cambiar a filename si lo tienes a mano
-        );
-
-        $filename = 'resumen_doc_id_' . $documentId . '.xlsx';
-        return Excel::download($export, $filename);
+        parent::__construct($siiService);
+        $this->service = $service;
+    }
+    /** GET /api/v1/groups/{groupId}/overview */
+    public function overviewJson(int $groupId)
+    {
+        return response()->json($this->service->overview($groupId));
     }
 
     /**
@@ -224,16 +192,33 @@ class DocumentSummaryController extends Controller
 
                 // Filas + cálculo de cumplimiento
                 $rows = [];
-                $invalidKeys = ['RUT_DEUDOR', 'RUT_CORREDOR', 'EMPRESA_DEUDOR_RUT', 'EMPRESA_CORREDOR_RUT'];
+                $ruts = ['RUT_DEUDOR', 'RUT_CORREDOR', 'EMPRESA_DEUDOR_RUT', 'EMPRESA_CORREDOR_RUT'];
 
                 $okCount = 0;
                 $invCount = 0;
+                $invalidComments = [];
 
                 foreach ($data as $key => $value) {
                     if (is_array($value) || is_object($value)) {
                         $value = json_encode($value, JSON_UNESCAPED_UNICODE);
                     }
-                    $state   = in_array((string)$key, $invalidKeys, true) ? 'INVÁLIDO' : 'OK';
+
+                    $state = 'OK';
+                    if (in_array((string)$key, $ruts, true)) {
+                        $limpio = strtoupper(preg_replace('/[^0-9K]/', '', $value));
+                        if (strlen($limpio) < 2) continue;
+
+                        $rut = substr($limpio, 0, -1);
+                        $dv  = substr($limpio, -1);
+
+                        $sii = $this->checkRut($rut, $dv); // devuelve Response
+                        if ($sii->getStatusCode() === 400) {
+                            $state = 'INVÁLIDO';
+                            $invalidComments[] = 'RUT: ' . $value . ' NO EXISTE EN SII';
+                        }
+                    }
+
+                    $comments = count($invalidComments) > 0 ? implode("\n", $invalidComments) : 'OK';
                     $comment = $state === 'INVÁLIDO' ? 'NO EXISTE EN SII' : 'OK';
 
                     if ($state === 'OK')       $okCount++;
@@ -258,7 +243,7 @@ class DocumentSummaryController extends Controller
                 $tablaAnalizar[] = [
                     'nombre_documento' => (string)$doc->filename,
                     'estado'           => $status,
-                    'observaciones'    => $status === 1 ? 'Conforme' : ($status === 2 ? 'Inconforme' : '—'),
+                    'observaciones'    => $status === 1 ? 'Conforme' : ($status === 2 ? $comments : '—'),
                     'porcentaje'       => $pct,
                 ];
             }

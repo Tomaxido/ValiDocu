@@ -6,7 +6,8 @@ import UploadModal from "./UploadModal";
 import DeleteModal from "./DeleteModal";
 import GroupedImageViewer from "./GroupedImageViewer";
 import DocInfoPanel from "./DocInfoPanel";
-import { downloadDocumentSummaryExcel } from "../../api/summary_excel";
+import GroupOverviewModal from "../../components/group/GroupOverviewModal";
+import { downloadDocumentSummaryExcel } from "../../api/summary_excel"; // ya lo tenías
 
 import {
   Box, Paper, Button, Typography, List, ListItemButton,
@@ -48,6 +49,7 @@ export default function Grupo() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [semanticGroupData, setSemanticGroupData] = useState<any[]>([]);
+  const [overviewOpen, setOverviewOpen] = useState(false);
 
   const splitRef = useRef<HTMLDivElement | null>(null);
   const [ratio, setRatio] = useState(0.66);
@@ -251,6 +253,24 @@ export default function Grupo() {
             Generar Documento Resumen
           </Button>
 
+          {/* ====== Acciones de Resumen ====== */}
+          <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => downloadDocumentSummaryExcel(group.id)}
+            >
+              Generar Documento Resumen
+            </Button>
+            <Button
+              variant="outlined"
+              color="primary"
+              onClick={() => setOverviewOpen(true)}
+            >
+              Ver Resumen
+            </Button>
+          </Stack>
+
           <Divider sx={{ mb: 1 }} />
           <Typography variant="subtitle2" sx={{ mb: 1 }}>Listado de documentos</Typography>
 
@@ -348,6 +368,15 @@ export default function Grupo() {
           <Typography>Selecciona un documento para ver su contenido.</Typography>
         )}
       </Box>
+
+      {group && (
+        <GroupOverviewModal
+          open={overviewOpen}
+          groupId={group.id}
+          onClose={() => setOverviewOpen(false)}
+          onExportExcel={() => downloadDocumentSummaryExcel(group.id)}
+        />
+      )}
 
       <UploadModal
         isOpen={isModalOpen}
