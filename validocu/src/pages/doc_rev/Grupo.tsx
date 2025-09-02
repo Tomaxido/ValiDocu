@@ -318,6 +318,7 @@ export default function Grupo() {
 
             <Box sx={{ minWidth: 0 }}>
               <GroupedImageViewer
+                filename={selectedDoc.filename}
                 files={groupedDocs.find(g => g.pdf?.id === selectedDoc.id)?.images || [selectedDoc]}
               />
             </Box>

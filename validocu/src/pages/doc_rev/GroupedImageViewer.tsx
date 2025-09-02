@@ -8,7 +8,7 @@ import jsPDF from "jspdf";
 
 type BBox = [number, number, number, number];
 
-export default function GroupedImageViewer({ files }: Readonly<GroupedImageViewerProps>) {
+export default function GroupedImageViewer({ filename, files }: Readonly<GroupedImageViewerProps>) {
   const [scales, setScales] = useState<{ x: number; y: number }[]>([]);
   const [annotationsByPage, setAnnotationsByPage] = useState<BoxAnnotation[][]>([]);
   const imgRefs = useRef<(HTMLImageElement | null)[]>([]);
@@ -194,7 +194,8 @@ export default function GroupedImageViewer({ files }: Readonly<GroupedImageViewe
         console.error(`No se pudo exportar la imagen ${filename}`, err);
       }
     }
-    pdf.save("documento_con_marcas.pdf");
+
+    pdf.save(filename);
   }
 
   if (files.length === 0) return <Box>No hay imágenes para mostrar.</Box>;

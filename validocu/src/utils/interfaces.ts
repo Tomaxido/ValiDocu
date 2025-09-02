@@ -38,6 +38,7 @@ export interface SemanticGroup {
 }
 
 export interface GroupedImageViewerProps {
+  filename: string;
   files: Document[];
 }
 
