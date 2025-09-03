@@ -230,8 +230,9 @@ class AnalysisController extends Controller
             ->first();
         if (!$analysis) {
             return response()->json([
-                'message' => 'No existe análisis para este documento'
-            ], 404);
+                // 'analysis' => $analysis,
+                'issues'   => null,
+            ]);
         }
 
         // Traer también los issues relacionados

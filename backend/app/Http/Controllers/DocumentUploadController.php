@@ -73,10 +73,13 @@ class DocumentUploadController extends Controller
 
             if (!$found) {
                 $tipo = 0;
+                $analizar = 0;
             }
             $document->tipo = $tipo;
             $document->save();
-            app(\App\Http\Controllers\AnalysisController::class)->createSuggestions($document_master_id);
+            if($analizar == 1){
+                app(\App\Http\Controllers\AnalysisController::class)->createSuggestions($document_master_id);
+            }
         }
     }
     private function normalizeName(string $name): string

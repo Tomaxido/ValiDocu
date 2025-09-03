@@ -74,7 +74,7 @@ export default function DocInfoPanel({
   const [openSugModal, setOpenSugModal] = useState(false);
 
   const [statuses, setStatuses] = useState<SuggestionStatus[]>([]);
-  const [issuesList, setIssuesList] = useState<Issue[]>([]);
+  const [issuesList, setIssuesList] = useState<Issue[] | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [docSummary, setDocSummary] = useState<string | null>(null);
 
@@ -112,6 +112,7 @@ export default function DocInfoPanel({
 
   const handleIssueUpdated = (issue: Issue) => {
     setIssuesList((prev) => {
+      if (!prev) return prev;
       const next = prev.map((i) => (i.issue_id === issue.issue_id ? issue : i));
       setPendingCount(computePending(next));
       return next;
@@ -122,10 +123,13 @@ export default function DocInfoPanel({
     setLoading(true);
     try {
       const issues = await getLastDocumentAnalysis(selectedDoc.id);
-
-      // console.log()        
-      setIssuesList(issues.issues);
-      setPendingCount(computePending(issues.issues));
+      if (!issues || !issues.issues) {
+        setIssuesList(null);
+        setPendingCount(0);
+      } else {
+        setIssuesList(issues.issues);
+        setPendingCount(computePending(issues.issues));
+      }
     } finally {
       setLoading(false);
     }
@@ -176,26 +180,27 @@ export default function DocInfoPanel({
           : "—"}
       </Box>
 
-      <Stack direction="row" spacing={1} alignItems="center">
-        <Button
-          size="small"
-          variant="contained"
-          onClick={() => setOpenSugModal(true)}
-          disabled={loading}
-        >
-          <Badge color="warning" overlap="circular">
-            {loading ? "Cargando" : "Ver sugerencias"}
-          </Badge>
-        </Button>
-        
-        <Box component="div" sx={{ color: 'text.secondary', fontSize: '1rem' }}>
-          { !loading && pendingCount > 0 ? 
-            <Chip label={`${pendingCount} sugerencias pendientes`} color="warning" size="small" />
-            :
-            <Chip label={`${pendingCount} sugerencias pendientes`} color="success" size="small" />
-          }
-        </Box>
-      </Stack>
+      {issuesList && (
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Button
+            size="small"
+            variant="contained"
+            onClick={() => setOpenSugModal(true)}
+            disabled={loading}
+          >
+            <Badge color="warning" overlap="circular">
+              {loading ? "Cargando" : "Ver sugerencias"}
+            </Badge>
+          </Button>
+          <Box component="div" sx={{ color: 'text.secondary', fontSize: '1rem' }}>
+            { !loading && pendingCount > 0 ? 
+              <Chip label={`${pendingCount} sugerencias pendientes`} color="warning" size="small" />
+              :
+              <Chip label={`${pendingCount} sugerencias pendientes`} color="success" size="small" />
+            }
+          </Box>
+        </Stack>
+      )}
       <Box component="div" sx={{ color: 'text.secondary', fontSize: '1rem', mb: 1 }}>
         <strong>Resumen:</strong>{" "}
         {docSummary ? (
@@ -234,7 +239,7 @@ export default function DocInfoPanel({
         open={openSugModal}
         onClose={() => setOpenSugModal(false)}
         loading={loading}
-        issues={issuesList}
+        issues={issuesList ?? []}
         onReanalyze={async () => await reAnalyze()}
         onIssueUpdated={handleIssueUpdated}
         suggestionStatuses={statuses}
