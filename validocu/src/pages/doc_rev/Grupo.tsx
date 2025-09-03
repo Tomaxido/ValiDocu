@@ -126,7 +126,7 @@ export default function Grupo() {
 
       // Comentado, porque window.location.reload() anula su propósito, pero
       // se queda aquí por si acaso:
-      
+
       // const updatedGroup = await getDocumentGroupById(grupoId);
       // setGroup(updatedGroup);
       // const grouped = groupDocuments(updatedGroup.documents);
@@ -145,12 +145,18 @@ export default function Grupo() {
     if (!grupoId) return;
     try {
       await deleteDocuments(ids);
-      const updatedGroup = await getDocumentGroupById(grupoId);
-      setGroup(updatedGroup);
-      const grouped = groupDocuments(updatedGroup.documents);
-      setGroupedDocs(grouped);
-      const firstPdf = grouped[0]?.pdf;
-      setSelectedDoc(firstPdf || null);
+
+      // Comentado, porque window.location.reload() anula su propósito, pero
+      // se queda aquí por si acaso:
+
+      // const updatedGroup = await getDocumentGroupById(grupoId);
+      // setGroup(updatedGroup);
+      // const grouped = groupDocuments(updatedGroup.documents);
+      // setGroupedDocs(grouped);
+      // const firstPdf = grouped[0]?.pdf;
+      // setSelectedDoc(firstPdf || null);
+
+      window.location.reload();
     } catch (err: any) {
       alert("Error al eliminar documentos: " + err.message);
     }
