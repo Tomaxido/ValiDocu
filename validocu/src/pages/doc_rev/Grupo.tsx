@@ -8,12 +8,11 @@ import GroupedImageViewer from "./GroupedImageViewer";
 import DocInfoPanel from "./DocInfoPanel";
 import GroupOverviewModal from "../../components/group/GroupOverviewModal";
 import { downloadDocumentSummaryExcel } from "../../api/summary_excel";
-import { Popper, ListItem, CircularProgress } from "@mui/material";
 import { fetchMandatoryDocs, type MandatoryDocsResponse } from "../../api/summary_excel";
 
 import {
   Box, Paper, Button, Typography, List, ListItemButton,
-  ListItemText, Chip, Stack, IconButton, Divider,
+  ListItemText, Chip, Stack, IconButton, Divider, Popper, ListItem, CircularProgress
 } from "@mui/material";
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { SnackbarDocsVencidos } from "../../components/SnackbarDocsVencidos";

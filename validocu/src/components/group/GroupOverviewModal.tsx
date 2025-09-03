@@ -72,25 +72,25 @@ export default function GroupOverviewModal({ open, groupId, onClose, onExportExc
 
             <Divider />
 
-            {/* 1) Documentos obligatorios no encontrados (Pendientes) */}
+            {/* 1) Documentos que NO se deben analizar */}
             <SectionSimple
-              title="Documentos obligatorios no encontrados (Pendientes)"
-              rows={data.pending_mandatory}
+              title="Documentos Obligatorios Exentos de Revisión"
+              rows={data.not_to_analyze}
               emptyText="—"
               stateRight
             />
 
-            {/* 2) Documentos que NO se deben analizar */}
+            {/* 2) Documentos obligatorios no encontrados (Pendientes) */}
             <SectionSimple
-              title="Documentos que NO se deben analizar"
-              rows={data.not_to_analyze}
+              title="Documentos Obligatorios Pendientes"
+              rows={data.pending_mandatory}
               emptyText="—"
               stateRight
             />
 
             {/* 3) Documentos sin correspondencia en documentos_obligatorios */}
             <SectionSimple
-              title="Documentos sin correspondencia en documentos_obligatorios"
+              title="Documentos Extras"
               rows={data.unmatched_in_obligatorios}
               emptyText="—"
             />
@@ -98,7 +98,7 @@ export default function GroupOverviewModal({ open, groupId, onClose, onExportExc
             {/* 4) Documentos que se deben analizar */}
             <Paper variant="outlined" sx={{ p: 2 }}>
               <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                Documentos que se deben analizar
+                Documentos Obligatorios Revisados
               </Typography>
               <Table size="small">
                 <TableHead>

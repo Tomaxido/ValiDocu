@@ -70,49 +70,8 @@ class OverviewGroupSummaryExport implements WithEvents, WithColumnWidths, WithTi
                 $sheet->mergeCells("B{$r}:D{$r}");
                 $r += 2;
 
-                // ===== NUEVA Tabla: Obligatorios no encontrados (Pendientes) =====
-                $sheet->setCellValue("A{$r}", 'Documentos obligatorios no encontrados (Pendientes)');
-                $sheet->mergeCells("A{$r}:D{$r}");
-                $sheet->getStyle("A{$r}:D{$r}")->applyFromArray($headerStyle);
-                $sheet->getRowDimension($r)->setRowHeight(22);
-                $r++;
-
-                $sheet->mergeCells("A{$r}:B{$r}");
-                $sheet->mergeCells("C{$r}:D{$r}");
-                $sheet->setCellValue("A{$r}", 'Nombre Documento');
-                $sheet->setCellValue("C{$r}", 'Estado');
-                $sheet->getStyle("A{$r}:D{$r}")->applyFromArray($headerStyle);
-                $sheet->getRowDimension($r)->setRowHeight(20);
-                $r++;
-
-                $start = $r;
-                foreach ($this->tablaPendientes as $item) {
-                    $sheet->mergeCells("A{$r}:B{$r}");
-                    $sheet->mergeCells("C{$r}:D{$r}");
-                    $sheet->setCellValue("A{$r}", (string)$item['nombre_documento']);
-                    $sheet->setCellValue("C{$r}", (string)$item['estado']); // "Pendiente"
-                    $sheet->getStyle("A{$r}:D{$r}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-                    $r++;
-                }
-                if ($r > $start) {
-                    $sheet->mergeCells("A{$r}:B{$r}");
-                    $sheet->mergeCells("C{$r}:D{$r}");
-                    $sheet->getStyle("A{$start}:D" . ($r-1))->applyFromArray($box);
-                    $sheet->getStyle("A{$start}:D" . ($r-1))->applyFromArray($box);
-                    $sheet->getStyle("A{$start}:D" . ($r-1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-                } else {
-                    // caja vacía si no hay pendientes
-                    $sheet->mergeCells("A{$r}:B{$r}");
-                    $sheet->mergeCells("C{$r}:D{$r}");
-                    $sheet->getStyle("A{$r}:D{$r}")->applyFromArray($box);
-                    $sheet->getStyle("A{$r}:D{$r}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-                    $r++;
-                }
-
-                $r++;
-
                 // ===== Tabla 1: No analizar =====
-                $sheet->setCellValue("A{$r}", 'Documentos que NO se deben analizar');
+                $sheet->setCellValue("A{$r}", 'Documentos Obligatorios Exentos de Revisión');
                 $sheet->mergeCells("A{$r}:D{$r}");
                 $sheet->getStyle("A{$r}:D{$r}")->applyFromArray($headerStyle);
                 $sheet->getRowDimension($r)->setRowHeight(22);
@@ -153,8 +112,49 @@ class OverviewGroupSummaryExport implements WithEvents, WithColumnWidths, WithTi
 
                 $r++;
 
-                // ===== Tabla 2: Unmatched =====
-                $sheet->setCellValue("A{$r}", 'Documentos sin correspondencia en documentos_obligatorios');
+                // ===== Tabla 2: Obligatorios no encontrados (Pendientes) =====
+                $sheet->setCellValue("A{$r}", 'Documentos Obligatorios Pendientes');
+                $sheet->mergeCells("A{$r}:D{$r}");
+                $sheet->getStyle("A{$r}:D{$r}")->applyFromArray($headerStyle);
+                $sheet->getRowDimension($r)->setRowHeight(22);
+                $r++;
+
+                $sheet->mergeCells("A{$r}:B{$r}");
+                $sheet->mergeCells("C{$r}:D{$r}");
+                $sheet->setCellValue("A{$r}", 'Nombre Documento');
+                $sheet->setCellValue("C{$r}", 'Estado');
+                $sheet->getStyle("A{$r}:D{$r}")->applyFromArray($headerStyle);
+                $sheet->getRowDimension($r)->setRowHeight(20);
+                $r++;
+
+                $start = $r;
+                foreach ($this->tablaPendientes as $item) {
+                    $sheet->mergeCells("A{$r}:B{$r}");
+                    $sheet->mergeCells("C{$r}:D{$r}");
+                    $sheet->setCellValue("A{$r}", (string)$item['nombre_documento']);
+                    $sheet->setCellValue("C{$r}", (string)$item['estado']); // "Pendiente"
+                    $sheet->getStyle("A{$r}:D{$r}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    $r++;
+                }
+                if ($r > $start) {
+                    $sheet->mergeCells("A{$r}:B{$r}");
+                    $sheet->mergeCells("C{$r}:D{$r}");
+                    $sheet->getStyle("A{$start}:D" . ($r-1))->applyFromArray($box);
+                    $sheet->getStyle("A{$start}:D" . ($r-1))->applyFromArray($box);
+                    $sheet->getStyle("A{$start}:D" . ($r-1))->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                } else {
+                    // caja vacía si no hay pendientes
+                    $sheet->mergeCells("A{$r}:B{$r}");
+                    $sheet->mergeCells("C{$r}:D{$r}");
+                    $sheet->getStyle("A{$r}:D{$r}")->applyFromArray($box);
+                    $sheet->getStyle("A{$r}:D{$r}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                    $r++;
+                }
+
+                $r++;
+
+                // ===== Tabla 3: Unmatched =====
+                $sheet->setCellValue("A{$r}", 'Documentos Extras');
                 $sheet->mergeCells("A{$r}:D{$r}");
                 $sheet->getStyle("A{$r}:D{$r}")->applyFromArray($headerStyle);
                 $sheet->getRowDimension($r)->setRowHeight(22);
@@ -186,8 +186,8 @@ class OverviewGroupSummaryExport implements WithEvents, WithColumnWidths, WithTi
 
                 $r++;
 
-                // ===== Tabla 3: Analizar =====
-                $sheet->setCellValue("A{$r}", 'Documentos que se deben analizar');
+                // ===== Tabla 4: Analizar =====
+                $sheet->setCellValue("A{$r}", 'Documentos Obligatorios Revisados');
                 $sheet->mergeCells("A{$r}:D{$r}");
                 $sheet->getStyle("A{$r}:D{$r}")->applyFromArray($headerStyle);
                 $sheet->getRowDimension($r)->setRowHeight(22);
