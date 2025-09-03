@@ -123,12 +123,19 @@ export default function Grupo() {
     if (!grupoId) return;
     try {
       await uploadDocumentsToGroup(grupoId, files);
-      const updatedGroup = await getDocumentGroupById(grupoId);
-      setGroup(updatedGroup);
-      const grouped = groupDocuments(updatedGroup.documents);
-      setGroupedDocs(grouped);
-      const lastPdf = grouped.at(-1)?.pdf;
-      setSelectedDoc(lastPdf || null);
+
+      // Comentado, porque window.location.reload() anula su propósito, pero
+      // se queda aquí por si acaso:
+      
+      // const updatedGroup = await getDocumentGroupById(grupoId);
+      // setGroup(updatedGroup);
+      // const grouped = groupDocuments(updatedGroup.documents);
+      // setGroupedDocs(grouped);
+      // const lastPdf = grouped.at(-1)?.pdf;
+      // setSelectedDoc(lastPdf || null);
+      // Fin del TODO
+
+      window.location.reload();
     } catch (err: any) {
       alert("Error al subir: " + err.message);
     }
