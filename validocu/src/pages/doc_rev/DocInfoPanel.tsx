@@ -5,23 +5,21 @@ import {
   Stack,
   Box,
   Chip,
-  Alert,
   Button,
   Badge,
   Tooltip,
 } from "@mui/material";
-import labelColors from "../../utils/labelColors";
-import type { BoxAnnotation, Document, SemanticGroup } from "../../utils/interfaces";
+import type { Document, SemanticGroup } from "../../utils/interfaces";
 
 import {
   getLastDocumentAnalysis,
   listSuggestionStatuses,
   type Issue,
   type SuggestionStatus,
+  summaryDoc
 } from "../../api/analysis";
 import SuggestionsModal from "./SuggestionsModal";
-import { downloadDocumentSummaryExcel } from "../../api/summary_excel";
-import DownloadIcon from "@mui/icons-material/Download";
+
 
 
 interface Props {
@@ -34,11 +32,6 @@ function getBaseFilename(filename: string): string {
   return lastDot === -1 ? filename : filename.substring(0, lastDot);
 }
 
-function StatusChip({ status }: { status: number }) {
-  if (status === 1) return <Chip size="small" label="Conforme" color="success" />;
-  if (status === 2) return <Chip size="small" label="Inconforme" color="error" />;
-  return <Chip size="small" label="Sin revisar" variant="outlined" />;
-}
 
 function StatusVenc({ status }: { status: number }) {
   if (status === 2)
@@ -76,14 +69,14 @@ function StatusNorm({ status }: { status: number }) {
 
 export default function DocInfoPanel({
   selectedDoc,
-  semanticGroupData,
 }: Readonly<Props>) {
   const [loading, setLoading] = useState(false);
   const [openSugModal, setOpenSugModal] = useState(false);
 
   const [statuses, setStatuses] = useState<SuggestionStatus[]>([]);
-  const [issuesList, setIssuesList] = useState<Issue[]>([]);
+  const [issuesList, setIssuesList] = useState<Issue[] | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
+  const [docSummary, setDocSummary] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -97,6 +90,19 @@ export default function DocInfoPanel({
   useEffect(() => {
     console.log("Cambio de documento, id actual", selectedDoc.id);
     reAnalyze();
+    // Obtener resumen del documento
+  }, [selectedDoc]);
+
+  useEffect(() => {
+    setDocSummary(null); // Limpiar el resumen antes de cargar uno nuevo
+    (async () => {
+      try {
+        const summary = await summaryDoc(selectedDoc.id);
+        setDocSummary(summary.resumen ?? summary ?? null);
+      } catch {
+        setDocSummary(null);
+      }
+    })();
   }, [selectedDoc]);
 
   const computePending = (issues: Issue[]) => {
@@ -106,6 +112,7 @@ export default function DocInfoPanel({
 
   const handleIssueUpdated = (issue: Issue) => {
     setIssuesList((prev) => {
+      if (!prev) return prev;
       const next = prev.map((i) => (i.issue_id === issue.issue_id ? issue : i));
       setPendingCount(computePending(next));
       return next;
@@ -116,32 +123,16 @@ export default function DocInfoPanel({
     setLoading(true);
     try {
       const issues = await getLastDocumentAnalysis(selectedDoc.id);
-
-      // console.log()        
-      setIssuesList(issues.issues);
-      setPendingCount(computePending(issues.issues));
+      if (!issues || !issues.issues) {
+        setIssuesList(null);
+        setPendingCount(0);
+      } else {
+        setIssuesList(issues.issues);
+        setPendingCount(computePending(issues.issues));
+      }
     } finally {
       setLoading(false);
     }
-  };
-
-  const focusBoxes = (page: number | null, boxes: number[][] | undefined) => {
-    window.dispatchEvent(
-      new CustomEvent("focus-evidence", {
-        detail: { items: [{ page, boxes: boxes ?? [] }], noScroll: false },
-      })
-    );
-  };
-
-  const hoverBoxes = (page: number | null, boxes: number[][] | undefined) => {
-    window.dispatchEvent(
-      new CustomEvent("hover-evidence", {
-        detail: { items: [{ page, boxes: boxes ?? [] }], noScroll: true },
-      })
-    );
-  };
-  const clearHover = () => {
-    window.dispatchEvent(new CustomEvent("hover-evidence", { detail: { items: [] } }));
   };
 
   return (
@@ -189,40 +180,66 @@ export default function DocInfoPanel({
           : "—"}
       </Box>
 
-      <Stack direction="row" spacing={1} alignItems="center">
-        <Button
-          size="small"
-          variant="contained"
-          onClick={() => setOpenSugModal(true)}
-          disabled={loading}
-        >
-          <Badge color="warning" overlap="circular">
-            {loading ? "Cargando" : "Ver sugerencias"}
-          </Badge>
-        </Button>
-        
-        <Box component="div" sx={{ color: 'text.secondary', fontSize: '1rem' }}>
-          { !loading && pendingCount > 0 ? 
-            <Chip label={`${pendingCount} sugerencias pendientes`} color="warning" size="small" />
-            :
-            <Chip label={`${pendingCount} sugerencias pendientes`} color="success" size="small" />
-          }
-        </Box>
-      </Stack>
-
-      <Typography variant="body2">
+      {issuesList && (
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Button
+            size="small"
+            variant="contained"
+            onClick={() => setOpenSugModal(true)}
+            disabled={loading}
+          >
+            <Badge color="warning" overlap="circular">
+              {loading ? "Cargando" : "Ver sugerencias"}
+            </Badge>
+          </Button>
+          <Box component="div" sx={{ color: 'text.secondary', fontSize: '1rem' }}>
+            { !loading && pendingCount > 0 ? 
+              <Chip label={`${pendingCount} sugerencias pendientes`} color="warning" size="small" />
+              :
+              <Chip label={`${pendingCount} sugerencias pendientes`} color="success" size="small" />
+            }
+          </Box>
+        </Stack>
+      )}
+      <Box component="div" sx={{ color: 'text.secondary', fontSize: '1rem', mb: 1 }}>
         <strong>Resumen:</strong>{" "}
-        {selectedDoc?.created_at
-          ? new Date(selectedDoc.created_at).toLocaleString()
-          : "—"}
-      </Typography>
+        {docSummary ? (
+          <Box sx={{ mt: 1, mb: 1, p: 1, bgcolor: 'background.paper', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+            {(() => {
+              // Formateo simple por campos clave
+              const lines: string[] = [];
+              const regexes = [
+                { label: 'Tipo', rgx: /tipo ([^,]+)/i },
+                { label: 'Firmantes', rgx: /firmado entre ([^\.]+)/i },
+                { label: 'Empresa Deudor', rgx: /Empresa Deudor: ([^,]+)/i },
+                { label: 'Empresa Corredor', rgx: /Empresa Corredor: ([^\.]+)/i },
+                { label: 'Fechas', rgx: /Fechas: ([^\.]+)/i },
+                { label: 'Condiciones', rgx: /Condiciones: (.+)$/i },
+              ];
+              regexes.forEach(({ label, rgx }) => {
+                const match = docSummary.match(rgx);
+                if (match) lines.push(`<strong>${label}:</strong> ${match[1].trim()}`);
+              });
+              // Si no se detecta nada, mostrar el texto original
+              if (lines.length === 0) return <span>{docSummary}</span>;
+              return (
+                <Box>
+                  {lines.map((l, i) => (
+                    <div key={i} dangerouslySetInnerHTML={{ __html: l }} />
+                  ))}
+                </Box>
+              );
+            })()}
+          </Box>
+        ) : <span style={{ color: '#aaa' }}>No disponible</span>}
+      </Box>
 
       {/* ====== Modal con toda la lógica de sugerencias ====== */}
       <SuggestionsModal
         open={openSugModal}
         onClose={() => setOpenSugModal(false)}
         loading={loading}
-        issues={issuesList}
+        issues={issuesList ?? []}
         onReanalyze={async () => await reAnalyze()}
         onIssueUpdated={handleIssueUpdated}
         suggestionStatuses={statuses}

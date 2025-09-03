@@ -208,11 +208,10 @@ class SemanticController extends Controller
             1 => 'Vencido',
             2 => 'Por vencer',
         ];
-        $DOC_TYPE_LABELS = [
-            0 => 'Cédula de identidad',
-            1 => 'Mutuos',
-            2 => 'Otros',
-        ];
+        $DOC_TYPE_LABELS = [0 => 'Otros'];
+        foreach (DB::table('documentos_obligatorios')->select('id', 'nombre_doc')->get() as $row) {
+            $DOC_TYPE_LABELS[$row->id] = $row->nombre_doc;
+        }
         $GAP_LABELS = [
             0 => 'No tiene',
             1 => 'Si tiene',
@@ -265,18 +264,14 @@ class SemanticController extends Controller
             }
         }
 
-        // TODO: descomentar esto cuando exista, efectivamente, una columna
-        // llamada 'doc_type'. Si la columna va a tener otro nombre, entonces
-        // hay que reemplazar "d.doc_type IN ($placeholders)"
-        // por "d.<COLUMNA> IN ($placeholders)".
-        // if (!empty($docType)) {
-        //     $placeholders = implode(',', array_fill(0, count($docType), '?'));
-        //     $whereParts[] = "d.doc_type IN ($placeholders)";
-        //     // Opcional: castear a int si tu docType es entero
-        //     foreach ($docType as $s) {
-        //         $whereBinds[] = is_numeric($s) ? (int)$s : $s;
-        //     }
-        // }
+        if (!empty($docType)) {
+            $placeholders = implode(',', array_fill(0, count($docType), '?'));
+            $whereParts[] = "d.tipo IN ($placeholders)";
+            // Opcional: castear a int si tu docType es entero
+            foreach ($docType as $s) {
+                $whereBinds[] = is_numeric($s) ? (int)$s : $s;
+            }
+        }
 
         if (!empty($normGap)) {
             $placeholders = implode(',', array_fill(0, count($normGap), '?'));
@@ -307,6 +302,7 @@ class SemanticController extends Controller
                     sdi.document_group_id,
                     d.filename AS document_name,
                     d.due_date AS due_date,
+                    d.tipo AS tipo,
                     d.normative_gap AS normative_gap,
                     g.name     AS group_name
                 FROM semantic_doc_index sdi

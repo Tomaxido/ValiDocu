@@ -138,6 +138,9 @@ export interface SemanticRow {
   document_id: number;
   document_group_id: number | null;
   document_name: string | null;
+  due_date: number | null;
+  tipo: number | null;
+  normative_gap: number | null;
   group_name: string | null;
   score?: number; // 0..1
 }

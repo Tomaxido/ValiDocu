@@ -39,6 +39,10 @@ export type AnalyzePerDoc = {
   analysis: AnalyzeResponse;
 };
 
+export type DocumentNormStatus = {
+  resumen: string;
+};
+
 export async function getLastDocumentAnalysis(documentId: number): Promise<AnalyzeResponse> {
   const res = await fetch(`${BASE_URL}/api/v1/documents/${documentId}/analysis`, {
     method: 'GET',
@@ -111,4 +115,13 @@ export async function fetchIssuesByImageIds(imageIds: number[]): Promise<Issue[]
     merged.push(...issues);
   }
   return merged;
+}
+
+export async function summaryDoc(doc_id: number): Promise<DocumentNormStatus> {
+  const res = await fetch(`${BASE_URL}/api/v1/document-summary/${doc_id}`, {
+    method: 'GET',
+    headers: { 'Accept': 'application/json' },
+  });
+  if (!res.ok) throw new Error(`Statuses load failed: ${res.status}`);
+  return res.json();
 }

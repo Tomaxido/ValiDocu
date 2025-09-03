@@ -41,6 +41,6 @@ Route::prefix('v1')->group(function () {
 
     Route::get('/documents/{groupId}/summary-excel', [DocumentSummaryController::class, 'downloadGroupSummaryExcel']);
 
-
+    Route::get('/document-summary/{document_id}', [App\Http\Controllers\DocumentUploadController::class, 'getDocumentSummary']);
 
 });
