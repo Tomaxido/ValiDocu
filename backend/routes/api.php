@@ -33,4 +33,5 @@ Route::prefix('v1')->group(function () {
 
     Route::get('/documents/{groupId}/summary-excel', [DocumentSummaryController::class, 'downloadGroupSummaryExcel']);
     Route::get('/groups/{groupId}/overview', [DocumentSummaryController::class, 'overviewJson']);
+    Route::get('/mandatory-docs', [DocumentSummaryController::class, 'mandatoryDocs']);
 });

@@ -7,7 +7,9 @@ import DeleteModal from "./DeleteModal";
 import GroupedImageViewer from "./GroupedImageViewer";
 import DocInfoPanel from "./DocInfoPanel";
 import GroupOverviewModal from "../../components/group/GroupOverviewModal";
-import { downloadDocumentSummaryExcel } from "../../api/summary_excel"; // ya lo tenías
+import { downloadDocumentSummaryExcel } from "../../api/summary_excel";
+import { Popper, ListItem, CircularProgress } from "@mui/material";
+import { fetchMandatoryDocs, type MandatoryDocsResponse } from "../../api/summary_excel";
 
 import {
   Box, Paper, Button, Typography, List, ListItemButton,
@@ -50,12 +52,45 @@ export default function Grupo() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [semanticGroupData, setSemanticGroupData] = useState<any[]>([]);
   const [overviewOpen, setOverviewOpen] = useState(false);
+  const [infoAnchor, setInfoAnchor] = useState<HTMLElement | null>(null);
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [mandatoryDocs, setMandatoryDocs] = useState<string[] | null>(null);
+  const [mandatoryLoading, setMandatoryLoading] = useState(false);
+  const [mandatoryError, setMandatoryError] = useState<string | null>(null);
+  const hoverTimerRef = useRef<number | null>(null);
 
   const splitRef = useRef<HTMLDivElement | null>(null);
   const [ratio, setRatio] = useState(0.66);
   const MIN_LEFT_PX = 360;
   const MIN_RIGHT_PX = 280;
   const HANDLE_PX = 8;
+
+  const openInfo = async (e: React.MouseEvent<HTMLElement>) => {
+    if (hoverTimerRef.current) window.clearTimeout(hoverTimerRef.current);
+    setInfoAnchor(e.currentTarget);
+    if (!infoOpen) setInfoOpen(true);
+
+    if (!mandatoryDocs && !mandatoryLoading) {
+      setMandatoryLoading(true);
+      setMandatoryError(null);
+      try {
+        const items = await fetchMandatoryDocs();
+        setMandatoryDocs(items);
+      } catch (err: any) {
+        setMandatoryError(err?.message ?? "Error cargando obligatorios");
+      } finally {
+        setMandatoryLoading(false);
+      }
+    }
+  };
+
+  const scheduleCloseInfo = () => {
+    if (hoverTimerRef.current) window.clearTimeout(hoverTimerRef.current);
+    hoverTimerRef.current = window.setTimeout(() => setInfoOpen(false), 180);
+  };
+  const cancelCloseInfo = () => {
+    if (hoverTimerRef.current) window.clearTimeout(hoverTimerRef.current);
+  };
 
   const fetchSemanticGroupData = async (groupFiles: Document[]) => {
     const ids = groupFiles.map(doc => doc.id);
@@ -221,55 +256,68 @@ export default function Grupo() {
         >
           <Typography variant="h6" fontWeight={700}>Grupo: {group.name}</Typography>
 
-          <Stack direction="row" spacing={1} sx={{ mt: 1, mb: 2 }}>
-            <Button
-              variant="contained"
-              color="warning"
-              startIcon={<Plus size={18} />}
-              onClick={() => setIsModalOpen(true)}
-            >
-              Añadir documento
-            </Button>
-            <Button
-              variant="outlined"
-              color="error"
-              startIcon={<Trash2 size={18} />}
-              onClick={() => setDeleteModalOpen(true)}
-            >
-              Eliminar
-            </Button>
-          </Stack>
-          {/* ====== Generación de Documento Resumen (HdU 05) ====== */}
+        {/* === Acciones del grupo (2 columnas iguales) === */}
+        <Box
+          sx={{
+            mt: 1,
+            mb: 2,
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr", // 2 columnas del mismo ancho
+            gap: 1,                          // mismo espacio que spacing={1}
+          }}
+        >
+          {/* Fila 1: Añadir / Eliminar (mismo tamaño) */}
           <Button
+            fullWidth
             variant="contained"
-            color="primary"
-            sx={{ mb: 2 }}
-            onClick={() => {
-              // if (selectedDoc?.id) {
-              downloadDocumentSummaryExcel(group.id);
-              // }
-            }}
+            color="warning"
+            startIcon={<Plus size={18} />}
+            onClick={() => setIsModalOpen(true)}
           >
-            Generar Documento Resumen
+            Añadir documento
           </Button>
 
-          {/* ====== Acciones de Resumen ====== */}
-          <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={() => downloadDocumentSummaryExcel(group.id)}
-            >
-              Generar Documento Resumen
-            </Button>
-            <Button
-              variant="outlined"
-              color="primary"
-              onClick={() => setOverviewOpen(true)}
-            >
-              Ver Resumen
-            </Button>
-          </Stack>
+          <Button
+            fullWidth
+            variant="outlined"
+            color="error"
+            startIcon={<Trash2 size={18} />}
+            onClick={() => setDeleteModalOpen(true)}
+          >
+            Eliminar
+          </Button>
+
+          {/* Fila 2: Generar / Ver (igual tamaño que la fila de arriba) */}
+          {/* <Button
+            fullWidth
+            variant="contained"
+            color="primary"
+            onClick={() => downloadDocumentSummaryExcel(group.id)}
+          >
+            Generar Documento Resumen
+          </Button> */}
+
+          <Button
+            fullWidth
+            variant="contained"
+            color="primary"
+            onClick={() => setOverviewOpen(true)}
+            sx={{ gridColumn: "1 / -1" }} // span 2 columnas (mismo ancho horizontal que los de arriba)
+          >
+            Ver Resumen
+          </Button>
+
+          {/* Fila 3: Información (ocupa el ancho de ambas columnas) */}
+          <Button
+            fullWidth
+            variant="outlined"
+            onMouseEnter={openInfo}
+            onMouseLeave={scheduleCloseInfo}
+            sx={{ gridColumn: "1 / -1" }} // span 2 columnas (mismo ancho horizontal que los de arriba)
+          >
+            Información
+          </Button>
+        </Box>
 
           <Divider sx={{ mb: 1 }} />
           <Typography variant="subtitle2" sx={{ mb: 1 }}>Listado de documentos</Typography>
@@ -368,6 +416,64 @@ export default function Grupo() {
           <Typography>Selecciona un documento para ver su contenido.</Typography>
         )}
       </Box>
+
+      <Popper
+        open={infoOpen}
+        anchorEl={infoAnchor}
+        placement="bottom-start"
+        disablePortal={false}
+        modifiers={[{ name: "offset", options: { offset: [0, 8] } }]}
+        style={{ zIndex: 2000 }}
+      >
+        <Paper
+          elevation={6}
+          onMouseEnter={cancelCloseInfo}
+          onMouseLeave={scheduleCloseInfo}
+          sx={{
+            p: 1.5,
+            maxHeight: 360,
+            width: 340,
+            overflowY: "auto",
+            position: "relative",                 // z-index solo aplica si es posicionado
+            zIndex: (t) => t.zIndex.tooltip + 1,  // extra por si tu tema tiene zIndex altos
+            pointerEvents: "auto",
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            Documentos obligatorios
+          </Typography>
+
+          {mandatoryLoading && (
+            <Box sx={{ py: 3, display: "flex", justifyContent: "center" }}>
+              <CircularProgress size={22} />
+            </Box>
+          )}
+
+          {!mandatoryLoading && mandatoryError && (
+            <Box sx={{ p: 1 }}>
+              <Typography color="error" variant="body2">{mandatoryError}</Typography>
+            </Box>
+          )}
+
+          {!mandatoryLoading && !mandatoryError && (
+            <List dense disablePadding>
+              {(mandatoryDocs ?? []).map((name) => (
+                <ListItem key={name} disableGutters>
+                  <ListItemText primaryTypographyProps={{ variant: "body2" }} primary={name} />
+                </ListItem>
+              ))}
+              {mandatoryDocs && mandatoryDocs.length === 0 && (
+                <Box sx={{ p: 1 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    No hay documentos configurados.
+                  </Typography>
+                </Box>
+              )}
+            </List>
+          )}
+        </Paper>
+      </Popper>
+
 
       {group && (
         <GroupOverviewModal

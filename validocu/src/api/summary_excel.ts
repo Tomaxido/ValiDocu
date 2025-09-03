@@ -64,3 +64,12 @@ export async function fetchGroupOverview(groupId: number): Promise<GroupOverview
   if (!res.ok) throw new Error(`HTTP ${res.status}: No se pudo obtener el resumen`);
   return res.json();
 }
+
+export type MandatoryDocsResponse = { items: string[] };
+
+export async function fetchMandatoryDocs(): Promise<string[]> {
+  const r = await fetch(`${BASE_URL}/mandatory-docs`, { headers: { Accept: "application/json" } });
+  if (!r.ok) throw new Error(`HTTP ${r.status} al cargar obligatorios`);
+  const data = (await r.json()) as MandatoryDocsResponse;
+  return data.items ?? [];
+}

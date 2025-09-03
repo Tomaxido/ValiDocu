@@ -335,4 +335,17 @@ class DocumentSummaryController extends Controller
         // buscar en cualquier parte, case-insensitive (ya está upper), U para unicode
         return (bool) preg_match('/' . $regex . '/u', $normFile);
     }
+
+    /** GET /api/v1/mandatory-docs
+     *  Retorna sólo nombre_doc desde documentos_obligatorios, ordenado alfabéticamente.
+     */
+    public function mandatoryDocs()
+    {
+        $items = DB::table('documentos_obligatorios')
+            ->orderBy('nombre_doc')
+            ->pluck('nombre_doc')
+            ->toArray();
+
+        return response()->json(['items' => $items]);
+    }
 }

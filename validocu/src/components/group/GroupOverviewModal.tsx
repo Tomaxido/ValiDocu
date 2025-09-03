@@ -132,9 +132,9 @@ export default function GroupOverviewModal({ open, groupId, onClose, onExportExc
 
       <DialogActions>
         {onExportExcel && (
-          <Button variant="outlined" onClick={onExportExcel}>Exportar a Excel</Button>
+          <Button variant="contained" onClick={onExportExcel}>Exportar a Excel</Button>
         )}
-        <Button variant="contained" onClick={onClose}>Cerrar</Button>
+        <Button variant="outlined" onClick={onClose}>Cerrar</Button>
       </DialogActions>
     </Dialog>
   );
