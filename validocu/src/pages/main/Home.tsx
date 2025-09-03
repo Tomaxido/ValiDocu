@@ -150,7 +150,7 @@ export default function Home() {
 
       {/* Header */}
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-        <Typography variant="h5" fontWeight={700}>Unidad de PMV</Typography>
+        <Typography variant="h5" fontWeight={700}>Unidad de Sprint 1</Typography>
         <IconButton
           color="inherit"
           onClick={(e) => setFiltersAnchor(e.currentTarget)}
