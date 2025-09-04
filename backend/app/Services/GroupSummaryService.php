@@ -141,7 +141,7 @@ class GroupSummaryService
                     if ($estado === 'OK') $okCount++;
                     elseif ($estado === 'INVÁLIDO') $invCount++;
 
-                    $comment = count($invalidComments) > 0 ? implode(', ', $invalidComments) : 'OK';
+                    $observaciones = count($invalidComments) > 0 ? implode(', ', $invalidComments) : 'Dato Inválido';
                 }
 
                 $totalVars = $okCount + $invCount;
@@ -155,7 +155,7 @@ class GroupSummaryService
                 'name'            => (string)$doc->filename,
                 'status'          => $status,
                 'status_label'    => $status === 1 ? 'Conforme' : ($status === 2 ? 'Inconforme' : '—'),
-                'observations'    => $status === 1 ? 'Conforme' : ($status === 2 ? $comment : '—'),
+                'observations'    => $status === 1 ? '-' : ($status === 2 ? $observaciones : '—'),
                 'compliance_pct'  => (int) str_replace('%','', $pctStr),
             ];
 

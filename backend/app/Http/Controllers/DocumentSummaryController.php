@@ -45,6 +45,8 @@ class DocumentSummaryController extends Controller
                 ->orderBy('sdi.document_id')
                 ->get(['d.filename', 'd.status', 'sdi.document_id']);
 
+            $group_name = DB::table('document_groups')->where('id', $groupId)->value('name')->first();
+
             if ($docs->isEmpty()) {
                 Log::info('No hay documentos para el grupo', ['group_id' => $groupId]);
                 abort(404, 'No hay documentos asociados a este grupo.');
@@ -218,7 +220,7 @@ class DocumentSummaryController extends Controller
                         }
                     }
 
-                    $comments = count($invalidComments) > 0 ? implode("\n", $invalidComments) : 'OK';
+                    $observaciones = count($invalidComments) > 0 ? implode("\n", $invalidComments) : 'Dato Inválido';
                     $comment = $state === 'INVÁLIDO' ? 'NO EXISTE EN SII' : 'OK';
 
                     if ($state === 'OK')       $okCount++;
@@ -242,8 +244,8 @@ class DocumentSummaryController extends Controller
                 $status = (int)$doc->status;
                 $tablaAnalizar[] = [
                     'nombre_documento' => (string)$doc->filename,
-                    'estado'           => $status,
-                    'observaciones'    => $status === 1 ? 'Conforme' : ($status === 2 ? $comments : '—'),
+                    'estado'           => $status === 1 ? 'Conforme' : ($status === 2 ? 'Inconforme' : '—'),
+                    'observaciones'    => $status === 1 ? '-' : ($status === 2 ? $observaciones : '—'),
                     'porcentaje'       => $pct,
                 ];
             }
