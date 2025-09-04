@@ -98,8 +98,9 @@ class SemanticController extends Controller
         $documentosVencidos = array();
         $documentosPorVencer = array();
         foreach ($documentos as $doc) {
+            if (empty($doc->json_global)) continue;
             $jsonGlobal = json_decode($doc->json_global);
-            if (!property_exists($jsonGlobal, 'FECHA_VENCIMIENTO')) {
+            if (!$jsonGlobal || !property_exists($jsonGlobal, 'FECHA_VENCIMIENTO')) {
                 continue;
             }
             $fechaVencimientoStr = $jsonGlobal->FECHA_VENCIMIENTO;
