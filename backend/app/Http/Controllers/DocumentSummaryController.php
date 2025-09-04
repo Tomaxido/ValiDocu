@@ -45,8 +45,6 @@ class DocumentSummaryController extends Controller
                 ->orderBy('sdi.document_id')
                 ->get(['d.filename', 'd.status', 'sdi.document_id']);
 
-            $group_name = DB::table('document_groups')->where('id', $groupId)->value('name')->first();
-
             if ($docs->isEmpty()) {
                 Log::info('No hay documentos para el grupo', ['group_id' => $groupId]);
                 abort(404, 'No hay documentos asociados a este grupo.');
