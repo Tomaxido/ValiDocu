@@ -342,16 +342,56 @@ export default function Home() {
                   let alerta = null;
                   if (res) {
                     if (res.due_date === 1) {
-                      acciones = <Button color="error" variant="contained" size="small">Actualizar urgente</Button>;
+                      acciones = (
+                        <Button
+                          color="error"
+                          variant="contained"
+                          size="small"
+                          onClick={() => navigate(`/grupos/${res.document_group_id}`)}
+                        >
+                          Actualizar urgente
+                        </Button>
+                      );
                       alerta = <Alert severity="error" sx={{ mb: 1, width: '100%' }}>Documento vencido</Alert>;
                     } else if (res.due_date === 2) {
-                      acciones = <Button color="warning" variant="contained" size="small">Renovar</Button>;
+                      acciones = (
+                        <Button
+                          color="warning"
+                          variant="contained"
+                          size="small"
+                          onClick={() => navigate(`/grupos/${res.document_group_id}`)}
+                        >
+                          Renovar
+                        </Button>
+                      );
                       alerta = <Alert severity="warning" sx={{ mb: 1, width: '100%' }}>Documento por vencer</Alert>;
                     } else {
-                      acciones = <Button color="primary" variant="contained" size="small">Renovar</Button>;
+                      acciones = (
+                        <Button
+                          color="primary"
+                          variant="contained"
+                          size="small"
+                          onClick={() => navigate(`/grupos/${res.document_group_id}`)}
+                        >
+                          Renovar
+                        </Button>
+                      );
                     }
                     if (res.normative_gap === 1) {
-                      acciones = <Tooltip title="El documento presenta observaciones normativas."><span><Button color="warning" variant="outlined" size="small">Revisar observaciones</Button></span></Tooltip>;
+                      acciones = (
+                        <Tooltip title="El documento presenta observaciones normativas.">
+                          <span>
+                            <Button
+                              color="warning"
+                              variant="outlined"
+                              size="small"
+                              onClick={() => navigate(`/grupos/${res.document_group_id}`)}
+                            >
+                              Revisar observaciones
+                            </Button>
+                          </span>
+                        </Tooltip>
+                      );
                     }
                   }
                   return (
@@ -444,18 +484,57 @@ export default function Home() {
                     let alerta = null;
 
                     if (docsVencidos.length > 0) {
-                      accionesArr.push(<Button key="vencido" color="error" variant="contained" size="small">Actualizar urgente</Button>);
+                      accionesArr.push(
+                        <Button
+                          key="vencido"
+                          color="error"
+                          variant="contained"
+                          size="small"
+                          onClick={() => navigate(`/grupos/${g.id}`)}
+                        >
+                          Actualizar urgente
+                        </Button>
+                      );
                       alerta = <Alert severity="error" sx={{ mb: 1, width: '100%' }}>Documento vencido</Alert>;
                     } else if (docsPorVencer.length > 0) {
-                      accionesArr.push(<Button key="por-vencer" color="warning" variant="contained" size="small">Renovar</Button>);
+                      accionesArr.push(
+                        <Button
+                          key="por-vencer"
+                          color="warning"
+                          variant="contained"
+                          size="small"
+                          onClick={() => navigate(`/grupos/${g.id}`)}
+                        >
+                          Renovar
+                        </Button>
+                      );
                       alerta = <Alert severity="warning" sx={{ mb: 1, width: '100%' }}>Documento por vencer</Alert>;
                     } else {
-                      accionesArr.push(<Button key="renovar" color="primary" variant="contained" size="small">Renovar</Button>);
+                      accionesArr.push(
+                        <Button
+                          key="renovar"
+                          color="primary"
+                          variant="contained"
+                          size="small"
+                          onClick={() => navigate(`/grupos/${g.id}`)}
+                        >
+                          Renovar
+                        </Button>
+                      );
                     }
                     if (docsObs.length > 0) {
                       accionesArr.push(
                         <Tooltip key="observacion" title="El documento presenta observaciones normativas.">
-                          <span><Button color="warning" variant="outlined" size="small">Revisar observaciones</Button></span>
+                          <span>
+                            <Button
+                              color="warning"
+                              variant="outlined"
+                              size="small"
+                              onClick={() => navigate(`/grupos/${g.id}`)}
+                            >
+                              Revisar observaciones
+                            </Button>
+                          </span>
                         </Tooltip>
                       );
                     }
