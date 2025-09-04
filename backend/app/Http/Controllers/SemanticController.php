@@ -197,7 +197,7 @@ class SemanticController extends Controller
 
         // TODO: reemplazar este placeholder por una query de verdad que
         // obtenga todos los tipos de documentos presentes en 'documents'
-        $docTypes = [0, 1, 2];
+        
 
         $gaps = DB::table('documents')
             ->whereNotNull('normative_gap')->distinct()->orderBy('normative_gap')->pluck('normative_gap')->all();
@@ -212,6 +212,10 @@ class SemanticController extends Controller
         foreach (DB::table('documentos_obligatorios')->select('id', 'nombre_doc')->get() as $row) {
             $DOC_TYPE_LABELS[$row->id] = $row->nombre_doc;
         }
+
+        $docTypes = DB::table('documents')
+            ->whereNotNull('tipo')->distinct()->orderBy('tipo')->pluck('tipo')->all();
+        
         $GAP_LABELS = [
             0 => 'No tiene',
             1 => 'Si tiene',
