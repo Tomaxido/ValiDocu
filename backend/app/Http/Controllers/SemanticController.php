@@ -193,10 +193,10 @@ class SemanticController extends Controller
     public function obtenerFiltrosUnicos(): JsonResponse
     {
         $statuses = DB::table('documents')
-            ->whereNotNull('status')->distinct()->orderBy('status')->pluck('status')->all();
+            ->whereNotNull('due_date')->distinct()->orderBy('due_date')->pluck('due_date')->all();
 
-        // TODO: reemplazar este placeholder por una query de verdad que
-        // obtenga todos los tipos de documentos presentes en 'documents'
+        $docTypes = DB::table('documents')
+            ->whereNotNull('tipo')->distinct()->orderBy('tipo')->pluck('tipo')->all();
         
 
         $gaps = DB::table('documents')
@@ -213,9 +213,6 @@ class SemanticController extends Controller
             $DOC_TYPE_LABELS[$row->id] = $row->nombre_doc;
         }
 
-        $docTypes = DB::table('documents')
-            ->whereNotNull('tipo')->distinct()->orderBy('tipo')->pluck('tipo')->all();
-        
         $GAP_LABELS = [
             0 => 'No tiene',
             1 => 'Si tiene',
@@ -290,13 +287,14 @@ class SemanticController extends Controller
         // ---- (3) (Opcional) umbral y límite configurables
         $minScore = (float)($request->input('min_score', 0.4));
         $limit    = (int)($request->input('limit', 10));
-
         // ---- (4) Generar dinámicamente la query SQL
         $query = $request->input('texto');
         if (trim($query) === '') {
             // 4.a. Si no hay una query en la petición, solo aplicar filtros en la tabla
             // IMPORTANTE: el orden de los placeholders define el orden de $bindings.
             // Aquí ponemos primero los filtros, luego el min_score y el limit.
+            \Log::info("Filtros recibidos", ['status' => $status, 'docType' => $docType, 'normGap' => $normGap, 'whereSql' => $whereFiltersSql, 'whereBinds' => $whereBinds]);
+
             $sqlQuery = "
                 SELECT
                     sdi.id,
@@ -317,6 +315,8 @@ class SemanticController extends Controller
             ";
             $bindings = array_merge($whereBinds, [$limit]);
         } else {
+            \Log::info("Filtros2 recibidos", ['status' => $status, 'docType' => $docType, 'normGap' => $normGap, 'whereSql' => $whereFiltersSql, 'whereBinds' => $whereBinds]);
+
             // 4.b. Si hay una query en la petición, generar un embedding
             $embedding = $this->generarEmbedding($query);
             if (!is_array($embedding)) {
@@ -358,6 +358,8 @@ class SemanticController extends Controller
         \Log::info(message: 'Consulta'. $sqlQuery. ' | bindings: ' . json_encode($bindings));
 
         $resultados = DB::select($sqlQuery, $bindings);
+
+        \Log::info("Resultados obtenidos", ['count' => count($resultados), 'data' => $resultados]);
 
         return response()->json($resultados);
     }

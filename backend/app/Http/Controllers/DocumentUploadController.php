@@ -26,10 +26,7 @@ class DocumentUploadController extends Controller
             ->sortByDesc(function($o) { return mb_strlen((string)$o->nombre_doc, 'UTF-8'); })
             ->values();
         foreach ($request->file('documents') as $file) {
-            //tranformar a png
-            //mandar los png a la ia
-            //recibir el json y ver que hacer, ademas de respuesta del rut
-
+            // ...existing code...
             $path = $file->store('documents', 'public');
             $originalFilename = $file->getClientOriginalName();
             $document = $group->documents()->create([
@@ -40,43 +37,32 @@ class DocumentUploadController extends Controller
             ]);
             // Obtener ID del documento maestro
             $document_master_id = $document->id;
-
-            // Obtener nombre base sin extensión, por ejemplo: contrato_12
+            // ...existing code...
             $originalBaseName = pathinfo($originalFilename, PATHINFO_FILENAME);
-
-            // Convertir PDF a imágenes
             $images = $this->convertPdfToImages($path,$group);
-
-            // Guardar imagenes en carpeta manteniendo el nombre del documento
             $rechazado = $this->saveImages($images, $originalBaseName, $group, $document_master_id);
             if ($rechazado) {
-                // Cambiar status del documento a 2 = Rechazado
                 $document->status = 2;
                 $document->save();
             } else {
-                // Cambiar status del documento a 1 = Conforme
                 $document->status = 1;
                 $document->save();
             }
-
             $filename = (string)$document->filename;
             $normFile = $this->normalizeName($filename);
             Log::info("Analizando documento: {$filename}, normalizado: {$normFile}");
-
             $found = false;
             foreach ($obligatorios as $obl) {
                 $nombreDoc = (string)$obl->nombre_doc;
                 $analizar  = (int)$obl->analizar;
                 $idObligatorio = $obl->id ?? null;
                 Log::info("Nombre Documento Obligatorio: {$nombreDoc}, analizar: {$analizar}");
-
                 if ($this->matchFilenameToNombreDoc($normFile, $this->normalizeName($nombreDoc))) {
                     $found = true;
                     $tipo = $idObligatorio;
                     break;
                 }
             }
-
             if (!$found) {
                 $tipo = 0;
                 $analizar = 0;
@@ -85,6 +71,19 @@ class DocumentUploadController extends Controller
             $document->save();
             if($analizar == 1){
                 app(\App\Http\Controllers\AnalysisController::class)->createSuggestions($document_master_id);
+            }
+
+            // === CREAR semantic_doc_index SI NO EXISTE ===
+            $exists = DB::table('semantic_doc_index')->where('document_id', $document_master_id)->exists();
+            if (!$exists) {
+                DB::table('semantic_doc_index')->insert([
+                    'document_id' => $document_master_id,
+                    'document_group_id' => $group->id,
+                    'json_global' => null,
+                    'resumen' => null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
             }
         }
     }

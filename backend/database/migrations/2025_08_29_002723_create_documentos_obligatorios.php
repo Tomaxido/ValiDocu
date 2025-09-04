@@ -30,12 +30,6 @@ return new class extends Migration
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
-            [
-                'nombre_doc' => 'CARNET IDENTIDAD CODEUDOR',
-                'analizar' => 0,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ],
         ]);
 
     }
