@@ -206,7 +206,8 @@ export default function DocInfoPanel({
         {docSummary ? (
           <Box sx={{ mt: 1, mb: 1, p: 1, bgcolor: 'background.paper', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
             {(() => {
-              // Formateo simple por campos clave
+              // Asegurar que docSummary sea string
+              const resumen = typeof docSummary === 'string' ? docSummary : '';
               const lines: string[] = [];
               const regexes = [
                 { label: 'Tipo', rgx: /tipo ([^,]+)/i },
@@ -217,11 +218,11 @@ export default function DocInfoPanel({
                 { label: 'Condiciones', rgx: /Condiciones: (.+)$/i },
               ];
               regexes.forEach(({ label, rgx }) => {
-                const match = docSummary.match(rgx);
+                const match = resumen.match(rgx);
                 if (match) lines.push(`<strong>${label}:</strong> ${match[1].trim()}`);
               });
               // Si no se detecta nada, mostrar el texto original
-              if (lines.length === 0) return <span>{docSummary}</span>;
+              if (lines.length === 0) return <span>{resumen}</span>;
               return (
                 <Box>
                   {lines.map((l, i) => (
