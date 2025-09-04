@@ -1,8 +1,8 @@
 // Ajusta la BASE_URL si usas proxy o .env
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+const BASE_URL = import.meta.env.VITE_API_BASE ?? "http://localhost:8000/api/v1";
 
 export async function downloadDocumentSummaryExcel(groupID: number): Promise<void> {
-  const url = `${BASE_URL}/api/v1/documents/${groupID}/summary-excel`;
+  const url = `${BASE_URL}/documents/${groupID}/summary-excel`;
   const res = await fetch(url, {
     method: 'GET',
     headers: { 'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
@@ -18,32 +18,58 @@ export async function downloadDocumentSummaryExcel(groupID: number): Promise<voi
   document.body.removeChild(link);
 }
 
-export async function downloadDocumentSummaryExcel_old(groupID: number): Promise<void> {
-  const url = `${BASE_URL}/api/v1/documents/${groupID}/summary-excel`;
-  const res = await fetch(url, {
-    method: 'GET',
-    headers: { 'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
-  });
-  if (!res.ok) throw new Error(`Download failed: ${res.status}`);
-
-
-  // Usa el nombre enviado por el backend (con timestamp)
-  const cd = res.headers.get('content-disposition') || '';
-  // Typical: attachment; filename="resumen_grupo_12_2025-08-28_0506.xlsx"
-  const match = cd.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
-  const serverFilename = match ? decodeURIComponent(match[1]) : `resumen_grupo_${groupID}.xlsx`;
-
-  const blob = await res.blob();
-  const blobUrl = window.URL.createObjectURL(blob);
-  try {
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.download = serverFilename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  } finally {
-    window.URL.revokeObjectURL(blobUrl);
-  }
+export interface GroupOverviewTotals {
+  total: number;
+  conforme: number;
+  inconforme: number;
+  sin_procesar: number;
 }
 
+export interface AnalyzeRow {
+  name: string;                 // Nombre Documento (sin extensión)
+  status: 1 | 2 | null;         // 1=Conforme, 2=Inconforme, null=Sin procesar
+  status_label: string;         // "Conforme" | "Inconforme" | "Sin procesar"
+  observations?: string | null; // Observaciones (opcional)
+  compliance_pct?: number | null; // % Cumplimiento (0..100) (opcional)
+}
+
+export interface SimpleRow {
+  name: string;                 // Nombre Documento
+  state_label?: string;         // "Pendiente", "OK", etc. (opcional)
+}
+
+export interface GroupOverviewResponse {
+  group_id: number;
+  group_name: string;
+
+  // Meta de “Resumen de Grupo”
+  generated_at: string;         // ISO string
+  responsible_user: string;     // p.ej. "Administrador"
+
+  totals: GroupOverviewTotals;
+
+  // Secciones del Excel:
+  pending_mandatory: SimpleRow[];      // "Documentos obligatorios no encontrados (Pendientes)"
+  not_to_analyze: SimpleRow[];         // "Documentos que NO se deben analizar"
+  unmatched_in_obligatorios: SimpleRow[]; // "Documentos sin correspondencia en documentos_obligatorios"
+  analyze: AnalyzeRow[];               // "Documentos que se deben analizar"
+}
+
+/** Obtiene el resumen del grupo (mismo contenido que el Excel, en JSON) */
+export async function fetchGroupOverview(groupId: number): Promise<GroupOverviewResponse> {
+  const res = await fetch(`${BASE_URL}/groups/${groupId}/overview`, {
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}: No se pudo obtener el resumen`);
+  return res.json();
+}
+
+export type MandatoryDocsResponse = { items: string[] };
+
+export async function fetchMandatoryDocs(): Promise<string[]> {
+  const r = await fetch(`${BASE_URL}/mandatory-docs`, { headers: { Accept: "application/json" } });
+  if (!r.ok) throw new Error(`HTTP ${r.status} al cargar obligatorios`);
+  const data = (await r.json()) as MandatoryDocsResponse;
+  return data.items ?? [];
+}

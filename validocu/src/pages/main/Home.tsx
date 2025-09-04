@@ -134,7 +134,13 @@ export default function Home() {
   const handleFileUpload = async (groupName: string, files: FileList) => {
     try {
       await createGroup(groupName, files);
-      setDocumentGroups(await getDocumentGroups());
+      
+      // Comentado, porque window.location.reload() anula su propósito, pero
+      // se queda aquí por si acaso:
+
+      // setDocumentGroups(await getDocumentGroups());
+
+      window.location.reload();
     } catch (err: any) {
       alert("Error al subir: " + err.message);
     }

@@ -8,11 +8,17 @@ use App\Models\Document;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Services\SiiService;
 use Illuminate\Support\Str;
 
 
 class DocumentUploadController extends Controller
 {
+    public function __construct(SiiService $siiService)
+    {
+        parent::__construct($siiService);
+    }
+
 
     function _addDocumentsToGroup(Request $request, DocumentGroup &$group) {
         $obligatorios = DB::table('documentos_obligatorios')
