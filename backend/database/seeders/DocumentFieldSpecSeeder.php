@@ -29,12 +29,12 @@ class DocumentFieldSpecSeeder extends Seeder
 
         $RUT_REGEX          = '^\d{1,2}\.?\d{3}\.?\d{3}-[\dkK]$';
         // Revisa fechas validas con formato DD-MM-YYYY, DD/MM/YYYY y DD.MM.YYYY incluyendo años bisiestos
-        $FECHA_ISO_REGEX    = '^(?:(?:29([-./])02(?:\1)(?:(?:(?:1[6-9]|20)(?:04|08|[2468][048]|[13579][26]))|(?:1600|2[048]00)))|(?:(?:(?:0[1-9]|1\d|2[0-8])([-./])(?:0[1-9]|1[0-2]))|(?:29|30)([-./])(?:0(?:1|[3-9])|(?:1[0-2]))|31([-./])(0[13578]|1[02]))(?:\2|\3|\4)(?:1[6-9]|2\d)\d\d)$';
+        //$FECHA_ISO_REGEX    = '^(?:(?:29([-./])02(?:\1)(?:(?:(?:1[6-9]|20)(?:04|08|[2468][048]|[13579][26]))|(?:1600|2[048]00)))|(?:(?:(?:0[1-9]|1\d|2[0-8])([-./])(?:0[1-9]|1[0-2]))|(?:29|30)([-./])(?:0(?:1|[3-9])|(?:1[0-2]))|31([-./])(0[13578]|1[02]))(?:\2|\3|\4)(?:1[6-9]|2\d)\d\d)$';
         $MONEY_REGEX        = '(?:\d{1,3}(?:\.\d{3})*(?:,\d+)?|\d{1,3}(?:,\d{3})*(?:\.\d+)?)';               // numero con separador de miles (punto) y decimales (coma)
-        $TASA_REGEX         = '^(?:\d{1,3}(?:\.\d{3})*(?:,\d+)?|\d{1,3}(?:,\d{3})*(?:\.\d+)?)\%$';                      // 0.08%
+        //$TASA_REGEX         = '^(?:\d{1,3}(?:\.\d{3})*(?:,\d+)?|\d{1,3}(?:,\d{3})*(?:\.\d+)?)\%$';                      // 0.08%
         $MONEDA_REGEX       = '^(UF|CLP|USD|UTM)$';                              // UF
         // Fecha larga insensible a mayuscular, por ejemplo 17 de septiembre del 2024
-        $FECHA_LARGA_REGEX  = '^(0?[1-9]|[12]\d|3[01])\s+(?:de)\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\s+de(?:l)?\s+(\d{4})$';
+        // $FECHA_LARGA_REGEX  = '^(0?[1-9]|[12]\d|3[01])\s+(?:de)\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\s+de(?:l)?\s+(\d{4})$';
 
         $specsMutuoMandato = [
             // Claves económicas
