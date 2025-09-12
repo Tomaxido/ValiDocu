@@ -29,7 +29,7 @@ export default function MainLayout({ children }: Props) {
           bgcolor: 'secondary.main',
         }}
       >
-        <Toolbar sx={{ minHeight: 56, gap: 2 }}>
+        <Toolbar sx={{ minHeight: 72, gap: 2 }}>
           <Link
             component={RouterLink}
             to="/"
@@ -42,14 +42,14 @@ export default function MainLayout({ children }: Props) {
               bgcolor={theme.palette.primary.main}
               width={180}
               colors={{
-                v: theme.palette.primary.main,
-                a: theme.palette.primary.main,
-                l: theme.palette.primary.main,
-                i: theme.palette.primary.main,
-                d: theme.palette.primary.main,
-                o: theme.palette.primary.main,
-                c: theme.palette.primary.main,
-                u: theme.palette.primary.main,
+                v: theme.palette.primary.contrastText,
+                a: theme.palette.primary.contrastText,
+                l: theme.palette.primary.contrastText,
+                i: theme.palette.primary.contrastText,
+                d: theme.palette.primary.contrastText,
+                o: theme.palette.primary.contrastText,
+                c: theme.palette.primary.contrastText,
+                u: theme.palette.primary.contrastText,
               }}
             />
           </Link>

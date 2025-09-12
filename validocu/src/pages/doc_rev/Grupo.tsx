@@ -16,6 +16,8 @@ import {
 } from "@mui/material";
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
 import { SnackbarDocsVencidos } from "../../components/SnackbarDocsVencidos";
+import EqualizerIcon from "@mui/icons-material/Equalizer";
+import InfoOutlineIcon from "@mui/icons-material/InfoOutline";
 
 function groupDocuments(documents: Document[]): GroupedDocument[] {
   const pdfs = documents.filter((doc) => doc.filename.toLowerCase().endsWith(".pdf"));
@@ -250,6 +252,7 @@ export default function Grupo() {
       >
         <IconButton
           aria-label={sidebarOpen ? "Cerrar panel" : "Abrir panel"}
+          color="secondary"
           onClick={() => setSidebarOpen(!sidebarOpen)}
           sx={{
             position: "absolute",
@@ -285,7 +288,7 @@ export default function Grupo() {
             mt: 1,
             mb: 2,
             display: "grid",
-            gridTemplateColumns: "1fr 1fr", // 2 columnas del mismo ancho
+            gridTemplateColumns: "auto auto", // 2 columnas del mismo ancho
             gap: 1,                          // mismo espacio que spacing={1}
           }}
         >
@@ -293,22 +296,19 @@ export default function Grupo() {
           <Button
             fullWidth
             variant="contained"
-            color="warning"
+            color="secondary"
             startIcon={<Plus size={18} />}
             onClick={() => setIsModalOpen(true)}
           >
             Añadir documento
           </Button>
 
-          <Button
-            fullWidth
-            variant="outlined"
+          <IconButton
             color="error"
-            startIcon={<Trash2 size={18} />}
             onClick={() => setDeleteModalOpen(true)}
           >
-            Eliminar
-          </Button>
+            <Trash2 size={18} />
+          </IconButton>
 
           {/* Fila 2: Generar / Ver (igual tamaño que la fila de arriba) */}
           {/* <Button
@@ -323,23 +323,21 @@ export default function Grupo() {
           <Button
             fullWidth
             variant="contained"
-            color="primary"
+            color="secondary"
             onClick={() => setOverviewOpen(true)}
-            sx={{ gridColumn: "1 / -1" }} // span 2 columnas (mismo ancho horizontal que los de arriba)
+            startIcon={<EqualizerIcon />}
           >
             Ver Resumen
           </Button>
 
           {/* Fila 3: Información (ocupa el ancho de ambas columnas) */}
-          <Button
-            fullWidth
-            variant="outlined"
+          <div
             onMouseEnter={openInfo}
             onMouseLeave={scheduleCloseInfo}
-            sx={{ gridColumn: "1 / -1" }} // span 2 columnas (mismo ancho horizontal que los de arriba)
+            style={{ display: "flex", justifyContent: "center", alignItems: "center" }}
           >
-            Información
-          </Button>
+            <InfoOutlineIcon />
+          </div>
         </Box>
 
           <Divider sx={{ mb: 1 }} />

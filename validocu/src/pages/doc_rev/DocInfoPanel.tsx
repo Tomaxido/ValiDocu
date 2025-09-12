@@ -185,12 +185,11 @@ export default function DocInfoPanel({
           <Button
             size="small"
             variant="contained"
+            color="secondary"
             onClick={() => setOpenSugModal(true)}
             disabled={loading}
           >
-            <Badge color="warning" overlap="circular">
-              {loading ? "Cargando" : "Ver sugerencias"}
-            </Badge>
+            {loading ? "Cargando" : "Ver sugerencias"}
           </Button>
           <Box component="div" sx={{ color: 'text.secondary', fontSize: '1rem' }}>
             { !loading && pendingCount > 0 ? 

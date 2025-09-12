@@ -4,6 +4,7 @@ import {
   Button, Chip, Stack, Typography, Divider, Box, Paper,
   Table, TableHead, TableRow, TableCell, TableBody
 } from "@mui/material";
+import DownloadIcon from "@mui/icons-material/Download";
 import { fetchGroupOverview, type GroupOverviewResponse } from "../../api/summary_excel";
 
 type Props = {
@@ -132,9 +133,16 @@ export default function GroupOverviewModal({ open, groupId, onClose, onExportExc
 
       <DialogActions>
         {onExportExcel && (
-          <Button variant="contained" onClick={onExportExcel}>Exportar a Excel</Button>
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={onExportExcel}
+            startIcon={<DownloadIcon />}
+          >
+            Exportar a Excel
+          </Button>
         )}
-        <Button variant="outlined" onClick={onClose}>Cerrar</Button>
+        <Button variant="outlined" color="secondary" onClick={onClose}>Cerrar</Button>
       </DialogActions>
     </Dialog>
   );

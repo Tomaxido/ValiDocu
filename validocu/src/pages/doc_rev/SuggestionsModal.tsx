@@ -32,6 +32,7 @@ import {
 import { exportSuggestionsToExcel, exportSuggestionsToPDF } from "../../utils/summary_export";
 import DownloadIcon from "@mui/icons-material/Download";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import ReplayIcon from "@mui/icons-material/Replay";
 
 type Props = {
   open: boolean;
@@ -118,6 +119,7 @@ export default function SuggestionsModal({
             {/* Botón Descargar con menú */}
             <Button
               variant="contained"
+              color="secondary"
               size="small"
               onClick={handleClick}
               // color='secondary'
@@ -154,6 +156,7 @@ export default function SuggestionsModal({
             {/* Botón cerrar */}
             <IconButton
               aria-label="cerrar"
+              color="secondary"
               onClick={onClose}
             >
               <CloseIcon />
@@ -179,7 +182,13 @@ export default function SuggestionsModal({
               }
             </Stack>
             {onReanalyze && (
-              <Button onClick={onReanalyze} variant="contained" disabled={loading || saving}>
+              <Button
+                onClick={onReanalyze} 
+                variant="contained"
+                color="secondary"
+                disabled={loading || saving}
+                startIcon={<ReplayIcon />}
+              >
                 {loading ? "Cargando…" : "Re-analizar"}
               </Button>
             )}
@@ -277,7 +286,7 @@ export default function SuggestionsModal({
       </DialogContent>
 
       <DialogActions>
-        <Button onClick={onClose} disabled={saving}>Cerrar</Button>
+        <Button onClick={onClose} color="secondary" disabled={saving}>Cerrar</Button>
         <Button
           onClick={async () => {
         await handleConfirm();
