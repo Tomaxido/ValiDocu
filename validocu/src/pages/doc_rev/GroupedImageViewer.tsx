@@ -203,13 +203,7 @@ export default function GroupedImageViewer({ filename, files }: Readonly<Grouped
 
   return (
     <Box>
-      <Button
-        onClick={exportToPdf}
-        variant="contained"
-        color="secondary"
-        sx={{ mb: 2 }}
-        startIcon={<DownloadIcon />}
-      >
+      <Button onClick={exportToPdf} sx={{ mb: 2 }} startIcon={<DownloadIcon />}>
         Descargar como PDF
       </Button>
 

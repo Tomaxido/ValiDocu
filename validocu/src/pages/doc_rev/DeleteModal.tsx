@@ -94,7 +94,7 @@ export default function DeleteModal({ isOpen, onClose, documents, onDelete }: Re
 
       <DialogContent dividers>
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-          <Button size="small" variant="outlined" color="secondary" onClick={toggleSelectAll}>
+          <Button size="small" variant="outlined" onClick={toggleSelectAll}>
             {allChecked ? "Deseleccionar todos" : "Seleccionar todos"}
           </Button>
 
@@ -137,11 +137,10 @@ export default function DeleteModal({ isOpen, onClose, documents, onDelete }: Re
       </DialogContent>
 
       <DialogActions>
-        <Button color="secondary" onClick={onClose}>Cancelar</Button>
+        <Button onClick={onClose}>Cancelar</Button>
         <Button
           onClick={handleDelete}
           disabled={isDeleting || selectedKeys.length === 0}
-          variant="contained"
           color="error"
         >
           {isDeleting

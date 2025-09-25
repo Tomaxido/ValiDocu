@@ -1,22 +1,24 @@
 import { createTheme } from '@mui/material/styles';
 
 const COLORS = {
-  primary:   '#367015',
-  secondary: '#242F40',
-  accent:    '#CCA43B',
-  gray:      '#E5E5E5',
-  white:     '#FFFFFF',
+  metal:    '#242F40',
+  green:    '#367015',
+  gold:     '#CCA43B',
+  platinum: '#E5E5E5',
+  white:    '#FFFFFF',
+  red:      '#c74343',
 };
 
 export const theme = createTheme({
   palette: {
     mode: 'light',
-    primary:   { main: COLORS.primary, contrastText: COLORS.white },
-    secondary: { main: COLORS.secondary, contrastText: COLORS.white },
-    warning:   { main: COLORS.accent },
-    background:{ default: COLORS.gray, paper: COLORS.white },
-    divider: COLORS.gray,
-    text: { primary: COLORS.secondary, secondary: '#475264' },
+    primary:   { main: COLORS.metal, contrastText: COLORS.white },
+    secondary: { main: COLORS.green, contrastText: COLORS.white },
+    warning:   { main: COLORS.gold },
+    error:     { main: COLORS.red },
+    background:{ default: COLORS.platinum, paper: COLORS.white },
+    divider: COLORS.platinum,
+    text: { primary: COLORS.metal, secondary: '#475264' },
   },
   typography: {
     fontFamily: [
@@ -52,13 +54,8 @@ export const theme = createTheme({
     },
 
     // Botones: sin elevación y radio consistente
-    // MuiButton: {
-    //   defaultProps: { disableElevation: true },
-    //   styleOverrides: { root: { borderRadius: 10 } },
-    //   variants: [
-    //     { props: { color: 'warning', variant: 'contained' },
-    //       style: { color: COLORS.secondary } },
-    //   ],
-    // },
+    MuiButton: {
+      defaultProps: { variant: "contained" },
+    },
   },
 });

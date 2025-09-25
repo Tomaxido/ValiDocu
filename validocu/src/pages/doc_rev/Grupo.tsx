@@ -252,7 +252,6 @@ export default function Grupo() {
       >
         <IconButton
           aria-label={sidebarOpen ? "Cerrar panel" : "Abrir panel"}
-          color="secondary"
           onClick={() => setSidebarOpen(!sidebarOpen)}
           sx={{
             position: "absolute",
@@ -293,40 +292,20 @@ export default function Grupo() {
           }}
         >
           {/* Fila 1: Añadir / Eliminar (mismo tamaño) */}
-          <Button
-            fullWidth
-            variant="contained"
-            color="secondary"
-            startIcon={<Plus size={18} />}
-            onClick={() => setIsModalOpen(true)}
-          >
+          <Button onClick={() => setIsModalOpen(true)} fullWidth startIcon={<Plus size={18} />}>
             Añadir documento
           </Button>
 
-          <IconButton
-            color="error"
-            onClick={() => setDeleteModalOpen(true)}
-          >
+          <IconButton onClick={() => setDeleteModalOpen(true)} color="error">
             <Trash2 size={18} />
           </IconButton>
 
           {/* Fila 2: Generar / Ver (igual tamaño que la fila de arriba) */}
-          {/* <Button
-            fullWidth
-            variant="contained"
-            color="primary"
-            onClick={() => downloadDocumentSummaryExcel(group.id)}
-          >
+          {/* <Button fullWidth onClick={() => downloadDocumentSummaryExcel(group.id)}>
             Generar Documento Resumen
           </Button> */}
 
-          <Button
-            fullWidth
-            variant="contained"
-            color="secondary"
-            onClick={() => setOverviewOpen(true)}
-            startIcon={<EqualizerIcon />}
-          >
+          <Button fullWidth onClick={() => setOverviewOpen(true)} startIcon={<EqualizerIcon />}>
             Ver Resumen
           </Button>
 

@@ -269,10 +269,7 @@ export default function Home() {
               >
                 Limpiar
               </Button>
-              <Button
-                variant="contained"
-                onClick={() => { setFiltersAnchor(null); buscar(); }}
-              >
+              <Button onClick={() => { setFiltersAnchor(null); buscar(); }} color="secondary">
                 Aplicar
               </Button>
             </Stack>
@@ -300,23 +297,12 @@ export default function Home() {
             onKeyDown={(e) => e.key === "Enter" && buscar()}
             sx={{ flex: 1, color: "text.primary" }}
           />
-          <IconButton
-            onClick={buscar}
-            color="secondary"
-            sx={{ 
-              boxShadow: "0px 0px 4px gray"
-            }}
-          >
+          <IconButton onClick={buscar} sx={{ boxShadow: "0px 0px 4px gray" }}>
             <SearchIcon size={20} />
           </IconButton>
         </Paper>
 
-        <Button
-          onClick={() => setIsModalOpen(true)}
-          variant="contained"
-          color="secondary"
-          startIcon={<Plus size={20} />}
-        >
+        <Button onClick={() => setIsModalOpen(true)} startIcon={<Plus size={20} />}>
           Agregar grupo
         </Button>
       </Stack>
@@ -359,7 +345,6 @@ export default function Home() {
                       acciones = (
                         <Button
                           color="error"
-                          variant="contained"
                           size="small"
                           onClick={() => navigate(`/grupos/${res.document_group_id}`)}
                         >
@@ -371,7 +356,6 @@ export default function Home() {
                       acciones = (
                         <Button
                           color="warning"
-                          variant="contained"
                           size="small"
                           onClick={() => navigate(`/grupos/${res.document_group_id}`)}
                         >
@@ -382,8 +366,7 @@ export default function Home() {
                     } else {
                       acciones = (
                         <Button
-                          color="primary"
-                          variant="contained"
+                          color="secondary"
                           size="small"
                           onClick={() => navigate(`/grupos/${res.document_group_id}`)}
                         >
@@ -458,7 +441,9 @@ export default function Home() {
                       </TableCell>
                       <TableCell>{acciones}</TableCell>
                       <TableCell>
-                        <Button variant="contained" color="secondary" onClick={() => navigate(`/grupos/${res.document_group_id}`)}>Ver grupo</Button>
+                        <Button onClick={() => navigate(`/grupos/${res.document_group_id}`)}>
+                          Ver grupo
+                        </Button>
                       </TableCell>
                     </TableRow>
                   );
@@ -502,7 +487,6 @@ export default function Home() {
                         <Button
                           key="vencido"
                           color="error"
-                          variant="contained"
                           size="small"
                           onClick={() => navigate(`/grupos/${g.id}`)}
                         >
@@ -515,7 +499,6 @@ export default function Home() {
                         <Button
                           key="por-vencer"
                           color="warning"
-                          variant="contained"
                           size="small"
                           onClick={() => navigate(`/grupos/${g.id}`)}
                         >
@@ -527,8 +510,7 @@ export default function Home() {
                       accionesArr.push(
                         <Button
                           key="renovar"
-                          color="primary"
-                          variant="contained"
+                          color="secondary"
                           size="small"
                           onClick={() => navigate(`/grupos/${g.id}`)}
                         >
@@ -605,11 +587,12 @@ export default function Home() {
                         </TableCell>
                         <TableCell>{acciones}</TableCell>
                         <TableCell>
-                          <Button variant="contained" color="secondary"  onClick={() => navigate(`/grupos/${g.id}`)}>Ver grupo</Button>
+                          <Button onClick={() => navigate(`/grupos/${g.id}`)}>Ver grupo</Button>
                         </TableCell>
                       </TableRow>
                     );
-                  })}
+                  })
+                }
               </TableBody>
             </Table>
           </TableContainer>

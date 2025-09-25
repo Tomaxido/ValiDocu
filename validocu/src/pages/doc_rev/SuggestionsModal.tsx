@@ -118,11 +118,8 @@ export default function SuggestionsModal({
           <Stack direction="row" spacing={1} alignItems="center">
             {/* Botón Descargar con menú */}
             <Button
-              variant="contained"
-              color="secondary"
               size="small"
               onClick={handleClick}
-              // color='secondary'
               disabled={loading || saving}
               startIcon={<DownloadIcon />}
               endIcon={<ArrowDropDownIcon />}
@@ -154,11 +151,7 @@ export default function SuggestionsModal({
             </Menu>
 
             {/* Botón cerrar */}
-            <IconButton
-              aria-label="cerrar"
-              color="secondary"
-              onClick={onClose}
-            >
+            <IconButton onClick={onClose} aria-label="cerrar">
               <CloseIcon />
             </IconButton>
           </Stack>
@@ -184,8 +177,6 @@ export default function SuggestionsModal({
             {onReanalyze && (
               <Button
                 onClick={onReanalyze} 
-                variant="contained"
-                color="secondary"
                 disabled={loading || saving}
                 startIcon={<ReplayIcon />}
               >
@@ -286,13 +277,13 @@ export default function SuggestionsModal({
       </DialogContent>
 
       <DialogActions>
-        <Button onClick={onClose} color="secondary" disabled={saving}>Cerrar</Button>
+        <Button onClick={onClose} disabled={saving}>Cerrar</Button>
         <Button
           onClick={async () => {
         await handleConfirm();
         window.location.reload(); // Recargar la página después de confirmar cambios
           }}
-          variant="contained"
+          color="secondary"
           disabled={!isDirty || saving}
         >
           {saving ? "Guardando…" : "Confirmar cambios"}

@@ -182,13 +182,7 @@ export default function DocInfoPanel({
 
       {issuesList && (
         <Stack direction="row" spacing={1} alignItems="center">
-          <Button
-            size="small"
-            variant="contained"
-            color="secondary"
-            onClick={() => setOpenSugModal(true)}
-            disabled={loading}
-          >
+          <Button size="small" onClick={() => setOpenSugModal(true)} disabled={loading}>
             {loading ? "Cargando" : "Ver sugerencias"}
           </Button>
           <Box component="div" sx={{ color: 'text.secondary', fontSize: '1rem' }}>

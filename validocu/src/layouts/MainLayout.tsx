@@ -26,7 +26,7 @@ export default function MainLayout({ children }: Props) {
         sx={{
           boxShadow: 'none',
           border: 0,
-          bgcolor: 'secondary.main',
+          bgcolor: 'primary.main',
         }}
       >
         <Toolbar sx={{ minHeight: 72, gap: 2 }}>

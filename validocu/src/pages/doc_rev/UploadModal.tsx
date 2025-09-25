@@ -148,13 +148,8 @@ export default function UploadModal({ isOpen, onClose, onUpload }: Readonly<Prop
       </DialogContent>
 
       <DialogActions>
-        <Button color="secondary" onClick={onClose}>Cancelar</Button>
-        <Button
-          onClick={handleSubmit}
-          disabled={isUploading || fileList.length === 0}
-          variant="contained"
-          color="secondary"
-        >
+        <Button onClick={onClose}>Cancelar</Button>
+        <Button onClick={handleSubmit} disabled={isUploading || fileList.length === 0}>
           {isUploading ? "Subiendo..." : `Subir (${fileList.length})`}
         </Button>
       </DialogActions>
