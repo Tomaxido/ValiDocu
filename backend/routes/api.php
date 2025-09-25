@@ -6,9 +6,15 @@ use App\Http\Controllers\SemanticController;
 use App\Http\Controllers\AnalysisController;
 use App\Http\Controllers\IssueController;
 use App\Http\Controllers\DocumentSummaryController;
-
+use App\Http\Controllers\AuthController;
 
 Route::prefix('v1')->group(function () {
+    
+    Route::post('/login', [AuthController::class, 'login']);
+        // ->middleware(['throttle:6,1']); // rate limit básico
+    Route::post('/logout', [AuthController::class, 'logout'])->middleware(['auth:sanctum']);
+    Route::get('/me', [AuthController::class, 'me'])->middleware(['auth:sanctum']);
+
     Route::get('/documents', [DocumentUploadController::class, 'index']);
     Route::get('/documents/{id}', [DocumentUploadController::class, 'show']);
     Route::get('/documents/{id}/layout', [SemanticController::class, 'buscarJsonLayoutByDocumentId']);
