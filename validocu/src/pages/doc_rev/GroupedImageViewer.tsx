@@ -4,6 +4,7 @@ import type { BoxAnnotation, GroupedImageViewerProps } from "../../utils/interfa
 
 import labelColors from "../../utils/labelColors.ts";
 import { Box, Button, Stack } from "@mui/material";
+import DownloadIcon from "@mui/icons-material/Download";
 import jsPDF from "jspdf";
 
 type BBox = [number, number, number, number];
@@ -202,7 +203,7 @@ export default function GroupedImageViewer({ filename, files }: Readonly<Grouped
 
   return (
     <Box>
-      <Button onClick={exportToPdf} variant="contained" color="warning" sx={{ mb: 2 }}>
+      <Button onClick={exportToPdf} sx={{ mb: 2 }} startIcon={<DownloadIcon />}>
         Descargar como PDF
       </Button>
 
