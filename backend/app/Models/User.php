@@ -69,7 +69,7 @@ class User extends Authenticatable
     public function permissions()
     {
         return Permission::query()
-            ->select('permissions.*')
+            ->select('permissions.key')
             ->join('permission_role','permission_role.permission_id','=','permissions.id')
             ->join('role_user','role_user.role_id','=','permission_role.role_id')
             ->where('role_user.user_id',$this->id)
