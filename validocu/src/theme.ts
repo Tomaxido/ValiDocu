@@ -53,7 +53,7 @@ export const theme = createTheme({
       defaultProps: { elevation: 0 },
     },
 
-    // Botones: sin elevación y radio consistente
+    // Botones: siempre la variante rellena por defecto
     MuiButton: {
       defaultProps: { variant: "contained" },
     },
