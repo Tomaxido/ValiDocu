@@ -9,7 +9,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('documentos_obligatorios', function (Blueprint $table) {
+        Schema::create('document_types', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->string('nombre_doc');
             $table->integer('analizar')->default(1); // 1 = true, 0 = false
@@ -17,7 +17,7 @@ return new class extends Migration
         });
 
         // Insertar registros obligatorios y no obligatorios
-        DB::table('documentos_obligatorios')->insert([
+        DB::table('document_types')->insert([
             [
                 'nombre_doc' => 'ESCRITURA MUTUO',
                 'analizar' => 1,
@@ -36,6 +36,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('documentos_obligatorios');
+        Schema::dropIfExists('document_types');
     }
 };

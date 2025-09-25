@@ -26,7 +26,7 @@ class GroupSummaryService
         }
 
         // 2) Documento obligatorios (ordenados por largo desc → matches específicos)
-        $obligatorios = DB::table('documentos_obligatorios')
+        $obligatorios = DB::table('document_types')
             ->get(['nombre_doc', 'analizar'])
             ->sortByDesc(function($o) { return mb_strlen((string)$o->nombre_doc, 'UTF-8'); })
             ->values();
@@ -47,7 +47,7 @@ class GroupSummaryService
         // 3) Clasificación (igual al controller)
         $matchedAnalyze         = []; // analizar = 1
         $matchedNoAnalyzeStrict = []; // analizar = 0
-        $unmatched              = []; // sin match en documentos_obligatorios
+        $unmatched              = []; // sin match en document_types
 
         foreach ($docs as $doc) {
             $filename = (string)$doc->filename;

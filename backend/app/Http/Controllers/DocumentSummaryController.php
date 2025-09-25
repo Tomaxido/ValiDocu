@@ -51,7 +51,7 @@ class DocumentSummaryController extends Controller
             }
 
             // 2) Documentos obligatorios (ordenados por largo desc para matches más específicos)
-            $obligatorios = DB::table('documentos_obligatorios')
+            $obligatorios = DB::table('document_types')
                 ->get(['nombre_doc', 'analizar'])
                 ->sortByDesc(function($o) { return mb_strlen((string)$o->nombre_doc, 'UTF-8'); })
                 ->values();
@@ -72,7 +72,7 @@ class DocumentSummaryController extends Controller
             // 3) Clasificación
             $matchedAnalyze         = []; // analizar = 1 (generan hoja)
             $matchedNoAnalyzeStrict = []; // analizar = 0 (no generan hoja; Tabla 1 Overview)
-            $unmatched              = []; // sin match en documentos_obligatorios (no generan hoja; Tabla 2 Overview)
+            $unmatched              = []; // sin match en document_types (no generan hoja; Tabla 2 Overview)
 
             foreach ($docs as $doc) {
                 $filename = (string)$doc->filename;
@@ -337,11 +337,11 @@ class DocumentSummaryController extends Controller
     }
 
     /** GET /api/v1/mandatory-docs
-     *  Retorna sólo nombre_doc desde documentos_obligatorios, ordenado alfabéticamente.
+     *  Retorna sólo nombre_doc desde document_types, ordenado alfabéticamente.
      */
     public function mandatoryDocs()
     {
-        $items = DB::table('documentos_obligatorios')
+        $items = DB::table('document_types')
             ->orderBy('nombre_doc')
             ->pluck('nombre_doc')
             ->toArray();

@@ -21,7 +21,7 @@ class DocumentUploadController extends Controller
 
 
     function _addDocumentsToGroup(Request $request, DocumentGroup &$group) {
-        $obligatorios = DB::table('documentos_obligatorios')
+        $obligatorios = DB::table('document_types')
             ->get(['id','nombre_doc', 'analizar'])
             ->sortByDesc(function($o) { return mb_strlen((string)$o->nombre_doc, 'UTF-8'); })
             ->values();

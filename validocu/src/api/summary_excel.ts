@@ -51,7 +51,7 @@ export interface GroupOverviewResponse {
   // Secciones del Excel:
   pending_mandatory: SimpleRow[];      // "Documentos obligatorios no encontrados (Pendientes)"
   not_to_analyze: SimpleRow[];         // "Documentos que NO se deben analizar"
-  unmatched_in_obligatorios: SimpleRow[]; // "Documentos sin correspondencia en documentos_obligatorios"
+  unmatched_in_obligatorios: SimpleRow[]; // "Documentos sin correspondencia en document_types"
   analyze: AnalyzeRow[];               // "Documentos que se deben analizar"
 }
 

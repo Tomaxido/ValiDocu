@@ -88,7 +88,7 @@ export default function GroupOverviewModal({ open, groupId, onClose, onExportExc
               stateRight
             />
 
-            {/* 3) Documentos sin correspondencia en documentos_obligatorios */}
+            {/* 3) Documentos sin correspondencia en document_types */}
             <SectionSimple
               title="Documentos Extras"
               rows={data.unmatched_in_obligatorios}
