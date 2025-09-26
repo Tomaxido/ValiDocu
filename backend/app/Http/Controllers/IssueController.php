@@ -6,10 +6,11 @@ use App\Models\AnalysisIssue;
 use Illuminate\Http\Request;
 use App\Models\Issue;
 use App\Models\SuggestionStatus;
+use Illuminate\Http\JsonResponse;
 
 class IssueController extends Controller
 {
-    public function update(int $id, Request $r)
+    public function update(int $id, Request $r): JsonResponse
     {
         $data = $r->validate([
             'status' => 'required|in:TODO,NO_APLICA,RESUELTO',
@@ -23,15 +24,16 @@ class IssueController extends Controller
     }
 
 
-    public function indexStatuses()
+    public function indexStatuses(): JsonResponse
     {
-        return SuggestionStatus::select('id', 'status')
+        $statuses = SuggestionStatus::select('id', 'status')
             ->orderBy('id')
             ->get();
+        return response()->json($statuses);
     }
 
 
-    public function updateStatus(Request $request, Issue $issue)
+    public function updateStatus(Request $request, Issue $issue): JsonResponse
     {
         $data = $request->validate([
             'status_id' => ['required', 'integer', 'exists:suggestion_status,id'],
@@ -55,7 +57,7 @@ class IssueController extends Controller
             if ($analysis && $analysis->document) {
                 $analysis->document->normative_gap = 1;
                 $analysis->document->save();
-            } 
+            }
         }
         // Opcional: incluir el texto del estado en la respuesta
         $issue->load('status');
@@ -75,7 +77,7 @@ class IssueController extends Controller
     }
 
 
-    public function listByAnalysis(int $analysisId)
+    public function listByAnalysis(int $analysisId): JsonResponse
     {
         $issues = Issue::with('status')
             ->where('document_analysis_id', $analysisId)

@@ -34,7 +34,6 @@ Route::prefix('v1')->group(function () {
     Route::get('/documents/{id}/analysis', [AnalysisController::class, 'showLastAnalysis']);
     Route::get('/documents/{id}/analysis/{analysis}', [AnalysisController::class, 'showAnalysis']);
 
-
     Route::patch('/issues/{id}', [IssueController::class, 'update']);
     Route::get('/suggestion-status', [IssueController::class, 'indexStatuses']);
     Route::patch('/issues/{issue}/status', [IssueController::class, 'updateStatus']);
@@ -42,6 +41,5 @@ Route::prefix('v1')->group(function () {
     Route::get('/documents/{groupId}/summary-excel', [DocumentSummaryController::class, 'downloadGroupSummaryExcel']);
     Route::get('/groups/{groupId}/overview', [DocumentSummaryController::class, 'overviewJson']);
     Route::get('/mandatory-docs', [DocumentSummaryController::class, 'mandatoryDocs']);
-    Route::get('/document-summary/{document_id}', [App\Http\Controllers\DocumentUploadController::class, 'getDocumentSummary']);
-
+    Route::get('/document-summary/{document_id}', [DocumentUploadController::class, 'getDocumentSummary']);
 });

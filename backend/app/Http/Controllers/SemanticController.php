@@ -9,6 +9,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
 use PhpParser\Node\Stmt\TryCatch;
 
 
@@ -55,21 +56,21 @@ class SemanticController extends Controller
             ]);
 
             if (!$response->successful()) {
-                \Log::error("❌ Error en respuesta de API embedding", ['status' => $response->status(), 'body' => $response->body()]);
+                Log::error("❌ Error en respuesta de API embedding", ['status' => $response->status(), 'body' => $response->body()]);
                 return null;
             }
 
             $json = $response->json();
 
             if (!is_array($json) || !isset($json['embedding'])) {
-                \Log::error("❌ Embedding malformado o vacío", ['response' => $json]);
+                Log::error("❌ Embedding malformado o vacío", ['response' => $json]);
                 return null;
             }
 
             return $json['embedding'];
 
         } catch (\Exception $e) {
-            \Log::error("❌ Excepción al llamar a la API de embedding", ['error' => $e->getMessage()]);
+            Log::error("❌ Excepción al llamar a la API de embedding", ['error' => $e->getMessage()]);
             return null;
         }
     }
@@ -88,12 +89,12 @@ class SemanticController extends Controller
             return response()->json(json_decode($resultado));
 
         } catch (\Exception $e) {
-            \Log::error("❌ Excepción al obtener json_layout", ['error' => $e->getMessage()]);
+            Log::error("❌ Excepción al obtener json_layout", ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Error al obtener json_layout'], 500);
         }
     }
 
-    function _filtrarDocumentosVencidos(Collection &$documentos): array
+    private function filtrarDocumentosVencidos(Collection &$documentos): array
     {
         $documentosVencidos = array();
         $documentosPorVencer = array();
@@ -126,14 +127,14 @@ class SemanticController extends Controller
         try {
             $documentos = DB::table('semantic_doc_index')->get();
 
-            list($documentosVencidos, $documentosPorVencer) = $this->_filtrarDocumentosVencidos($documentos);
+            list($documentosVencidos, $documentosPorVencer) = $this->filtrarDocumentosVencidos($documentos);
 
             return response()->json(array(
                 "documentosVencidos" => $documentosVencidos,
                 "documentosPorVencer" => $documentosPorVencer,
             ));
         } catch (\Exception $e) {
-            \Log::error("❌ Excepción al obtener documentos", ['error' => $e->getMessage()]);
+            Log::error("❌ Excepción al obtener documentos", ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Error al obtener documentos'], 500);
         }
     }
@@ -145,14 +146,14 @@ class SemanticController extends Controller
                 ->where('document_group_id', $id_grupo)
                 ->get();
 
-            list($documentosVencidos, $documentosPorVencer) = $this->_filtrarDocumentosVencidos($documentos);
+            list($documentosVencidos, $documentosPorVencer) = $this->filtrarDocumentosVencidos($documentos);
 
             return response()->json(array(
                 "documentosVencidos" => $documentosVencidos,
                 "documentosPorVencer" => $documentosPorVencer,
             ));
         } catch (\Exception $e) {
-            \Log::error("❌ Excepción al obtener documentos", ['error' => $e->getMessage()]);
+            Log::error("❌ Excepción al obtener documentos", ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Error al obtener documentos'], 500);
         }
     }
@@ -161,7 +162,7 @@ class SemanticController extends Controller
     {
         try {
             $documentos = DB::table('semantic_doc_index')->get();
-            list($documentosVencidos, $documentosPorVencer) = $this->_filtrarDocumentosVencidos($documentos);
+            list($documentosVencidos, $documentosPorVencer) = $this->filtrarDocumentosVencidos($documentos);
             $idsVencidas = array();
             $idsPorVencer = array();
             foreach ($documentosVencidos as $doc) {
@@ -177,17 +178,8 @@ class SemanticController extends Controller
             DB::table('documents')->whereIn('id', $idsPorVencer)->update(['due_date' => 2]);
             return response()->json(['documentosVencidos' => $idsVencidas], 200);
         } catch (\Exception $e) {
-            \Log::error("❌ Excepción al obtener documentos", ['error' => $e->getMessage()]);
+            Log::error("❌ Excepción al obtener documentos", ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Error al obtener documentos'], 500);
-        }
-    }
-
-    public function obtenerVencimientoDocumento(int $id_documento): JsonResponse
-    {
-        try {
-
-        } catch (\Exception $e) {
-
         }
     }
 
@@ -198,7 +190,7 @@ class SemanticController extends Controller
 
         $docTypes = DB::table('documents')
             ->whereNotNull('tipo')->distinct()->orderBy('tipo')->pluck('tipo')->all();
-        
+
 
         $gaps = DB::table('documents')
             ->whereNotNull('normative_gap')->distinct()->orderBy('normative_gap')->pluck('normative_gap')->all();
@@ -294,7 +286,7 @@ class SemanticController extends Controller
             // 4.a. Si no hay una query en la petición, solo aplicar filtros en la tabla
             // IMPORTANTE: el orden de los placeholders define el orden de $bindings.
             // Aquí ponemos primero los filtros, luego el min_score y el limit.
-            \Log::info("Filtros recibidos", ['status' => $status, 'docType' => $docType, 'normGap' => $normGap, 'whereSql' => $whereFiltersSql, 'whereBinds' => $whereBinds]);
+            Log::info("Filtros recibidos", ['status' => $status, 'docType' => $docType, 'normGap' => $normGap, 'whereSql' => $whereFiltersSql, 'whereBinds' => $whereBinds]);
 
             $sqlQuery = "
                 SELECT
@@ -316,7 +308,7 @@ class SemanticController extends Controller
             ";
             $bindings = array_merge($whereBinds, [$limit]);
         } else {
-            \Log::info("Filtros2 recibidos", ['status' => $status, 'docType' => $docType, 'normGap' => $normGap, 'whereSql' => $whereFiltersSql, 'whereBinds' => $whereBinds]);
+            Log::info("Filtros2 recibidos", ['status' => $status, 'docType' => $docType, 'normGap' => $normGap, 'whereSql' => $whereFiltersSql, 'whereBinds' => $whereBinds]);
 
             // 4.b. Si hay una query en la petición, generar un embedding
             $embedding = $this->generarEmbedding($query);
@@ -356,11 +348,11 @@ class SemanticController extends Controller
             $bindings = array_merge([$embeddingStr], $whereBinds, [$minScore, $limit]);
         }
 
-        \Log::info(message: 'Consulta'. $sqlQuery. ' | bindings: ' . json_encode($bindings));
+        Log::info(message: 'Consulta'. $sqlQuery. ' | bindings: ' . json_encode($bindings));
 
         $resultados = DB::select($sqlQuery, $bindings);
 
-        \Log::info("Resultados obtenidos", ['count' => count($resultados), 'data' => $resultados]);
+        Log::info("Resultados obtenidos", ['count' => count($resultados), 'data' => $resultados]);
 
         return response()->json($resultados);
     }
