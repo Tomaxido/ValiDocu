@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 class DocumentGroup extends Model
 {
@@ -13,4 +14,27 @@ class DocumentGroup extends Model
         return $this->hasMany(Document::class);
     }
 
+    public function users()
+    {
+        return $this->belongsToMany(User::class, 'users_groups', 'group_id', 'user_id')
+                    ->withPivot('active', 'managed_by')
+                    ->withTimestamps();
+    }
+
+    public function activeUsers()
+    {
+        return $this->belongsToMany(User::class, 'users_groups', 'group_id', 'user_id')
+                    ->withPivot('active', 'managed_by')
+                    ->wherePivot('active', 1)
+                    ->withTimestamps();
+    }
+
+    public function owner()
+    {
+        return $this->belongsToMany(User::class, 'users_groups', 'group_id', 'user_id')
+                    ->withPivot('active', 'managed_by')
+                    ->wherePivot('active', 1)
+                    ->wherePivot('managed_by', '=', DB::raw('user_id'))
+                    ->withTimestamps();
+    }
 }

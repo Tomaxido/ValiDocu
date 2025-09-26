@@ -68,7 +68,9 @@ class AnalysisController extends Controller
         $sugg = new SuggestionService();
 
         foreach ($rawIssues as $i) {
-            $spec = DocumentFieldSpec::where('doc_type', $docType)->where('field_key', $i['field_key'])->first();
+            // Buscar doc_type_id basado en el nombre del tipo de documento
+            $docTypeId = DB::table('document_types')->where('nombre_doc', $docType)->value('id');
+            $spec = DocumentFieldSpec::where('doc_type_id', $docTypeId)->where('field_key', $i['field_key'])->first();
 
             AnalysisIssue::create([
                 'document_analysis_id' => $analysis->id,
@@ -110,7 +112,9 @@ class AnalysisController extends Controller
         }
 
         $tipo_documento = $layout['TIPO_DOCUMENTO'];
-        $field_specs = DB::table('document_field_specs')->where('doc_type', $tipo_documento)->get(['id', 'field_key', 'label', 'is_required', 'datatype', 'regex']);
+        // Buscar el ID del tipo de documento basado en el nombre
+        $docTypeId = DB::table('document_types')->where('nombre_doc', $tipo_documento)->value('id');
+        $field_specs = DB::table('document_field_specs')->where('doc_type_id', $docTypeId)->get(['id', 'field_key', 'label', 'is_required', 'datatype', 'regex']);
 
         // ==========================================================
         // 2) Evaluación: existencia y regex contra json_global

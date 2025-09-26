@@ -37,21 +37,14 @@ class DocumentUploadController extends Controller
             ]);
             // Obtener ID del documento maestro
             $document_master_id = $document->id;
-            // ...existing code...
-            $originalBaseName = pathinfo($originalFilename, PATHINFO_FILENAME);
-            $images = $this->convertPdfToImages($path,$group);
-            $rechazado = $this->saveImages($images, $originalBaseName, $group, $document_master_id);
-            if ($rechazado) {
-                $document->status = 2;
-                $document->save();
-            } else {
-                $document->status = 1;
-                $document->save();
-            }
+            
+            // Primero determinar el tipo y si debe ser analizado
             $filename = (string)$document->filename;
             $normFile = $this->normalizeName($filename);
             Log::info("Analizando documento: {$filename}, normalizado: {$normFile}");
             $found = false;
+            $analizar = 0;
+            $tipo = 0;
             foreach ($obligatorios as $obl) {
                 $nombreDoc = (string)$obl->nombre_doc;
                 $analizar  = (int)$obl->analizar;
@@ -69,6 +62,18 @@ class DocumentUploadController extends Controller
             }
             $document->tipo = $tipo;
             $document->save();
+            
+            // Ahora convertir y procesar imágenes con el valor de analizar conocido
+            $originalBaseName = pathinfo($originalFilename, PATHINFO_FILENAME);
+            $images = $this->convertPdfToImages($path,$group);
+            $rechazado = $this->saveImages($images, $originalBaseName, $group, $document_master_id, $analizar);
+            if ($rechazado) {
+                $document->status = 2;
+                $document->save();
+            } else {
+                $document->status = 1;
+                $document->save();
+            }
             if($analizar == 1){
                 app(\App\Http\Controllers\AnalysisController::class)->createSuggestions($document_master_id);
             }
@@ -132,14 +137,24 @@ class DocumentUploadController extends Controller
             'name' => $request->group_name,
             'status' => 0,
         ]);
+
+        // Añadir el usuario autenticado como propietario del grupo
+        $user = $request->user();
+        $group->users()->attach($user->id, [
+            'active' => 1, // puede ver (predeterminado para quien lo crea)
+            'managed_by' => $user->id // quien lo aprobó (él mismo)
+        ]);
+
         $this->_addDocumentsToGroup($request, $group);
+        
         return response()->json([
             'message' => 'Grupo creado y documentos subidos.',
-            'group_id' => $group->id
+            'group_id' => $group->id,
+            'group' => $group->load('users')
         ]);
     }
 
-    public function saveImages($images, $originalBaseName, $group, $document_master_id)
+    public function saveImages($images, $originalBaseName, $group, $document_master_id, $analizar)
     {
         $modificado_global = false;
         foreach ($images as $imgPath) {
@@ -158,18 +173,20 @@ class DocumentUploadController extends Controller
                 'mime_type' => 'image/png',
                 'status' => 0,
             ]);
-            // === Enviar a API FastAPI ===
-            try {
-                $absolutePath = storage_path('app/public/' . $imgPath);
+            
+            // === Enviar a API FastAPI solo si analizar = 1 ===
+            if ($analizar == 1) {
+                try {
+                    $absolutePath = storage_path('app/public/' . $imgPath);
 
-                $response = Http::attach(
-                    'file', fopen($absolutePath, 'r'), $newFilename
-                )->post('http://localhost:5050/procesar/', [
-                    'master_id' => $document_master_id,
-                    'doc_id' => $document->id,
-                    'group_id' => $group->id,
-                    'page' => $pageNumber
-                ]);
+                    $response = Http::attach(
+                        'file', fopen($absolutePath, 'r'), $newFilename
+                    )->post('http://localhost:5050/procesar/', [
+                        'master_id' => $document_master_id,
+                        'doc_id' => $document->id,
+                        'group_id' => $group->id,
+                        'page' => $pageNumber
+                    ]);
 
                 // Podís guardar respuesta si querís:
                 if ($response->successful()) {
@@ -233,6 +250,12 @@ class DocumentUploadController extends Controller
 
             } catch (\Exception $e) {
                 \Log::error("Error al procesar con IA", ['error' => $e->getMessage()]);
+            }
+            } else {
+                // Si no debe ser analizado, solo marcar con status 1 (procesado sin análisis)
+                $document->update([
+                    'status' => 1
+                ]);
             }
         }
         return $modificado_global;
@@ -307,25 +330,38 @@ class DocumentUploadController extends Controller
         ]);
 
         $group = DocumentGroup::findOrFail($group_id);
+        
+        // Verificar que el usuario tenga acceso al grupo
+        $user = $request->user();
+        if (!$group->users()->where('user_id', $user->id)->wherePivot('active', 1)->exists()) {
+            return response()->json(['message' => 'No tienes permisos para añadir documentos a este grupo'], 403);
+        }
+
         $this->_addDocumentsToGroup($request, $group);
 
         return response()->json([
             'message' => 'Documentos añadidos al grupo ' . $group->name
         ]);
     }
-    public function show($id)
+    public function show(Request $request, $id)
     {
-        $group = DocumentGroup::with('documents')->find($id);
+        $user = $request->user();
+        $group = $user->activeDocumentGroups()
+                     ->with(['documents', 'users'])
+                     ->find($id);
 
         if (!$group) {
-            return response()->json(['message' => 'Grupo no encontrado'], 404);
+            return response()->json(['message' => 'Grupo no encontrado o sin permisos'], 404);
         }
 
         return response()->json($group);
     }
-    public function index()
+    public function index(Request $request)
     {
-        $groups = DocumentGroup::with('documents')->get();
+        $user = $request->user();
+        $groups = $user->activeDocumentGroups()
+                      ->with(['documents', 'users'])
+                      ->get();
         return response()->json($groups);
     }
 
@@ -401,5 +437,112 @@ class DocumentUploadController extends Controller
             return response()->json(['resumen' => null], 404);
         }
         return response()->json(['resumen' => $data->resumen]);
+    }
+
+    /**
+     * Añadir usuario a un grupo existente
+     */
+    public function addUserToGroup(Request $request, $group_id)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'active' => 'sometimes|in:0,1,2' // 0=pendiente, 1=aprobado, 2=rechazado
+        ]);
+
+        $user = $request->user();
+        $group = DocumentGroup::findOrFail($group_id);
+
+        // Verificar que el usuario actual sea propietario del grupo
+        $isOwner = $group->users()
+                         ->where('user_id', $user->id)
+                         ->wherePivot('active', 1)
+                         ->wherePivot('managed_by', $user->id)
+                         ->exists();
+
+        if (!$isOwner) {
+            return response()->json(['message' => 'Solo el propietario puede gestionar usuarios del grupo'], 403);
+        }
+
+        $activeStatus = $request->input('active', 0); // Por defecto pendiente
+
+        // Añadir el usuario al grupo
+        $group->users()->syncWithoutDetaching([
+            $request->user_id => [
+                'active' => $activeStatus,
+                'managed_by' => $user->id // quien aprueba es el usuario actual
+            ]
+        ]);
+
+        return response()->json([
+            'message' => 'Usuario añadido al grupo correctamente',
+            'status' => $activeStatus == 0 ? 'pendiente' : ($activeStatus == 1 ? 'aprobado' : 'rechazado'),
+            'group' => $group->load('users')
+        ]);
+    }
+
+    /**
+     * Aprobar/rechazar usuario en un grupo
+     */
+    public function updateUserStatus(Request $request, $group_id, $user_id)
+    {
+        $request->validate([
+            'active' => 'required|in:1,2' // 1=aprobado, 2=rechazado
+        ]);
+
+        $currentUser = $request->user();
+        $group = DocumentGroup::findOrFail($group_id);
+
+        // Verificar que el usuario actual sea propietario del grupo
+        $isOwner = $group->users()
+                         ->where('user_id', $currentUser->id)
+                         ->wherePivot('active', 1)
+                         ->wherePivot('managed_by', $currentUser->id)
+                         ->exists();
+
+        if (!$isOwner) {
+            return response()->json(['message' => 'Solo el propietario puede aprobar/rechazar usuarios'], 403);
+        }
+
+        // Actualizar el status del usuario en el grupo
+        $group->users()->updateExistingPivot($user_id, [
+            'active' => $request->active,
+            'managed_by' => $currentUser->id
+        ]);
+
+        $status = $request->active == 1 ? 'aprobado' : 'rechazado';
+
+        return response()->json([
+            'message' => "Usuario {$status} correctamente",
+            'status' => $status
+        ]);
+    }
+
+    /**
+     * Obtener usuarios pendientes de aprobación en un grupo
+     */
+    public function getPendingUsers(Request $request, $group_id)
+    {
+        $currentUser = $request->user();
+        $group = DocumentGroup::findOrFail($group_id);
+
+        // Verificar que el usuario actual sea propietario del grupo
+        $isOwner = $group->users()
+                         ->where('user_id', $currentUser->id)
+                         ->wherePivot('active', 1)
+                         ->wherePivot('managed_by', $currentUser->id)
+                         ->exists();
+
+        if (!$isOwner) {
+            return response()->json(['message' => 'Solo el propietario puede ver usuarios pendientes'], 403);
+        }
+
+        $pendingUsers = $group->users()
+                            ->wherePivot('active', 0)
+                            ->get();
+
+        return response()->json([
+            'pending_users' => $pendingUsers,
+            'count' => $pendingUsers->count()
+        ]);
     }
 }

@@ -15,8 +15,8 @@ Route::prefix('v1')->group(function () {
     Route::get('/me', [AuthController::class, 'me'])->middleware(['auth:sanctum']);
     
 
-    Route::get('/documents', [DocumentUploadController::class, 'index']);
-    Route::get('/documents/{id}', [DocumentUploadController::class, 'show']);
+    Route::get('/documents', [DocumentUploadController::class, 'index'])->middleware(['auth:sanctum']);
+    Route::get('/documents/{id}', [DocumentUploadController::class, 'show'])->middleware(['auth:sanctum']);
     Route::get('/documents/{id}/layout', [SemanticController::class, 'buscarJsonLayoutByDocumentId']);
     Route::get('/documentos_vencidos', [SemanticController::class, 'obtenerDocumentosVencidos']);
     Route::get('/documents/group/{group_id}/vencidos', [SemanticController::class, 'obtenerDocumentosVencidosDeGrupo']);
@@ -26,8 +26,8 @@ Route::prefix('v1')->group(function () {
     // Búsqueda semántica con filtros (status / normative_gap opcionales)
 
     Route::post('/documentos_vencidos', [SemanticController::class, 'marcarDocumentosVencidos']);
-    Route::post('/documents', [DocumentUploadController::class, 'storeNewGroup']);
-    Route::post('/documents/{group_id}', [DocumentUploadController::class, 'addToGroup']);
+    Route::post('/documents', [DocumentUploadController::class, 'storeNewGroup'])->middleware(['auth:sanctum']);
+    Route::post('/documents/{group_id}', [DocumentUploadController::class, 'addToGroup'])->middleware(['auth:sanctum']);
 
     Route::delete('/documents/file/{id}', [DocumentUploadController::class, 'destroyFile']);
     Route::delete('/documents/group/{id}', [DocumentUploadController::class, 'destroyGroup']);
@@ -49,5 +49,10 @@ Route::prefix('v1')->group(function () {
     Route::get('/groups/{groupId}/overview', [DocumentSummaryController::class, 'overviewJson']);
     Route::get('/mandatory-docs', [DocumentSummaryController::class, 'mandatoryDocs']);
     Route::get('/document-summary/{document_id}', [App\Http\Controllers\DocumentUploadController::class, 'getDocumentSummary']);
+    
+    // Gestión de usuarios en grupos
+    Route::post('/groups/{group_id}/users', [DocumentUploadController::class, 'addUserToGroup'])->middleware(['auth:sanctum']);
+    Route::put('/groups/{group_id}/users/{user_id}/status', [DocumentUploadController::class, 'updateUserStatus'])->middleware(['auth:sanctum']);
+    Route::get('/groups/{group_id}/pending-users', [DocumentUploadController::class, 'getPendingUsers'])->middleware(['auth:sanctum']);
 
 });

@@ -184,7 +184,7 @@ class SemanticController extends Controller
 
     public function obtenerVencimientoDocumento(int $id_documento): JsonResponse
     {
-        try {
+        try { 
 
         } catch (\Exception $e) {
 

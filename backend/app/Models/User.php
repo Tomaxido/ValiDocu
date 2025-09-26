@@ -66,6 +66,21 @@ class User extends Authenticatable
         return $this->belongsToMany(Role::class)->withTimestamps();
     }
 
+    public function documentGroups()
+    {
+        return $this->belongsToMany(DocumentGroup::class, 'users_groups', 'user_id', 'group_id')
+                    ->withPivot('active', 'managed_by')
+                    ->withTimestamps();
+    }
+
+    public function activeDocumentGroups()
+    {
+        return $this->belongsToMany(DocumentGroup::class, 'users_groups', 'user_id', 'group_id')
+                    ->withPivot('active', 'managed_by')
+                    ->wherePivot('active', 1)
+                    ->withTimestamps();
+    }
+
     public function permissions()
     {
         return Permission::query()

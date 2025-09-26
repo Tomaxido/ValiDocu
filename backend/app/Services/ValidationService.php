@@ -184,7 +184,9 @@ class ValidationService
     [$fields, $evidences] = $this->normalize($layout, $docType);
 
     // 5) Reglas por tipo
-    $specs = \App\Models\DocumentFieldSpec::where('doc_type', $docType)->get()->keyBy('field_key');
+    // Buscar el ID del tipo de documento basado en el nombre
+    $docTypeId = DB::table('document_types')->where('nombre_doc', $docType)->value('id');
+    $specs = DocumentFieldSpec::where('doc_type_id', $docTypeId)->get()->keyBy('field_key');
     $issues = [];
 
     // Faltantes obligatorios
