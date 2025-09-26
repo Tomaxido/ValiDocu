@@ -25,6 +25,12 @@ return new class extends Migration
                 'updated_at' => now(),
             ],
             [
+                'nombre_doc' => 'CONTRATO DE MUTUO Y MANDATO',
+                'analizar' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
                 'nombre_doc' => 'CARNET IDENTIDAD DEUDOR',
                 'analizar' => 0,
                 'created_at' => now(),
