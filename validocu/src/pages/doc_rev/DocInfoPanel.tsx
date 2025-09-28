@@ -25,6 +25,7 @@ import SuggestionsModal from "./SuggestionsModal";
 interface Props {
   selectedDoc: Document;
   semanticGroupData: SemanticGroup[];
+  onViewInDocument?: (fieldKey: string) => void;
 }
 
 function getBaseFilename(filename: string): string {
@@ -69,6 +70,7 @@ function StatusNorm({ status }: { status: number }) {
 
 export default function DocInfoPanel({
   selectedDoc,
+  onViewInDocument,
 }: Readonly<Props>) {
   const [loading, setLoading] = useState(false);
   const [openSugModal, setOpenSugModal] = useState(false);
@@ -88,7 +90,6 @@ export default function DocInfoPanel({
   }, []);
 
   useEffect(() => {
-    console.log("Cambio de documento, id actual", selectedDoc.id);
     reAnalyze();
     // Obtener resumen del documento
   }, [selectedDoc]);
@@ -237,6 +238,7 @@ export default function DocInfoPanel({
         onReanalyze={async () => await reAnalyze()}
         onIssueUpdated={handleIssueUpdated}
         suggestionStatuses={statuses}
+        onViewInDocument={onViewInDocument}
       />
     </Paper>
   );

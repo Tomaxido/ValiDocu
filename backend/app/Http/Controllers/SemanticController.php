@@ -357,5 +357,48 @@ class SemanticController extends Controller
         return response()->json($resultados);
     }
 
+    /**
+     * Buscar el layout JSON con coordenadas desde semantic_doc_index 
+     * (Función que busca en semantic_doc_index.json_layout directamente)
+     */
+    public function buscaDocJsonLayoutByDocumentId(int $documentId): JsonResponse
+    {
+        try {
+            $result = DB::table('semantic_doc_index')
+                ->where('document_id', $documentId)
+                ->first(['json_layout']);
+
+            if (!$result || !$result->json_layout) {
+                return response()->json([
+                    'message' => 'No se encontró layout para el documento especificado',
+                    'document_id' => $documentId
+                ], 404);
+            }
+
+            $layout = json_decode($result->json_layout, true);
+
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return response()->json([
+                    'message' => 'Error al decodificar el layout JSON',
+                    'error' => json_last_error_msg()
+                ], 500);
+            }
+
+            // El json_layout ya tiene el formato con coordenadas
+            // [{"page": 1, "text": "CONTRATO DE MUTUO", "boxes": [[131, 154, 1014, 192]], "label": "TIPO_DOCUMENTO"}]
+            
+            return response()->json($layout);
+        } catch (\Exception $e) {
+            Log::error('Error al buscar layout del documento', [
+                'document_id' => $documentId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'message' => 'Error interno al buscar el layout del documento'
+            ], 500);
+        }
+    }
+
 
 }

@@ -1,6 +1,14 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { getDocumentGroupById, uploadDocumentsToGroup, deleteDocuments, getSemanticGroupData, marcarDocumentosVencidos, obtenerDocumentosVencidosDeGrupo as obtenerDocumentosVencidosDeGrupo } from "../../utils/api";
+import {
+  getDocumentGroupById,
+  uploadDocumentsToGroup,
+  deleteDocuments,
+  getSemanticGroupData,
+  marcarDocumentosVencidos,
+  obtenerDocumentosVencidosDeGrupo as obtenerDocumentosVencidosDeGrupo,
+  buscaDocJsonLayoutPorIdDocumento 
+} from "../../utils/api";
 import { type DocumentGroup, type Document, type GroupedDocument, type SemanticGroup, type ExpiredDocumentResponse } from "../../utils/interfaces";
 import UploadModal from "./UploadModal";
 import DeleteModal from "./DeleteModal";
@@ -61,6 +69,7 @@ export default function Grupo() {
   const [mandatoryError, setMandatoryError] = useState<string | null>(null);
   const hoverTimerRef = useRef<number | null>(null);
   const [respuestaDocsVencidos, setRespuestaDocsVencidos] = useState<ExpiredDocumentResponse | null>(null);
+  const [docLayout, setDocLayout] = useState<any>(null);
 
   const splitRef = useRef<HTMLDivElement | null>(null);
   const [ratio, setRatio] = useState(0.66);
@@ -95,6 +104,72 @@ export default function Grupo() {
     if (hoverTimerRef.current) window.clearTimeout(hoverTimerRef.current);
   };
 
+  // Función para manejar "Ver en documento"
+  const handleViewInDocument = async (fieldKey: string) => {
+    if (!selectedDoc) {
+      console.warn('⚠️ No hay documento seleccionado');
+      return;
+    }
+
+    try {
+      // Obtener el layout del documento si no está cargado
+      if (!docLayout) {
+        const layoutData = await buscaDocJsonLayoutPorIdDocumento(selectedDoc.id);
+        setDocLayout(layoutData);
+        
+        // Buscar la anotación correspondiente al fieldKey en el layout
+        const annotation = layoutData.find((item: any) => {
+          // En json_layout, los elementos tienen formato: {"page": 1, "text": "...", "boxes": [...], "label": "TIPO_DOCUMENTO"}
+          // Buscar por label principalmente, ya que es el identificador del campo
+          return item.label === fieldKey || 
+                 item.label === fieldKey.toUpperCase() ||
+                 item.label?.toLowerCase() === fieldKey.toLowerCase();
+        });
+
+        if (annotation && annotation.boxes && annotation.boxes.length > 0) {
+          // Emitir el evento focus-evidence que el GroupedImageViewer está escuchando
+          const evidenceEvent = new CustomEvent('focus-evidence', {
+            detail: {
+              items: [{
+                boxes: annotation.boxes,
+                page: (annotation as any).page || 1 // Usar la página del json_layout
+              }],
+              noScroll: false // Permitir scroll automático
+            }
+          });
+          
+          window.dispatchEvent(evidenceEvent);
+        }
+      } else {
+        // Buscar en el layout ya cargado
+        const annotation = docLayout.find((item: any) => {
+          // En json_layout, los elementos tienen formato: {"page": 1, "text": "...", "boxes": [...], "label": "TIPO_DOCUMENTO"}
+          return item.label === fieldKey || 
+                 item.label === fieldKey.toUpperCase() ||
+                 item.label?.toLowerCase() === fieldKey.toLowerCase();
+        });
+
+        if (annotation && annotation.boxes && annotation.boxes.length > 0) {
+          const evidenceEvent = new CustomEvent('focus-evidence', {
+            detail: {
+              items: [{
+                boxes: annotation.boxes,
+                page: (annotation as any).page || 1 // Usar la página del json_layout
+              }],
+              noScroll: false
+            }
+          });
+          
+          window.dispatchEvent(evidenceEvent);
+        } else {
+          console.warn(`❌ No se encontró el campo: ${fieldKey} (cached)`);
+        }
+      }
+    } catch (error) {
+      console.error('💥 Error al buscar el campo en el documento:', error);
+    }
+  };
+
   const fetchSemanticGroupData = async (groupFiles: Document[]) => {
     const ids = groupFiles.map(doc => doc.id);
     const res = await fetch(`http://localhost:8000/api/v1/semantic-data/by-filenames`, {
@@ -117,6 +192,7 @@ export default function Grupo() {
         setGroupedDocs(grouped);
         if (grouped.length > 0 && grouped[0].pdf) {
           setSelectedDoc(grouped[0].pdf);
+          setDocLayout(null); // Limpiar layout al seleccionar documento inicial
           getSemanticGroupData(grouped[0].images).then(
             data => setSemanticGroupData(data)
           );
@@ -332,6 +408,7 @@ export default function Grupo() {
                   onClick={() => {
                     if (grouped.pdf) {
                       setSelectedDoc(grouped.pdf);
+                      setDocLayout(null); // Limpiar layout al cambiar documento
                       getSemanticGroupData(grouped.images).then(
                         data => setSemanticGroupData(data)
                       );
@@ -411,6 +488,7 @@ export default function Grupo() {
               <DocInfoPanel
                 selectedDoc={selectedDoc}
                 semanticGroupData={semanticGroupData}
+                onViewInDocument={handleViewInDocument}
                 // imageIds={currentImageIds}
               />
             </Box>
