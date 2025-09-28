@@ -5,22 +5,24 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Http\Request;
 use App\Models\DocumentGroup;
+use Illuminate\Contracts\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\Mime\MimeTypes;
 
-Route::get('/', function () {
+Route::get('/', function (): View {
     return view('welcome');
 });
 
-Route::get('/documentos/vista', function () {
+Route::get('/documentos/vista', function (): View {
     $grupos = DocumentGroup::with('documents')->get();
     return view('documentos.index', compact('grupos'));
 });
 
-Route::get('/documentos/formulario', function () {
+Route::get('/documentos/formulario', function (): View {
     return view('documentos.formulario');
 });
 
-Route::get('/secure-pdf/{hashed}', function ($hashed) {
+Route::get('/secure-pdf/{hashed}', function (string $hashed): BinaryFileResponse {
     $path = storage_path('app/public/documents/' . $hashed);
 
     if (!file_exists($path)) {

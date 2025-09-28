@@ -8,7 +8,9 @@ use App\Models\Document;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use App\Services\SiiService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
 
 
@@ -126,7 +128,7 @@ class DocumentUploadController extends Controller
         return (bool) preg_match('/' . $regex . '/u', $normFile);
     }
 
-    public function storeNewGroup(Request $request)
+    public function storeNewGroup(Request $request): JsonResponse
     {
         $request->validate([
             'group_name' => 'required|string|max:255',
@@ -261,20 +263,20 @@ class DocumentUploadController extends Controller
         return $modificado_global;
     }
 
-    public function convertPdfToImages($relativePath, $group)
+    private function convertPdfToImages(string $relativePath, $group): array
     {
         $pdfPath = storage_path('app/public/' . $relativePath);
         $filename = basename($relativePath);
 
-        \Log::info("📄 Ruta PDF: $pdfPath");
+        Log::info("📄 Ruta PDF: $pdfPath");
 
         if (!file_exists($pdfPath)) {
-            \Log::error("❌ PDF no encontrado: $pdfPath");
+            Log::error("❌ PDF no encontrado: $pdfPath");
             return [];
         }
 
         try {
-            \Log::info("📤 Enviando PDF a API: $filename");
+            Log::info("📤 Enviando PDF a API: $filename");
 
             $response = Http::attach(
                 'file',
@@ -282,11 +284,11 @@ class DocumentUploadController extends Controller
                 $filename
             )->post('http://localhost:5050/pdf_to_images/');
 
-            \Log::info("🔁 Respuesta API status: " . $response->status());
-            \Log::debug("📦 Respuesta body: " . $response->body());
+            Log::info("🔁 Respuesta API status: " . $response->status());
+            Log::debug("📦 Respuesta body: " . $response->body());
 
             if (!$response->successful()) {
-                \Log::error("❌ Falló llamada a FastAPI", [
+                Log::error("❌ Falló llamada a FastAPI", [
                     'status' => $response->status(),
                     'body' => $response->body()
                 ]);
@@ -296,7 +298,7 @@ class DocumentUploadController extends Controller
             $data = $response->json();
 
             if (!isset($data['images']) || empty($data['images'])) {
-                \Log::warning("⚠️ No se recibieron imágenes desde la API.");
+                Log::warning("⚠️ No se recibieron imágenes desde la API.");
             }
 
             $imagenesGuardadas = [];
@@ -305,7 +307,7 @@ class DocumentUploadController extends Controller
                 $imgFilename = $img['filename'];
                 $base64 = $img['content_base64'];
 
-                \Log::info("💾 Guardando imagen: $imgFilename");
+                Log::info("💾 Guardando imagen: $imgFilename");
 
                 $path = storage_path("app/public/documents/{$imgFilename}");
                 $result = file_put_contents($path, base64_decode($base64));
@@ -317,13 +319,13 @@ class DocumentUploadController extends Controller
             return $imagenesGuardadas;
 
         } catch (\Exception $e) {
-            \Log::error("❌ Excepción en conversión PDF", ['error' => $e->getMessage()]);
+            Log::error("❌ Excepción en conversión PDF", ['error' => $e->getMessage()]);
             return [];
         }
     }
 
 
-    public function addToGroup(Request $request, $group_id)
+    public function addToGroup(Request $request, int $group_id): JsonResponse
     {
         $request->validate([
             'documents.*' => 'required|file',
@@ -365,7 +367,7 @@ class DocumentUploadController extends Controller
         return response()->json($groups);
     }
 
-    public function destroyFile($id)
+    public function destroyFile(int $id): JsonResponse
     {
         $document = Document::find($id);
 
@@ -374,15 +376,16 @@ class DocumentUploadController extends Controller
         }
 
         // Borra el archivo físico si existe
-        if (\Storage::disk('public')->exists($document->filepath)) {
-            \Storage::disk('public')->delete($document->filepath);
+        if (Storage::disk('public')->exists($document->filepath)) {
+            Storage::disk('public')->delete($document->filepath);
         }
 
         $document->delete();
 
         return response()->json(['message' => 'Documento eliminado correctamente.']);
     }
-    public function destroyGroup($id)
+
+    public function destroyGroup(int $id): JsonResponse
     {
         $group = DocumentGroup::with('documents')->find($id);
 
@@ -391,8 +394,8 @@ class DocumentUploadController extends Controller
         }
 
         foreach ($group->documents as $document) {
-            if (\Storage::disk('public')->exists($document->filepath)) {
-                \Storage::disk('public')->delete($document->filepath);
+            if (Storage::disk('public')->exists($document->filepath)) {
+                Storage::disk('public')->delete($document->filepath);
             }
             $document->delete();
         }
@@ -402,7 +405,7 @@ class DocumentUploadController extends Controller
         return response()->json(['message' => 'Grupo y documentos eliminados correctamente.']);
     }
 
-    public function getSemanticDataByFilenames(Request $request)
+    public function getSemanticDataByFilenames(Request $request): JsonResponse
     {
         // 1. Log de lo que llega
         $ids = $request->input('ids');
@@ -428,7 +431,8 @@ class DocumentUploadController extends Controller
     }
 
         // Nuevo endpoint para obtener el resumen de un documento
-    public function getDocumentSummary($document_id){
+    public function getDocumentSummary(int $document_id): JsonResponse
+    {
         $data = DB::table('semantic_doc_index')
             ->where('document_id', $document_id)
             ->select('resumen')

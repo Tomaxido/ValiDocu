@@ -11,7 +11,7 @@ import {
   Tooltip,
   Alert,
 } from "@mui/material";
-import { Folder, Plus, Search as SearchIcon, Settings2 } from "lucide-react";
+import { Folder, Plus, Search as SearchIcon, Settings2, } from "lucide-react";
 import { createGroup, getDocumentGroups, buscarDocumentosPorTexto, obtenerDocumentosVencidos, marcarDocumentosVencidos, buscarSemanticaConFiltros } from "../../utils/api";
 import type { DocumentGroup, ExpiredDocumentResponse } from "../../utils/interfaces";
 import NewGroupModal from "./NewGroupModal";
@@ -149,7 +149,7 @@ export default function Home() {
   if (documentGroups === null) return <Typography sx={{ p: 3 }}>Cargando...</Typography>;
 
   return (
-    <Box sx={{ p: 3, bgcolor: "background.default", minHeight: "100dvh" }}>
+    <Box sx={{p: 3, bgcolor: "background.default", minHeight: "100dvh", paddingX: "6em" }}>
       {/* Alerta de documentos vencidos 
       // TODO: aunque se crea el mensaje de alerta, no se ve la alerta como tal */}
       <SnackbarDocsVencidos respuestaDocsVencidos={respuestaDocsVencidos}/>
@@ -269,10 +269,7 @@ export default function Home() {
               >
                 Limpiar
               </Button>
-              <Button
-                variant="contained"
-                onClick={() => { setFiltersAnchor(null); buscar(); }}
-              >
+              <Button onClick={() => { setFiltersAnchor(null); buscar(); }} color="secondary">
                 Aplicar
               </Button>
             </Stack>
@@ -300,15 +297,12 @@ export default function Home() {
             onKeyDown={(e) => e.key === "Enter" && buscar()}
             sx={{ flex: 1, color: "text.primary" }}
           />
-          <Button onClick={buscar} variant="contained" color="primary">Buscar</Button>
+          <IconButton onClick={buscar} sx={{ boxShadow: "0px 0px 4px gray" }}>
+            <SearchIcon size={20} />
+          </IconButton>
         </Paper>
 
-        <Button
-          onClick={() => setIsModalOpen(true)}
-          variant="contained"
-          color="warning"
-          startIcon={<Plus size={20} />}
-        >
+        <Button onClick={() => setIsModalOpen(true)} startIcon={<Plus size={20} />}>
           Agregar grupo
         </Button>
       </Stack>
@@ -351,7 +345,6 @@ export default function Home() {
                       acciones = (
                         <Button
                           color="error"
-                          variant="contained"
                           size="small"
                           onClick={() => navigate(`/grupos/${res.document_group_id}`)}
                         >
@@ -363,7 +356,6 @@ export default function Home() {
                       acciones = (
                         <Button
                           color="warning"
-                          variant="contained"
                           size="small"
                           onClick={() => navigate(`/grupos/${res.document_group_id}`)}
                         >
@@ -374,8 +366,7 @@ export default function Home() {
                     } else {
                       acciones = (
                         <Button
-                          color="primary"
-                          variant="contained"
+                          color="secondary"
                           size="small"
                           onClick={() => navigate(`/grupos/${res.document_group_id}`)}
                         >
@@ -450,7 +441,9 @@ export default function Home() {
                       </TableCell>
                       <TableCell>{acciones}</TableCell>
                       <TableCell>
-                        <Button variant="outlined" onClick={() => navigate(`/grupos/${res.document_group_id}`)}>Ver grupo</Button>
+                        <Button onClick={() => navigate(`/grupos/${res.document_group_id}`)}>
+                          Ver grupo
+                        </Button>
                       </TableCell>
                     </TableRow>
                   );
@@ -494,7 +487,6 @@ export default function Home() {
                         <Button
                           key="vencido"
                           color="error"
-                          variant="contained"
                           size="small"
                           onClick={() => navigate(`/grupos/${g.id}`)}
                         >
@@ -507,7 +499,6 @@ export default function Home() {
                         <Button
                           key="por-vencer"
                           color="warning"
-                          variant="contained"
                           size="small"
                           onClick={() => navigate(`/grupos/${g.id}`)}
                         >
@@ -519,8 +510,7 @@ export default function Home() {
                       accionesArr.push(
                         <Button
                           key="renovar"
-                          color="primary"
-                          variant="contained"
+                          color="secondary"
                           size="small"
                           onClick={() => navigate(`/grupos/${g.id}`)}
                         >
@@ -597,11 +587,12 @@ export default function Home() {
                         </TableCell>
                         <TableCell>{acciones}</TableCell>
                         <TableCell>
-                          <Button variant="outlined" onClick={() => navigate(`/grupos/${g.id}`)}>Ver grupo</Button>
+                          <Button onClick={() => navigate(`/grupos/${g.id}`)}>Ver grupo</Button>
                         </TableCell>
                       </TableRow>
                     );
-                  })}
+                  })
+                }
               </TableBody>
             </Table>
           </TableContainer>

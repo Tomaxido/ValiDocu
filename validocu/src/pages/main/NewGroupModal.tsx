@@ -159,12 +159,7 @@ export default function NewGroupModal({ isOpen, onClose, onUpload }: Readonly<Pr
 
       <DialogActions>
         <Button onClick={onClose}>Cancelar</Button>
-        <Button
-          onClick={handleSubmit}
-          disabled={isUploading || fileList.length === 0 || !groupName}
-          variant="contained"
-          color="primary"
-        >
+        <Button onClick={handleSubmit} disabled={isUploading || fileList.length === 0 || !groupName}>
           {isUploading ? "Subiendo..." : "Crear grupo"}
         </Button>
       </DialogActions>

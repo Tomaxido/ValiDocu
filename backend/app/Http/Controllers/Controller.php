@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 use App\Services\SiiService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 
 abstract class Controller
@@ -13,7 +14,7 @@ abstract class Controller
         $this->siiService = $siiService;
     }
 
-    public function checkRut($rut, $dv)
+    public function checkRut(?string $rut, ?string $dv): JsonResponse
     {
         $max_intentos = 10;
         $intentos = 0;

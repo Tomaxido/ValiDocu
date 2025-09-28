@@ -141,7 +141,6 @@ export default function DeleteModal({ isOpen, onClose, documents, onDelete }: Re
         <Button
           onClick={handleDelete}
           disabled={isDeleting || selectedKeys.length === 0}
-          variant="contained"
           color="error"
         >
           {isDeleting

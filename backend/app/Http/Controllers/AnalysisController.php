@@ -8,18 +8,14 @@ use App\Models\AnalysisIssue;
 use App\Models\DocumentFieldSpec;
 use App\Services\ValidationService;
 use App\Services\SuggestionService;
-use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
-
-use Illuminate\Support\Arr;
-
-
-
 
 class AnalysisController extends Controller
 {
-    public function analyze(int $documentId)
+    public function analyze(int $documentId): JsonResponse
     {
         $doc = Document::findOrFail($documentId);
 
@@ -98,7 +94,7 @@ class AnalysisController extends Controller
         ]);
     }
 
-    public function createSuggestions(int $documentId)
+    public function createSuggestions(int $documentId): void
     {
         // $doc = Document::findOrFail($documentId);
 
@@ -185,7 +181,7 @@ class AnalysisController extends Controller
                     //     'message'    => "Regex inválido en especificación para «{$label}».",
                     //     'evidence'   => ['regex' => $spec->regex],
                     // ];
-                    \Log::alert('Se detectó un patron invalido en bd');
+                    Log::alert('Se detectó un patron invalido en bd');
                 }
             }
         }
@@ -193,7 +189,7 @@ class AnalysisController extends Controller
         // ==========================================================
         // 3) Guardar issues en DB
         // ==========================================================
-        \Log::info('Issues: ' . json_encode($issues, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+        Log::info('Issues: ' . json_encode($issues, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
         $analysisId = DB::table('document_analyses')->insertGetId([
             'document_id' => $documentId,
             'status' => 'TODO',
@@ -212,12 +208,12 @@ class AnalysisController extends Controller
         }
 
         if(!empty($issues)) {
-            // \Log::warning('Buenasssssss voy a actualizar el normative gap del documento con id ' . $documentId . ' a 1');
+            // Log::warning('Buenasssssss voy a actualizar el normative gap del documento con id ' . $documentId . ' a 1');
             Document::where('id', $documentId)->update(['normative_gap'=> 1]);
         }
     }
 
-    public function showAnalysis(int $documentId, int $analysisId)
+    public function showAnalysis(int $documentId, int $analysisId): JsonResponse
     {
         $analysis = DocumentAnalysis::where('document_id', $documentId)->findOrFail($analysisId);
         return response()->json([
@@ -226,7 +222,7 @@ class AnalysisController extends Controller
         ]);
     }
 
-    public function showLastAnalysis(int $documentId)
+    public function showLastAnalysis(int $documentId): JsonResponse
     {
         $analysis = DB::table('document_analyses')
             ->where('document_id', $documentId)

@@ -32,6 +32,7 @@ import {
 import { exportSuggestionsToExcel, exportSuggestionsToPDF } from "../../utils/summary_export";
 import DownloadIcon from "@mui/icons-material/Download";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import ReplayIcon from "@mui/icons-material/Replay";
 
 type Props = {
   open: boolean;
@@ -117,10 +118,8 @@ export default function SuggestionsModal({
           <Stack direction="row" spacing={1} alignItems="center">
             {/* Botón Descargar con menú */}
             <Button
-              variant="contained"
               size="small"
               onClick={handleClick}
-              // color='secondary'
               disabled={loading || saving}
               startIcon={<DownloadIcon />}
               endIcon={<ArrowDropDownIcon />}
@@ -152,10 +151,7 @@ export default function SuggestionsModal({
             </Menu>
 
             {/* Botón cerrar */}
-            <IconButton
-              aria-label="cerrar"
-              onClick={onClose}
-            >
+            <IconButton onClick={onClose} aria-label="cerrar">
               <CloseIcon />
             </IconButton>
           </Stack>
@@ -179,7 +175,11 @@ export default function SuggestionsModal({
               }
             </Stack>
             {onReanalyze && (
-              <Button onClick={onReanalyze} variant="contained" disabled={loading || saving}>
+              <Button
+                onClick={onReanalyze} 
+                disabled={loading || saving}
+                startIcon={<ReplayIcon />}
+              >
                 {loading ? "Cargando…" : "Re-analizar"}
               </Button>
             )}
@@ -283,7 +283,7 @@ export default function SuggestionsModal({
         await handleConfirm();
         window.location.reload(); // Recargar la página después de confirmar cambios
           }}
-          variant="contained"
+          color="secondary"
           disabled={!isDirty || saving}
         >
           {saving ? "Guardando…" : "Confirmar cambios"}

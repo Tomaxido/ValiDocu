@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use DOMDocument;
 use DOMXPath;
 use GuzzleHttp\Client;
+use Illuminate\Http\JsonResponse;
 
 class ApiSiiController extends Controller
 {
-    public function check_dte($rut, $dv){
+    public function check_dte(?string $rut, ?string $dv): JsonResponse
+    {
         $errors_validator = [];
 
         if($rut == null || $rut == ''){
@@ -314,8 +316,8 @@ class ApiSiiController extends Controller
         return response()->json($response, 200);
     }
 
-    function validar_rut($rut){
-
+    private function validar_rut(string $rut): bool
+    {
         $rut = preg_replace('/[^k0-9]/i', '', $rut);
         $dv  = substr($rut, -1);
         $numero = substr($rut, 0, strlen($rut)-1);
@@ -345,8 +347,8 @@ class ApiSiiController extends Controller
 
     }
 
-    public function prueba(){
-
+    public function prueba(): void
+    {
         $rut = '77.884.401-K';
         $rut = preg_replace('/[^k0-9]/i', '', $rut);
         $dv  = substr($rut, -1);
