@@ -3,6 +3,7 @@ import { AppBar, Toolbar, Box, Link } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
 import BrandMark from '../graphics/ValiDocuLogo';
+import UserMenu from '../components/auth/UserMenu';
 
 interface Props { children: ReactNode; }
 
@@ -56,7 +57,7 @@ export default function MainLayout({ children }: Props) {
 
           <Box sx={{ flex: 1 }} />
 
-          <Box sx={{ display: 'flex', gap: 3 }}>
+          <Box sx={{ display: 'flex', gap: 3, alignItems: 'center' }}>
             <Link component={RouterLink} underline="none" color="inherit" to="/">
               Inicio
             </Link>
@@ -66,6 +67,9 @@ export default function MainLayout({ children }: Props) {
             <Link component={RouterLink} underline="none" color="inherit" to="/perfil">
               Perfil
             </Link>
+            
+            {/* Importar y usar UserMenu aquí */}
+            <UserMenu />
           </Box>
         </Toolbar>
       </AppBar>

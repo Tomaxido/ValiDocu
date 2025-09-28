@@ -202,7 +202,7 @@ class SemanticController extends Controller
             2 => 'Por vencer',
         ];
         $DOC_TYPE_LABELS = [0 => 'Otros'];
-        foreach (DB::table('documentos_obligatorios')->select('id', 'nombre_doc')->get() as $row) {
+        foreach (DB::table('document_types')->select('id', 'nombre_doc')->get() as $row) {
             $DOC_TYPE_LABELS[$row->id] = $row->nombre_doc;
         }
 

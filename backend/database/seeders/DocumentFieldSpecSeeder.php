@@ -11,7 +11,7 @@ class DocumentFieldSpecSeeder extends Seeder
     {
         // 1) Defaults para asegurar todas las columnas
         $default = [
-            'doc_type'            => null,
+            'doc_type_id'         => null,
             'field_key'           => null,
             'label'               => null,
             'is_required'         => true,
@@ -24,8 +24,9 @@ class DocumentFieldSpecSeeder extends Seeder
             'updated_at'          => now(),
         ];
 
-        // 2) DocType objetivo
-        $DOC_TYPE = 'CONTRATO DE MUTUO Y MANDATO';
+    // 2) DocType objetivo
+    $DOC_TYPE = 'CONTRATO DE MUTUO Y MANDATO';
+    $docTypeId = DB::table('document_types')->where('nombre_doc', $DOC_TYPE)->value('id');
 
         $RUT_REGEX          = '^\d{1,2}\.?\d{3}\.?\d{3}-[\dkK]$';
         // Revisa fechas validas con formato DD-MM-YYYY, DD/MM/YYYY y DD.MM.YYYY incluyendo años bisiestos
@@ -211,13 +212,13 @@ class DocumentFieldSpecSeeder extends Seeder
         // 5) Construcción de filas para upsert
         $rows = [];
         foreach ($specsMutuoMandato as $spec) {
-            $rows[] = array_merge($default, $spec, ['doc_type' => $DOC_TYPE]);
+            $rows[] = array_merge($default, $spec, ['doc_type_id' => $docTypeId]);
         }
 
         // 6) UPSERT (evita duplicados al re-seedear)
         DB::table('document_field_specs')->upsert(
             $rows,
-            ['doc_type', 'field_key'],
+            ['doc_type_id', 'field_key'],
             ['label','is_required','datatype','regex','options','suggestion_template','example_text','updated_at']
         );
     }

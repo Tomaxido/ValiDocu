@@ -1,4 +1,5 @@
 import type { BoxAnnotation, Document, DocumentGroup, ExpiredDocumentResponse, SemanticGroup } from "./interfaces";
+import { authService } from "../api/auth";
 
 // let baseURL = "";
 // if (process.env.NODE_ENV === "development") {
@@ -9,13 +10,42 @@ import type { BoxAnnotation, Document, DocumentGroup, ExpiredDocumentResponse, S
   export const baseURL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
   
   
+  async function getAuthHeaders(): Promise<HeadersInit> {
+    const token = authService.getToken();
+    const headers: HeadersInit = {
+      "Content-Type": "application/json"
+    };
+    
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    
+    return headers;
+  }
+  
   async function getJSON(url: string): Promise<any> {
-    const res = await fetch(baseURL + url, { headers: { "Content-Type": "application/json" } });
+    const headers = await getAuthHeaders();
+    const res = await fetch(baseURL + url, { headers });
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData?.message ?? "Error en la petición");
+    }
     return await res.json();
   }
   
   async function post(url: string, body: any): Promise<void> {
-    const res = await fetch(baseURL + url, { method: "POST", body: body });
+    const token = authService.getToken();
+    const headers: HeadersInit = {};
+    
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    
+    const res = await fetch(baseURL + url, { 
+      method: "POST", 
+      headers,
+      body: body 
+    });
     if (!res.ok) {
       const errorData = await res.json();
       throw new Error(errorData?.message ?? "Error al subir documentos");
@@ -23,11 +53,16 @@ import type { BoxAnnotation, Document, DocumentGroup, ExpiredDocumentResponse, S
   }
   
   async function postJSON(url: string, body: any): Promise<any> {
+    const headers = await getAuthHeaders();
     const res = await fetch(baseURL + url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(body)
     });
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData?.message ?? "Error en la petición");
+    }
     return await res.json();
   }
   

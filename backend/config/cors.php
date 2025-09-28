@@ -2,7 +2,7 @@
 
 return [
 
-    'paths' => ['api/*', 'storage/*'], // ← MUY importante: incluir "storage/*"
+    'paths' => ['api/*', 'storage/*', 'login', 'logout'], // ← MUY importante: incluir "storage/*"
 
     'allowed_methods' => ['*'],
 
@@ -10,6 +10,7 @@ return [
         'http://localhost:5173',
         'http://validocu.cl',
         'https://validocu.cl',
+        '*',
         ],
 
     'allowed_headers' => ['*'],
@@ -18,6 +19,6 @@ return [
 
     'max_age' => 0,
 
-    'supports_credentials' => false,
+    'supports_credentials' => true,
 
 ];
