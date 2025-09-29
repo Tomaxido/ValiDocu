@@ -101,6 +101,65 @@ class AnalysisController extends Controller
         ]);
     }
 
+    /**
+     * Regenerar sugerencias para todos los documentos de un grupo
+     */
+    public function regenerateGroupSuggestions(int $groupId): void
+    {
+        Log::info("Regenerando sugerencias para el grupo {$groupId}");
+        
+        // Obtener todos los documentos del grupo que tienen tipo asignado
+        $documents = DB::table('documents')
+            ->where('document_group_id', $groupId)
+            ->whereNotNull('tipo')
+            ->where('tipo', '>', 0)
+            ->pluck('id');
+        Log::info("Documentos encontrados en el grupo {$groupId}: " . count($documents));
+        foreach ($documents as $documentId) {
+            try {
+                // Eliminar análisis y sugerencias existentes
+                $this->deleteDocumentSuggestions($documentId);
+                
+                // Regenerar sugerencias
+                $this->createSuggestions($documentId);
+                
+                Log::info("Sugerencias regeneradas para documento {$documentId}");
+            } catch (\Exception $e) {
+                Log::error("Error regenerando sugerencias para documento {$documentId}: " . $e->getMessage());
+            }
+        }
+        
+        Log::info("Completada regeneración de sugerencias para grupo {$groupId}, procesados " . count($documents) . " documentos");
+    }
+    
+    /**
+     * Eliminar análisis y sugerencias existentes de un documento
+     */
+    private function deleteDocumentSuggestions(int $documentId): void
+    {
+        // Obtener IDs de análisis existentes
+        $analysisIds = DB::table('document_analyses')
+            ->where('document_id', $documentId)
+            ->pluck('id');
+            
+        if ($analysisIds->isNotEmpty()) {
+            // Eliminar issues relacionados
+            DB::table('analysis_issues')
+                ->whereIn('document_analysis_id', $analysisIds)
+                ->delete();
+                
+            // Eliminar análisis
+            DB::table('document_analyses')
+                ->where('document_id', $documentId)
+                ->delete();
+        }
+        
+        // Resetear normative_gap del documento
+        DB::table('documents')
+            ->where('id', $documentId)
+            ->update(['normative_gap' => 0]);
+    }
+
     public function createSuggestions(int $documentId): void
     {
         $doc = Document::findOrFail($documentId);

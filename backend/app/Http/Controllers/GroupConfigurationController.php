@@ -131,6 +131,16 @@ class GroupConfigurationController extends Controller
                 'document_types_configured' => count(array_filter($configurations, fn($config) => $config['isRequired'] ?? false))
             ]);
             
+            // Regenerar sugerencias para todos los documentos del grupo
+            try {
+                $analysisController = app(\App\Http\Controllers\AnalysisController::class);
+                $analysisController->regenerateGroupSuggestions($groupId);
+                Log::info("Sugerencias regeneradas para grupo {$groupId} después de actualizar configuración");
+            } catch (\Exception $e) {
+                Log::error("Error regenerando sugerencias para grupo {$groupId}: " . $e->getMessage());
+                // No fallar la actualización de configuración si falla la regeneración
+            }
+            
             return response()->json([
                 'message' => 'Configuración actualizada exitosamente',
                 'configuration' => $this->getGroupConfiguration($groupId)

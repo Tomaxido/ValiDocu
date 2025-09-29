@@ -27,7 +27,10 @@ interface Props {
 }
 
 interface ConfigurationState {
-  [documentTypeId: number]: number[];
+  [documentTypeId: number]: {
+    isRequired: boolean;
+    requiredFields: number[];
+  };
 }
 
 export default function GroupConfigurationModal({ open, group, onClose }: Props) {
@@ -63,9 +66,23 @@ export default function GroupConfigurationModal({ open, group, onClose }: Props)
 
       // Inicializar estado de selección basado en configuración actual
       const initialSelection: ConfigurationState = {};
-      configResponse.configuration?.forEach((config: GroupConfiguration) => {
-        initialSelection[config.document_type_id] = config.required_fields.map(field => field.id);
+      
+      // Primero, configurar todos los tipos de documento como no obligatorios
+      typesResponse.document_types?.forEach((docType: DocumentTypeWithFields) => {
+        initialSelection[docType.id] = {
+          isRequired: false,
+          requiredFields: []
+        };
       });
+      
+      // Luego, marcar como obligatorios aquellos que tienen configuración
+      configResponse.configuration?.forEach((config: GroupConfiguration) => {
+        initialSelection[config.document_type_id] = {
+          isRequired: true,
+          requiredFields: config.required_fields.map((field: any) => field.id)
+        };
+      });
+      
       setSelectedConfiguration(initialSelection);
 
     } catch (err: any) {
@@ -93,12 +110,8 @@ export default function GroupConfigurationModal({ open, group, onClose }: Props)
     setError(null);
     
     try {
-      const configurations = Object.entries(selectedConfiguration).map(([documentTypeId, fieldSpecIds]) => ({
-        document_type_id: parseInt(documentTypeId),
-        required_field_spec_ids: fieldSpecIds
-      }));
-
-      await updateGroupConfiguration(group.id, configurations);
+      // Enviar la configuración en el nuevo formato
+      await updateGroupConfiguration(group.id, selectedConfiguration);
       await loadGroupConfiguration();
       setSuccess("Configuración guardada exitosamente");
     } catch (err: any) {
@@ -110,32 +123,39 @@ export default function GroupConfigurationModal({ open, group, onClose }: Props)
 
   const handleFieldToggle = (documentTypeId: number, fieldSpecId: number) => {
     setSelectedConfiguration(prev => {
-      const current = prev[documentTypeId] || [];
-      const isSelected = current.includes(fieldSpecId);
+      const current = prev[documentTypeId] || { isRequired: false, requiredFields: [] };
+      const isSelected = current.requiredFields.includes(fieldSpecId);
       
       return {
         ...prev,
-        [documentTypeId]: isSelected 
-          ? current.filter(id => id !== fieldSpecId)
-          : [...current, fieldSpecId]
+        [documentTypeId]: {
+          ...current,
+          requiredFields: isSelected 
+            ? current.requiredFields.filter(id => id !== fieldSpecId)
+            : [...current.requiredFields, fieldSpecId]
+        }
       };
     });
   };
 
-  const handleDocumentTypeToggle = (documentTypeId: number, allFieldIds: number[]) => {
+  const handleDocumentTypeToggle = (documentTypeId: number) => {
     setSelectedConfiguration(prev => {
-      const current = prev[documentTypeId] || [];
-      const allSelected = allFieldIds.every(id => current.includes(id));
+      const current = prev[documentTypeId] || { isRequired: false, requiredFields: [] };
       
       return {
         ...prev,
-        [documentTypeId]: allSelected ? [] : allFieldIds
+        [documentTypeId]: {
+          ...current,
+          isRequired: !current.isRequired,
+          // Si se desmarca como obligatorio, limpiar campos obligatorios
+          requiredFields: !current.isRequired ? current.requiredFields : []
+        }
       };
     });
   };
 
   const getSelectedFieldsCount = (documentTypeId: number): number => {
-    return selectedConfiguration[documentTypeId]?.length || 0;
+    return selectedConfiguration[documentTypeId]?.requiredFields?.length || 0;
   };
 
   return (
@@ -196,7 +216,6 @@ export default function GroupConfigurationModal({ open, group, onClose }: Props)
                 const requiredFields = docType.field_specs?.filter(spec => spec.is_required) || [];
                 const selectedCount = getSelectedFieldsCount(docType.id);
                 const totalCount = requiredFields.length;
-                const allSelected = selectedCount === totalCount && totalCount > 0;
 
                 return (
                   <Accordion key={docType.id} sx={{ mb: 1 }}>
@@ -220,32 +239,29 @@ export default function GroupConfigurationModal({ open, group, onClose }: Props)
                           <FormControlLabel
                             control={
                               <Checkbox
-                                checked={allSelected}
-                                indeterminate={selectedCount > 0 && selectedCount < totalCount}
-                                onChange={() => handleDocumentTypeToggle(
-                                  docType.id, 
-                                  requiredFields.map(field => field.id)
-                                )}
+                                checked={selectedConfiguration[docType.id]?.isRequired || false}
+                                onChange={() => handleDocumentTypeToggle(docType.id)}
                               />
                             }
                             label={
                               <Typography variant="body2" fontWeight="medium">
-                                Seleccionar todos los campos
+                                Este tipo de documento es obligatorio
                               </Typography>
                             }
                           />
                           <Divider sx={{ my: 1 }} />
                           
-                          <List dense>
-                            {requiredFields.map((field) => (
-                              <ListItem key={field.id} sx={{ pl: 0 }}>
-                                <ListItemIcon sx={{ minWidth: 32 }}>
-                                  <Checkbox
-                                    size="small"
-                                    checked={(selectedConfiguration[docType.id] || []).includes(field.id)}
-                                    onChange={() => handleFieldToggle(docType.id, field.id)}
-                                  />
-                                </ListItemIcon>
+                          {selectedConfiguration[docType.id]?.isRequired && (
+                            <List dense>
+                              {requiredFields.map((field) => (
+                                <ListItem key={field.id} sx={{ pl: 0 }}>
+                                  <ListItemIcon sx={{ minWidth: 32 }}>
+                                    <Checkbox
+                                      size="small"
+                                      checked={selectedConfiguration[docType.id]?.requiredFields?.includes(field.id) || false}
+                                      onChange={() => handleFieldToggle(docType.id, field.id)}
+                                    />
+                                  </ListItemIcon>
                                 <ListItemText
                                   primary={
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -271,6 +287,7 @@ export default function GroupConfigurationModal({ open, group, onClose }: Props)
                               </ListItem>
                             ))}
                           </List>
+                          )}
                         </Box>
                       ) : (
                         <Typography variant="body2" color="text.secondary">
