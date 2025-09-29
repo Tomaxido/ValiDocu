@@ -59,3 +59,39 @@ export interface ExpiredDocumentResponse {
   documentosVencidos: SemanticDocIndex[];
   documentosPorVencer: SemanticDocIndex[];
 }
+
+// Interfaces para configuración de grupos
+export interface DocumentType {
+  id: number;
+  nombre_doc: string;
+  analizar?: number;
+}
+
+export interface DocumentFieldSpec {
+  id: number;
+  field_key: string;
+  label: string;
+  datatype: string;
+  is_required: boolean;
+  regex?: string;
+  options?: string[];
+}
+
+export interface GroupConfiguration {
+  document_type_id: number;
+  document_type_name: string;
+  required_fields: DocumentFieldSpec[];
+}
+
+export interface GroupConfigurationResponse {
+  group: DocumentGroup;
+  configuration: GroupConfiguration[];
+  has_configuration: boolean;
+}
+
+export interface DocumentTypeWithFields {
+  id: number;
+  nombre_doc: string;
+  analizar?: number;
+  field_specs: DocumentFieldSpec[];
+}

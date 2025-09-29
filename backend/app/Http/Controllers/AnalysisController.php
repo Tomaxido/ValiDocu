@@ -8,6 +8,7 @@ use App\Models\AnalysisIssue;
 use App\Models\DocumentFieldSpec;
 use App\Services\ValidationService;
 use App\Services\SuggestionService;
+use App\Services\GroupValidationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -15,6 +16,12 @@ use Illuminate\Support\Facades\Schema;
 
 class AnalysisController extends Controller
 {
+    protected GroupValidationService $groupValidationService;
+
+    public function __construct(GroupValidationService $groupValidationService)
+    {
+        $this->groupValidationService = $groupValidationService;
+    }
     public function analyze(int $documentId): JsonResponse
     {
         $doc = Document::findOrFail($documentId);
@@ -96,7 +103,14 @@ class AnalysisController extends Controller
 
     public function createSuggestions(int $documentId): void
     {
-        // $doc = Document::findOrFail($documentId);
+        $doc = Document::findOrFail($documentId);
+        
+        // Obtener el grupo del documento
+        $groupId = $doc->group_id;
+        if (!$groupId) {
+            Log::info("Documento {$documentId} no tiene grupo asociado, omitiendo creación de sugerencias");
+            return;
+        }
 
         // 1) Inferir doc_type desde semantic_index.json_layout (fallback: 'acuerdo')
         $si = DB::table('semantic_doc_index')->where('document_id', $documentId)->first(['json_global']);
@@ -104,13 +118,32 @@ class AnalysisController extends Controller
 
         if (!array_key_exists('TIPO_DOCUMENTO', $layout))
         {
+            Log::info("Documento {$documentId} no tiene TIPO_DOCUMENTO en json_global, omitiendo sugerencias");
             return;
         }
 
         $tipo_documento = $layout['TIPO_DOCUMENTO'];
         // Buscar el ID del tipo de documento basado en el nombre
         $docTypeId = DB::table('document_types')->where('nombre_doc', $tipo_documento)->value('id');
-        $field_specs = DB::table('document_field_specs')->where('doc_type_id', $docTypeId)->get(['id', 'field_key', 'label', 'is_required', 'datatype', 'regex']);
+        
+        if (!$docTypeId) {
+            Log::info("No se encontró tipo de documento para '{$tipo_documento}', omitiendo sugerencias");
+            return;
+        }
+        
+        // Obtener configuración específica del grupo para este tipo de documento
+        $groupRequiredFields = $this->groupValidationService->getGroupRequiredFields($groupId, $docTypeId);
+        
+        if (empty($groupRequiredFields)) {
+            Log::info("No hay campos obligatorios configurados para el grupo {$groupId} y tipo de documento {$docTypeId}");
+            return;
+        }
+        
+        // Obtener solo las especificaciones de campos que están configuradas como obligatorias para este grupo
+        $field_specs = DB::table('document_field_specs')
+            ->whereIn('id', $groupRequiredFields)
+            ->where('doc_type_id', $docTypeId)
+            ->get(['id', 'field_key', 'label', 'is_required', 'datatype', 'regex']);
 
         // ==========================================================
         // 2) Evaluación: existencia y regex contra json_global
@@ -129,24 +162,23 @@ class AnalysisController extends Controller
                 ? (string)$value
                 : (is_null($value) ? '' : json_encode($value, JSON_UNESCAPED_UNICODE));
 
-            // 2.1) Clave faltante (y requerida)
+            // 2.1) Clave faltante (obligatoria para este grupo)
             if (!$exists) {
-                if ((int)$spec->is_required === 1) {
-                    $issues[] = [
-                        'id' => $spec->id,
-                        'reason' => 'missing',
-                        // 'field_key'  => $key,
-                        // 'issue_type' => 'missing_field',
-                        // 'message'    => "Falta el campo obligatorio «{$label}» en json_global.",
-                        // 'evidence'   => ['path' => $key],
-                    ];
-                }
+                // Como ya filtramos por campos obligatorios del grupo, todos los campos son obligatorios
+                $issues[] = [
+                    'id' => $spec->id,
+                    'reason' => 'missing',
+                    // 'field_key'  => $key,
+                    // 'issue_type' => 'missing_field',
+                    // 'message'    => "Falta el campo obligatorio «{$label}» en json_global.",
+                    // 'evidence'   => ['path' => $key],
+                ];
                 // Si no existe, no seguimos evaluando regex
                 continue;
             }
 
-            // 2.2) Vacío si es requerido
-            if ((int)$spec->is_required === 1 && trim($strVal) === '') {
+            // 2.2) Vacío (obligatorio para este grupo)
+            if (trim($strVal) === '') {
                 $issues[] = [
                     'id' => $spec->id,
                     'reason' => 'missing'

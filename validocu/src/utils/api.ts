@@ -1,4 +1,4 @@
-import type { BoxAnnotation, Document, DocumentGroup, ExpiredDocumentResponse, SemanticGroup } from "./interfaces";
+import type { BoxAnnotation, Document, DocumentGroup, ExpiredDocumentResponse, SemanticGroup, GroupConfigurationResponse, DocumentTypeWithFields } from "./interfaces";
 import { authService } from "../api/auth";
 
 // let baseURL = "";
@@ -33,7 +33,7 @@ import { authService } from "../api/auth";
     return await res.json();
   }
   
-  async function post(url: string, body: any): Promise<void> {
+  async function post(url: string, body: any): Promise<any> {
     const token = authService.getToken();
     const headers: HeadersInit = {};
     
@@ -50,6 +50,7 @@ import { authService } from "../api/auth";
       const errorData = await res.json();
       throw new Error(errorData?.message ?? "Error al subir documentos");
     }
+    return await res.json();
   }
   
   async function postJSON(url: string, body: any): Promise<any> {
@@ -83,14 +84,15 @@ import { authService } from "../api/auth";
     return await getJSON(`/api/v1/documents/${idGrupo}`) as DocumentGroup;
   }
   
-  export async function createGroup(grupoNombre: string, files: FileList): Promise<void> {
+  export async function createGroup(grupoNombre: string, files: FileList): Promise<{ group_id: number }> {
     const formData = new FormData();
     formData.append("group_name", grupoNombre);
     for (const file of Array.from(files)) {
       formData.append("documents[]", file);
     }
     
-    await post(`/api/v1/documents/`, formData);
+    const response = await post(`/api/v1/documents/`, formData);
+    return response;
   }
   
   export async function uploadDocumentsToGroup(grupoId: string | number, files: FileList): Promise<void> {
@@ -100,6 +102,7 @@ import { authService } from "../api/auth";
     }
     
     await post(`/api/v1/documents/${grupoId}`, formData);
+    return;
   }
   
   export async function deleteDocuments(ids: number[]): Promise<void> {
@@ -146,7 +149,8 @@ import { authService } from "../api/auth";
   }
   
   export async function marcarDocumentosVencidos(): Promise<void> {
-    return await post(`/api/v1/documentos_vencidos`, "")
+    await post(`/api/v1/documentos_vencidos`, "");
+    return;
   }
   
   
@@ -198,4 +202,52 @@ export async function buscarSemanticaConFiltros(params: {
   const data = await res.json();
   // Si en algún momento lo envías como {results: [...]}, esto lo tolera:
   return Array.isArray(data) ? data : (data.results ?? []);
+}
+
+// Funciones para configuración de grupos
+export async function getGroupConfiguration(groupId: number): Promise<any> {
+  return getJSON(`/api/v1/groups/${groupId}/configuration`);
+}
+
+export async function getAllAvailableDocumentTypes(): Promise<any> {
+  return getJSON(`/api/v1/document-types/available`);
+}
+
+export async function getAvailableDocumentTypes(groupId: number): Promise<any> {
+  return getJSON(`/api/v1/groups/${groupId}/document-types`);
+}
+
+export async function updateGroupConfiguration(groupId: number, configuration: any): Promise<any> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${baseURL}/api/v1/groups/${groupId}/configuration`, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({ configurations: configuration })
+  });
+  
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData?.message ?? "Error al actualizar configuración");
+  }
+  
+  return await res.json();
+}
+
+export async function getDefaultConfiguration(): Promise<any> {
+  return getJSON("/api/v1/groups/configuration/defaults");
+}
+
+export async function initializeGroupConfiguration(groupId: number): Promise<any> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${baseURL}/api/v1/groups/${groupId}/initialize-configuration`, {
+    method: "POST",
+    headers
+  });
+  
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData?.message ?? "Error al inicializar configuración");
+  }
+  
+  return await res.json();
 }

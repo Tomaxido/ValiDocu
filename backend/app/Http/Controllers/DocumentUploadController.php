@@ -10,23 +10,59 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use App\Services\SiiService;
+use App\Services\GroupValidationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
 
 
 class DocumentUploadController extends Controller
 {
-    public function __construct(SiiService $siiService)
+    protected GroupValidationService $groupValidationService;
+
+    public function __construct(SiiService $siiService, GroupValidationService $groupValidationService)
     {
         parent::__construct($siiService);
+        $this->groupValidationService = $groupValidationService;
     }
 
 
     function _addDocumentsToGroup(Request $request, DocumentGroup &$group) {
-        $obligatorios = DB::table('document_types')
-            ->get(['id','nombre_doc', 'analizar'])
-            ->sortByDesc(function($o) { return mb_strlen((string)$o->nombre_doc, 'UTF-8'); })
-            ->values();
+        // Obtener tipos de documentos configurados para este grupo específico usando group_field_specs
+        $configuredTypes = $this->groupValidationService->getGroupRequiredDocumentTypes($group->id);
+        
+        // Si no hay configuración específica, usar configuración global como fallback
+        if (empty($configuredTypes)) {
+            $obligatorios = DB::table('document_types')
+                ->get(['id','nombre_doc', 'analizar'])
+                ->map(function($o) {
+                    $o->is_required_in_group = true; // Por defecto requerido
+                    return $o;
+                })
+                ->sortByDesc(function($o) { return mb_strlen((string)$o->nombre_doc, 'UTF-8'); })
+                ->values();
+        } else {
+            // Usar la configuración específica del grupo
+            $obligatorios = collect($configuredTypes)
+                ->map(function($type) {
+                    // Obtener información adicional del tipo de documento
+                    $docType = DB::table('document_types')->where('id', $type->id)->first();
+                    return (object)[
+                        'id' => $type->id,
+                        'nombre_doc' => $type->nombre_doc,
+                        'analizar' => $docType->analizar ?? 0,
+                        'is_required_in_group' => true
+                    ];
+                })
+                ->sortByDesc(function($o) { return mb_strlen((string)$o->nombre_doc, 'UTF-8'); })
+                ->values();
+        }
+
+        // Inicializar configuración por defecto si no existe
+        if (!$this->groupValidationService->hasGroupConfiguration($group->id)) {
+            Log::info("Inicializando configuración por defecto para el grupo {$group->id}");
+            $this->groupValidationService->initializeGroupConfiguration($group->id);
+        }
+
         foreach ($request->file('documents') as $file) {
             // ...existing code...
             $path = $file->store('documents', 'public');
@@ -93,6 +129,41 @@ class DocumentUploadController extends Controller
                 ]);
             }
         }
+        
+        // Al final, validar todos los documentos contra la configuración del grupo
+        $this->validateGroupDocuments($group);
+    }
+    
+    /**
+     * Validar documentos del grupo contra su configuración
+     */
+    private function validateGroupDocuments(DocumentGroup $group): void
+    {
+        try {
+            $documents = $group->documents()->where('status', '!=', 2)->get(); // Excluir rechazados
+            
+            foreach ($documents as $document) {
+                $issues = $this->groupValidationService->validateDocumentAgainstGroup(
+                    $group->id,
+                    $document->document_type ?? 'unknown',
+                    $document->labels ?? []
+                );
+                
+                if (!empty($issues)) {
+                    // Marcar documento con issues pero no rechazado completamente
+                    $document->update(['status' => 3]); // Nuevo status: "Con observaciones"
+                    
+                    Log::info("Documento {$document->filename} tiene observaciones de validación", [
+                        'document_id' => $document->id,
+                        'group_id' => $group->id,
+                        'issues_count' => count($issues),
+                        'issues' => $issues
+                    ]);
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error("Error validando documentos del grupo {$group->id}: " . $e->getMessage());
+        }
     }
     private function normalizeName(string $name): string
     {
@@ -149,13 +220,18 @@ class DocumentUploadController extends Controller
 
         $this->_addDocumentsToGroup($request, $group);
         
+        // Inicializar configuración por defecto si no existe
+        if (!$this->groupValidationService->hasGroupConfiguration($group->id)) {
+            $this->groupValidationService->initializeGroupConfiguration($group->id);
+        }
+        
         return response()->json([
             'message' => 'Grupo creado y documentos subidos.',
             'group_id' => $group->id,
             'group' => $group->load('users')
         ]);
     }
-
+    
     public function saveImages($images, $originalBaseName, $group, $document_master_id, $analizar)
     {
         $modificado_global = false;

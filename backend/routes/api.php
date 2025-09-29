@@ -7,6 +7,7 @@ use App\Http\Controllers\AnalysisController;
 use App\Http\Controllers\IssueController;
 use App\Http\Controllers\DocumentSummaryController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\GroupConfigurationController;
 
 Route::prefix('v1')->group(function () {
     
@@ -53,5 +54,13 @@ Route::prefix('v1')->group(function () {
     Route::post('/groups/{group_id}/users', [DocumentUploadController::class, 'addUserToGroup'])->middleware(['auth:sanctum']);
     Route::put('/groups/{group_id}/users/{user_id}/status', [DocumentUploadController::class, 'updateUserStatus'])->middleware(['auth:sanctum']);
     Route::get('/groups/{group_id}/pending-users', [DocumentUploadController::class, 'getPendingUsers'])->middleware(['auth:sanctum']);
+
+    // Configuración de grupos - documentos y etiquetas obligatorias
+    Route::get('/document-types/available', [GroupConfigurationController::class, 'getAllAvailableDocumentTypes'])->middleware(['auth:sanctum']);
+    Route::get('/groups/{group_id}/configuration', [GroupConfigurationController::class, 'show'])->middleware(['auth:sanctum']);
+    Route::get('/groups/{group_id}/document-types', [GroupConfigurationController::class, 'getAvailableDocumentTypes'])->middleware(['auth:sanctum']);
+    Route::put('/groups/{group_id}/configuration', [GroupConfigurationController::class, 'updateGroupConfiguration'])->middleware(['auth:sanctum']);
+    Route::get('/groups/configuration/defaults', [GroupConfigurationController::class, 'getDefaultConfiguration'])->middleware(['auth:sanctum']);
+    Route::post('/groups/{group_id}/initialize-configuration', [GroupConfigurationController::class, 'initializeGroupConfiguration'])->middleware(['auth:sanctum']);
 
 });

@@ -15,6 +15,7 @@ import { Folder, Plus, Search as SearchIcon, Settings2, } from "lucide-react";
 import { createGroup, getDocumentGroups, buscarDocumentosPorTexto, obtenerDocumentosVencidos, marcarDocumentosVencidos, buscarSemanticaConFiltros } from "../../utils/api";
 import type { DocumentGroup, ExpiredDocumentResponse } from "../../utils/interfaces";
 import NewGroupModal from "./NewGroupModal";
+import GroupConfigurationModal from "../../components/group/GroupConfigurationModal";
 import { SnackbarDocsVencidos } from "../../components/SnackbarDocsVencidos";
 import { getDocumentFilters, type Filters } from "../../utils/api";
 
@@ -28,6 +29,10 @@ export default function Home() {
   const [buscando, setBuscando] = useState(false);
   const [busquedaRealizada, setBusquedaRealizada] = useState(false);
   const [respuestaDocsVencidos, setRespuestaDocsVencidos] = useState<ExpiredDocumentResponse | null>(null);
+  
+  // Estado para el modal de configuración
+  const [configModalOpen, setConfigModalOpen] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState<DocumentGroup | null>(null);
 
   // Ancla del menú
   const [filtersAnchor, setFiltersAnchor] = useState<null | HTMLElement>(null);
@@ -131,18 +136,47 @@ export default function Home() {
     }
   };
 
-  const handleFileUpload = async (groupName: string, files: FileList) => {
+  const handleFileUpload = async (groupName: string, files: FileList): Promise<{ group_id?: number }> => {
     try {
-      await createGroup(groupName, files);
+      const response = await createGroup(groupName, files);
       
-      // Comentado, porque window.location.reload() anula su propósito, pero
-      // se queda aquí por si acaso:
-
-      // setDocumentGroups(await getDocumentGroups());
-
-      window.location.reload();
+      return response;
     } catch (err: any) {
       alert("Error al subir: " + err.message);
+      return {};
+    }
+  };
+
+  const handleOpenGroupConfiguration = (group: DocumentGroup) => {
+    setSelectedGroup(group);
+    setConfigModalOpen(true);
+  };
+
+  const handleCloseGroupConfiguration = () => {
+    setConfigModalOpen(false);
+    setSelectedGroup(null);
+  };
+
+  const handleGroupCreated = async (groupId: number) => {
+    try {
+      // Recargar la lista de grupos para obtener el grupo recién creado
+      const updatedGroups = await getDocumentGroups();
+      setDocumentGroups(updatedGroups);
+      
+      // Encontrar el grupo recién creado
+      const newGroup = updatedGroups.find(g => g.id === groupId);
+      if (newGroup) {
+        // Abrir el modal de configuración inmediatamente
+        setSelectedGroup(newGroup);
+        setConfigModalOpen(true);
+      } else {
+        // Fallback: recargar página
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('Error loading groups after creation:', error);
+      // Fallback: recargar página  
+      window.location.reload();
     }
   };
 
@@ -311,6 +345,7 @@ export default function Home() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onUpload={handleFileUpload}
+        onGroupCreated={handleGroupCreated}
       />
 
       {/* Indicador de búsqueda */}
@@ -539,9 +574,20 @@ export default function Home() {
                     return (
                       <TableRow key={g.id}>
                         <TableCell>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Folder size={22} />
-                            <Typography variant="subtitle1" fontWeight={600}>{g.name}</Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'space-between' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Folder size={22} />
+                              <Typography variant="subtitle1" fontWeight={600}>{g.name}</Typography>
+                            </Box>
+                            <Tooltip title="Configurar grupo">
+                              <IconButton
+                                size="small"
+                                onClick={() => handleOpenGroupConfiguration(g)}
+                                sx={{ ml: 1 }}
+                              >
+                                <Settings2 size={16} />
+                              </IconButton>
+                            </Tooltip>
                           </Box>
                         </TableCell>
                         <TableCell>
@@ -597,6 +643,15 @@ export default function Home() {
             </Table>
           </TableContainer>
         </Box>
+      )}
+
+      {/* Modal de configuración de grupo */}
+      {selectedGroup && (
+        <GroupConfigurationModal
+          open={configModalOpen}
+          group={selectedGroup}
+          onClose={handleCloseGroupConfiguration}
+        />
       )}
     </Box>
   );
