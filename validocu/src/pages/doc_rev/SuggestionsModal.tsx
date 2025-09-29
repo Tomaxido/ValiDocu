@@ -23,8 +23,11 @@ import {
   Paper,
   Chip,
   Divider,
+  Box,
+  Tooltip,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import VisibilityIcon from "@mui/icons-material/Visibility";
 import type { Issue, SuggestionStatus } from "../../api/analysis";
 import {
   updateIssueStatusById,
@@ -42,6 +45,7 @@ type Props = {
   onReanalyze?: () => void | Promise<void>;
   onIssueUpdated: (issue: Issue) => void;
   suggestionStatuses: SuggestionStatus[],
+  onViewInDocument?: (fieldKey: string) => void;
 };
 
 export default function SuggestionsModal({
@@ -52,6 +56,7 @@ export default function SuggestionsModal({
   onReanalyze,
   onIssueUpdated,
   suggestionStatuses,
+  onViewInDocument,
 }: Readonly<Props>) {
   const [filter, setFilter] = useState<"ALL" | number>("ALL");
   const [search, setSearch] = useState("");
@@ -218,10 +223,12 @@ export default function SuggestionsModal({
           <Table size="small" stickyHeader>
             <TableHead>
               <TableRow>
-                <TableCell sx={{ width: 200 }}>Campo</TableCell>
-                <TableCell sx={{ width: 200 }}>Motivo</TableCell>
+                <TableCell sx={{ width: 180 }}>Campo</TableCell>
+                <TableCell sx={{ width: 200 }}>Valor actual</TableCell>
+                <TableCell sx={{ width: 120 }}>Motivo</TableCell>
                 <TableCell>Sugerencia</TableCell>
-                <TableCell sx={{ width: 220 }}>Estado</TableCell>
+                <TableCell sx={{ width: 180 }}>Estado</TableCell>
+                <TableCell sx={{ width: 100 }}>Acciones</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -240,7 +247,24 @@ export default function SuggestionsModal({
                         {i.label}
                       </Typography>
                     </TableCell>
-                    <TableCell>{i.reason === 'missing' ? 'Campo faltante' : 'Campo inválido'}</TableCell>
+                    <TableCell>
+                      <Box sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {i.reason === 'missing' ? (
+                          <Chip label="Campo faltante" size="small" color="warning" />
+                        ) : (
+                          <Tooltip title={i.current_value || 'Sin valor'} arrow>
+                            <Typography variant="body2" color="text.secondary">
+                              {i.current_value || 'Sin valor'}
+                            </Typography>
+                          </Tooltip>
+                        )}
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">
+                        {i.reason === 'missing' ? 'Campo faltante' : 'Campo inválido'}
+                      </Typography>
+                    </TableCell>
                     <TableCell>{i.suggestion_template}</TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <FormControl size="small" fullWidth>
@@ -259,12 +283,52 @@ export default function SuggestionsModal({
                         </Select>
                       </FormControl>
                     </TableCell>
+                    <TableCell 
+                      onClick={(e) => e.stopPropagation()}
+                      sx={{ 
+                        textAlign: 'center',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center'
+                      }}
+                    >
+                      {onViewInDocument && i.field_key && (
+                        <Tooltip 
+                          title={
+                            i.reason === 'missing' 
+                              ? "No se puede resaltar un campo faltante" 
+                              : "Ver campo en documento"
+                          } 
+                          arrow
+                        >
+                          <span>
+                            <IconButton
+                              size="small"
+                              onClick={() => {
+                                if (i.reason !== 'missing') {
+                                  onViewInDocument(i.field_key!);
+                                  onClose(); // Cerrar la modal
+                                }
+                              }}
+                              color="primary"
+                              disabled={i.reason === 'missing'}
+                              sx={{
+                                opacity: i.reason === 'missing' ? 0.4 : 1,
+                                cursor: i.reason === 'missing' ? 'not-allowed' : 'pointer'
+                              }}
+                            >
+                              <VisibilityIcon fontSize="small" />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      )}
+                    </TableCell>
                   </TableRow>
                 );
               })}
               {issues.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7}>
+                  <TableCell colSpan={6}>
                     <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 2 }}>
                       Sin resultados
                     </Typography>

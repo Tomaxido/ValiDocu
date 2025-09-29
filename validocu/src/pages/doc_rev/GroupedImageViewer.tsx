@@ -41,6 +41,12 @@ export default function GroupedImageViewer({ filename, files }: Readonly<Grouped
     return () => { cancelado = true; };
   }, [files]);
 
+  // Limpiar estados de focus y hover cuando cambian los archivos (cambio de documento)
+  useEffect(() => {
+    setFocusByPage({});
+    setHoverByPage({});
+  }, [files]);
+
   // Escalas
   useEffect(() => {
     observers.current.forEach((obs) => obs.disconnect());
@@ -113,7 +119,29 @@ export default function GroupedImageViewer({ filename, files }: Readonly<Grouped
         if (typeof firstKey !== "undefined") {
           const first = Number(firstKey);
           const wrapper = wrapperRefs.current[first];
-          if (wrapper) wrapper.scrollIntoView({ behavior: "smooth", block: "center" });
+          
+          if (wrapper) {
+            // Calcular el promedio de Y de las cajas para decidir el tipo de scroll
+            const boxes = map[first] || [];
+            if (boxes.length > 0) {
+              // Calcular el promedio de las coordenadas Y (segundo valor de cada caja)
+              const avgY = boxes.reduce((sum, box) => {
+                const [, y1, , y2] = box;
+                return sum + (y1 + y2) / 2; // Promedio del centro Y de cada caja
+              }, 0) / boxes.length;
+              
+              // Decidir el tipo de bloque basado en la posición Y
+              const blockPosition = avgY > 1000 ? 'end' : 'start';
+              
+              wrapper.scrollIntoView({ 
+                behavior: "smooth", 
+                block: blockPosition as ScrollLogicalPosition
+              });
+            } else {
+              // Fallback: scroll al centro si no hay cajas
+              wrapper.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+          }
         }
       }
     }
@@ -221,7 +249,11 @@ export default function GroupedImageViewer({ filename, files }: Readonly<Grouped
         }}
       >
         {files.map((doc, pageIndex) => (
-          <Box key={doc.id} sx={{ position: "relative", display: "inline-block" }}>
+          <Box 
+            key={doc.id} 
+            ref={(el: HTMLDivElement | null) => { wrapperRefs.current[pageIndex] = el; }}
+            sx={{ position: "relative", display: "inline-block" }}
+          >
             <Box
               component="img"
               ref={(el: HTMLImageElement | null) => { imgRefs.current[pageIndex] = el; }}

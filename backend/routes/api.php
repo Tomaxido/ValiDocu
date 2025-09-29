@@ -19,6 +19,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/documents', [DocumentUploadController::class, 'index'])->middleware(['auth:sanctum']);
     Route::get('/documents/{id}', [DocumentUploadController::class, 'show'])->middleware(['auth:sanctum']);
     Route::get('/documents/{id}/layout', [SemanticController::class, 'buscarJsonLayoutByDocumentId']);
+    Route::get('/documents/{id}/layout-doc', [SemanticController::class, 'buscaDocJsonLayoutByDocumentId']);
     Route::get('/documentos_vencidos', [SemanticController::class, 'obtenerDocumentosVencidos']);
     Route::get('/documents/group/{group_id}/vencidos', [SemanticController::class, 'obtenerDocumentosVencidosDeGrupo']);
     Route::get('/documents/{id}/vencimiento', [SemanticController::class, 'obtenerVencimientoDocumento']);

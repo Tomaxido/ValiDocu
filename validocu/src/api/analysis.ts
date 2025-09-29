@@ -23,9 +23,11 @@ export type Issue = {
   issue_id: number;
   status_id: number;
   label: string;
+  field_key?: string;
   suggestion_template: string;
   reason: string;
   is_required: boolean;
+  current_value?: string | null;
 };
 
 export type AnalyzeResponse = {

@@ -320,6 +320,10 @@ class AnalysisController extends Controller
             ]);
         }
 
+        // Obtener el layout del documento para extraer los valores actuales
+        $si = DB::table('semantic_doc_index')->where('document_id', $documentId)->first(['json_global']);
+        $layout = $si ? json_decode($si->json_global, true) : [];
+
         // Traer también los issues relacionados
         $issues = DB::table('analysis_issues as ai')
             ->join('document_field_specs as dfs', 'ai.document_field_spec_id', '=', 'dfs.id')
@@ -329,10 +333,26 @@ class AnalysisController extends Controller
                 'ai.status_id',
                 'ai.reason',
                 'dfs.label',
+                'dfs.field_key',
                 'dfs.is_required',
                 'dfs.suggestion_template'
             )
             ->get();
+
+        // Agregar el valor actual del campo a cada issue
+        foreach ($issues as $issue) {
+            $fieldKey = $issue->field_key;
+            $currentValue = isset($layout[$fieldKey]) ? $layout[$fieldKey] : null;
+            
+            // Normalizar el valor a string para mostrar
+            if (is_scalar($currentValue)) {
+                $issue->current_value = (string)$currentValue;
+            } elseif (is_null($currentValue)) {
+                $issue->current_value = null;
+            } else {
+                $issue->current_value = json_encode($currentValue, JSON_UNESCAPED_UNICODE);
+            }
+        }
 
         return response()->json([
             // 'analysis' => $analysis,

@@ -144,6 +144,17 @@ import { authService } from "../api/auth";
     return await res.json();
   }
   
+  export async function buscaDocJsonLayoutPorIdDocumento(id: number): Promise<BoxAnnotation[]> {
+    const res = await fetch(`${baseURL}/api/v1/documents/${id}/layout-doc`);
+    
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData?.message || "Error al buscar layout del documento");
+    }
+    
+    return await res.json();
+  }
+  
   export async function obtenerDocumentosVencidos(): Promise<ExpiredDocumentResponse> {
     return await getJSON(`/api/v1/documentos_vencidos`);
   }
