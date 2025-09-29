@@ -5,9 +5,9 @@ import {
   FormControlLabel, Checkbox, Chip, Alert,
   Accordion, AccordionSummary, AccordionDetails,
   List, ListItem, ListItemText, ListItemIcon,
-  CircularProgress, Snackbar
+  CircularProgress, Snackbar, IconButton, Tooltip
 } from "@mui/material";
-import { Settings, ChevronDown, FileText, Tag } from "lucide-react";
+import { Settings, ChevronDown, FileText, Tag, History } from "lucide-react";
 import { 
   getGroupConfiguration, 
   getAvailableDocumentTypes, 
@@ -19,6 +19,7 @@ import type {
   GroupConfiguration, 
   DocumentTypeWithFields
 } from "../../utils/interfaces";
+import GroupConfigurationHistoryModal from "./GroupConfigurationHistoryModal";
 
 interface Props {
   open: boolean;
@@ -44,6 +45,9 @@ export default function GroupConfigurationModal({ open, group, onClose }: Props)
   
   // State para manejar la configuración seleccionada
   const [selectedConfiguration, setSelectedConfiguration] = useState<ConfigurationState>({});
+  
+  // Estado para el modal de historial
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
 
   useEffect(() => {
     if (open && group.id) {
@@ -167,9 +171,16 @@ export default function GroupConfigurationModal({ open, group, onClose }: Props)
         fullWidth
         PaperProps={{ sx: { height: '80vh' } }}
       >
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Settings size={20} />
-          Configuración del Grupo: {group.name}
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Settings size={20} />
+            Configuración del Grupo: {group.name}
+          </Box>
+          <Tooltip title="Ver historial de cambios">
+            <IconButton onClick={() => setHistoryModalOpen(true)}>
+              <History size={20} />
+            </IconButton>
+          </Tooltip>
         </DialogTitle>
 
         <DialogContent dividers>
@@ -330,6 +341,13 @@ export default function GroupConfigurationModal({ open, group, onClose }: Props)
         autoHideDuration={3000}
         onClose={() => setSuccess(null)}
         message={success}
+      />
+
+      <GroupConfigurationHistoryModal
+        open={historyModalOpen}
+        onClose={() => setHistoryModalOpen(false)}
+        groupId={group.id}
+        groupName={group.name}
       />
     </>
   );

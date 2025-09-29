@@ -262,3 +262,7 @@ export async function initializeGroupConfiguration(groupId: number): Promise<any
   
   return await res.json();
 }
+
+export async function getGroupConfigurationHistory(groupId: number): Promise<any> {
+  return getJSON(`/api/v1/groups/${groupId}/configuration/history`);
+}

@@ -6,6 +6,7 @@ use App\Models\DocumentGroup;
 use App\Models\DocumentType;
 use App\Models\DocumentFieldSpec;
 use App\Models\GroupFieldSpec;
+use App\Models\GroupConfigurationHistory;
 use App\Services\GroupValidationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -95,6 +96,10 @@ class GroupConfigurationController extends Controller
 
         $group = DocumentGroup::findOrFail($groupId);
         
+        // Obtener la configuración anterior para el historial
+        $oldConfiguration = $this->getCurrentConfigurationForHistory($groupId);
+        $newConfigurations = $request->input('configurations', []);
+        
         DB::beginTransaction();
         try {
             // Eliminar configuración existente
@@ -102,9 +107,8 @@ class GroupConfigurationController extends Controller
             
             // Preparar datos para inserción masiva
             $insertData = [];
-            $configurations = $request->input('configurations', []);
             
-            foreach ($configurations as $documentTypeId => $config) {
+            foreach ($newConfigurations as $documentTypeId => $config) {
                 // Solo procesar tipos de documento marcados como obligatorios
                 if (isset($config['isRequired']) && $config['isRequired']) {
                     $requiredFields = $config['requiredFields'] ?? [];
@@ -124,11 +128,24 @@ class GroupConfigurationController extends Controller
                 DB::table('group_field_specs')->insert($insertData);
             }
             
+            // Registrar cambio en el historial
+            $userId = auth()->id();
+            if ($userId) {
+                GroupConfigurationHistory::logConfigurationChange(
+                    $groupId,
+                    $userId,
+                    empty($oldConfiguration) ? 'created' : 'updated',
+                    $oldConfiguration,
+                    $newConfigurations,
+                    'Configuración actualizada desde el panel de administración'
+                );
+            }
+            
             DB::commit();
             
             Log::info("Updated group configuration for group {$groupId}", [
-                'user_id' => auth()->id(),
-                'document_types_configured' => count(array_filter($configurations, fn($config) => $config['isRequired'] ?? false))
+                'user_id' => $userId,
+                'document_types_configured' => count(array_filter($newConfigurations, fn($config) => $config['isRequired'] ?? false))
             ]);
             
             // Regenerar sugerencias para todos los documentos del grupo
@@ -221,6 +238,26 @@ class GroupConfigurationController extends Controller
     }
 
     /**
+     * Obtener historial de cambios de configuración del grupo
+     */
+    public function getConfigurationHistory(int $groupId): JsonResponse
+    {
+        $group = DocumentGroup::findOrFail($groupId);
+        
+        $history = GroupConfigurationHistory::with('user')
+            ->where('group_id', $groupId)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function($entry) {
+                return $entry->formatted_history;
+            });
+            
+        return response()->json([
+            'history' => $history
+        ]);
+    }
+
+    /**
      * Método privado para obtener la configuración actual del grupo
      */
     private function getGroupConfiguration(int $groupId): array
@@ -258,6 +295,30 @@ class GroupConfigurationController extends Controller
             })
             ->values()
             ->toArray();
+    }
+
+    /**
+     * Obtener la configuración actual en formato para historial
+     */
+    private function getCurrentConfigurationForHistory(int $groupId): array
+    {
+        $configuration = [];
+        
+        $groupSpecs = DB::table('group_field_specs as gfs')
+            ->join('document_types as dt', 'gfs.document_type_id', '=', 'dt.id')
+            ->where('gfs.group_id', $groupId)
+            ->select('gfs.document_type_id', 'gfs.field_spec_id')
+            ->get()
+            ->groupBy('document_type_id');
+
+        foreach ($groupSpecs as $documentTypeId => $specs) {
+            $configuration[$documentTypeId] = [
+                'isRequired' => true,
+                'requiredFields' => $specs->pluck('field_spec_id')->toArray()
+            ];
+        }
+
+        return $configuration;
     }
 }
 

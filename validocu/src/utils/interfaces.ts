@@ -95,3 +95,47 @@ export interface DocumentTypeWithFields {
   analizar?: number;
   field_specs: DocumentFieldSpec[];
 }
+
+export interface ConfigurationHistoryEntry {
+  id: number;
+  action: 'created' | 'updated' | 'deleted' | 'initialized';
+  user: {
+    id: string;  // UUID como string
+    name: string;
+    email: string;
+  };
+  summary: {
+    document_types_added: Array<{
+      id: number;
+      name: string;
+    }>;
+    document_types_removed: Array<{
+      id: number;
+      name: string;
+    }>;
+    document_types_modified: Array<{
+      id: number;
+      name: string;
+    }>;
+    fields_changed: Array<{
+      document_type_id: number;
+      document_type_name: string;
+      required_status_changed: boolean;
+      fields_added: Array<{
+        id: number;
+        name: string;
+      }>;
+      fields_removed: Array<{
+        id: number;
+        name: string;
+      }>;
+    }>;
+  };
+  description?: string;
+  created_at: string;
+  created_at_human: string;
+}
+
+export interface ConfigurationHistoryResponse {
+  history: ConfigurationHistoryEntry[];
+}

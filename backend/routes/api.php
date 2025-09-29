@@ -63,5 +63,6 @@ Route::prefix('v1')->group(function () {
     Route::put('/groups/{group_id}/configuration', [GroupConfigurationController::class, 'updateGroupConfiguration'])->middleware(['auth:sanctum']);
     Route::get('/groups/configuration/defaults', [GroupConfigurationController::class, 'getDefaultConfiguration'])->middleware(['auth:sanctum']);
     Route::post('/groups/{group_id}/initialize-configuration', [GroupConfigurationController::class, 'initializeGroupConfiguration'])->middleware(['auth:sanctum']);
+    Route::get('/groups/{group_id}/configuration/history', [GroupConfigurationController::class, 'getConfigurationHistory'])->middleware(['auth:sanctum']);
 
 });

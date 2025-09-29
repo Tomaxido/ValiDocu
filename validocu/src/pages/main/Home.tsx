@@ -191,14 +191,6 @@ export default function Home() {
       {/* Header */}
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Typography variant="h5" fontWeight={700}>Unidad de Sprint 1</Typography>
-        <IconButton
-          color="inherit"
-          onClick={(e) => setFiltersAnchor(e.currentTarget)}
-          sx={{ bgcolor: "background.paper", border: 1, borderColor: "divider", "&:hover": { bgcolor: "action.hover" } }}
-          aria-label="Abrir filtros"
-        >
-          <Settings2 size={20} />
-        </IconButton>
       </Stack>
 
       <Menu
@@ -334,6 +326,14 @@ export default function Home() {
           <IconButton onClick={buscar} sx={{ boxShadow: "0px 0px 4px gray" }}>
             <SearchIcon size={20} />
           </IconButton>
+          <IconButton
+          color="inherit"
+          onClick={(e) => setFiltersAnchor(e.currentTarget)}
+          sx={{ bgcolor: "background.paper", border: 1, borderColor: "divider", "&:hover": { bgcolor: "action.hover" } }}
+          aria-label="Abrir filtros"
+        >
+          <Settings2 size={20} />
+        </IconButton>
         </Paper>
 
         <Button onClick={() => setIsModalOpen(true)} startIcon={<Plus size={20} />}>
