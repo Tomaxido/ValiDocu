@@ -106,7 +106,7 @@ class AnalysisController extends Controller
         $doc = Document::findOrFail($documentId);
         
         // Obtener el grupo del documento
-        $groupId = $doc->group_id;
+        $groupId = $doc->document_group_id;
         if (!$groupId) {
             Log::info("Documento {$documentId} no tiene grupo asociado, omitiendo creación de sugerencias");
             return;
@@ -116,15 +116,9 @@ class AnalysisController extends Controller
         $si = DB::table('semantic_doc_index')->where('document_id', $documentId)->first(['json_global']);
         $layout = $si ? json_decode($si->json_global, true) : [];
 
-        if (!array_key_exists('TIPO_DOCUMENTO', $layout))
-        {
-            Log::info("Documento {$documentId} no tiene TIPO_DOCUMENTO en json_global, omitiendo sugerencias");
-            return;
-        }
 
         $tipo_documento = $layout['TIPO_DOCUMENTO'];
-        // Buscar el ID del tipo de documento basado en el nombre
-        $docTypeId = DB::table('document_types')->where('nombre_doc', $tipo_documento)->value('id');
+        $docTypeId = $doc->tipo;
         
         if (!$docTypeId) {
             Log::info("No se encontró tipo de documento para '{$tipo_documento}', omitiendo sugerencias");

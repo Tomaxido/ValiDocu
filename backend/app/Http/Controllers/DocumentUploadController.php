@@ -140,7 +140,7 @@ class DocumentUploadController extends Controller
     private function validateGroupDocuments(DocumentGroup $group): void
     {
         try {
-            $documents = $group->documents()->where('status', '!=', 2)->get(); // Excluir rechazados
+            $documents = $group->documents()->get(); // Obtener todos los documentos del grupo
             
             foreach ($documents as $document) {
                 $issues = $this->groupValidationService->validateDocumentAgainstGroup(
