@@ -348,26 +348,24 @@ class GroupConfigurationController extends Controller
             ->get()
             ->keyBy('document_type_id');
         
-        // Obtener campos globales una sola vez para todos los documentos con analizar = 1
-        $globalRequiredFields = [];
-        if ($configurationsWithFields->isNotEmpty()) {
-            $allSelectedFieldIds = $configurationsWithFields->first()->pluck('field_spec_id')->unique();
-            $globalRequiredFields = DB::table('document_field_specs')
-                ->whereIn('id', $allSelectedFieldIds)
+        // Procesar configuraciones con campos (analizar = 1)
+        foreach ($configurationsWithFields as $docTypeId => $fields) {
+            $firstField = $fields->first();
+            
+            // Obtener los campos específicos para este tipo de documento
+            $specificFieldIds = $fields->pluck('field_spec_id')->unique();
+            $requiredFields = DB::table('document_field_specs')
+                ->whereIn('id', $specificFieldIds)
                 ->where('is_required', true)
                 ->select('id as field_spec_id', 'field_key', 'label', 'datatype', 'is_required')
                 ->get()
                 ->toArray();
-        }
-        
-        // Procesar configuraciones con campos (analizar = 1)
-        foreach ($configurationsWithFields as $docTypeId => $fields) {
-            $firstField = $fields->first();
+            
             $configuration[] = [
                 'document_type_id' => $docTypeId,
                 'document_type_name' => $firstField->document_type_name,
                 'analizar' => $firstField->analizar,
-                'required_fields' => $globalRequiredFields  // Mismos campos para todos
+                'required_fields' => $requiredFields  // Campos específicos para este documento
             ];
         }
         

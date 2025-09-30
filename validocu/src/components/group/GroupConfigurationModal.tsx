@@ -79,19 +79,14 @@ export default function GroupConfigurationModal({ open, group, onClose }: Props)
         };
       });
       
-      // Obtener campos seleccionados globalmente (solo una vez para analizar=1)
-      let globalSelectedFields: number[] = [];
-      
       // Luego, marcar como obligatorios aquellos que tienen configuración
       configResponse.configuration?.forEach((config: GroupConfiguration) => {
         if (config.analizar === 1) {
-          // Para documentos con análisis, usar campos globales
-          if (globalSelectedFields.length === 0) {
-            globalSelectedFields = config.required_fields.map((field: any) => field.field_spec_id);
-          }
+          // Para documentos con análisis, usar sus campos específicos
+          const specificFields = config.required_fields.map((field: any) => field.field_spec_id);
           initialSelection[config.document_type_id] = {
             isRequired: true,
-            requiredFields: globalSelectedFields
+            requiredFields: specificFields
           };
         } else {
           // Para documentos sin análisis

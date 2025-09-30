@@ -15,6 +15,7 @@ import DeleteModal from "./DeleteModal";
 import GroupedImageViewer from "./GroupedImageViewer";
 import DocInfoPanel from "./DocInfoPanel";
 import GroupOverviewModal from "../../components/group/GroupOverviewModal";
+import GroupConfigurationInfoModal from "../../components/group/GroupConfigurationInfoModal";
 import { downloadDocumentSummaryExcel } from "../../api/summary_excel";
 import { fetchMandatoryDocs, type MandatoryDocsResponse } from "../../api/summary_excel";
 
@@ -22,7 +23,7 @@ import {
   Box, Paper, Button, Typography, List, ListItemButton,
   ListItemText, Chip, Stack, IconButton, Divider, Popper, ListItem, CircularProgress
 } from "@mui/material";
-import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Trash2, Settings } from "lucide-react";
 import { SnackbarDocsVencidos } from "../../components/SnackbarDocsVencidos";
 import EqualizerIcon from "@mui/icons-material/Equalizer";
 import InfoOutlineIcon from "@mui/icons-material/InfoOutline";
@@ -62,6 +63,7 @@ export default function Grupo() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [semanticGroupData, setSemanticGroupData] = useState<SemanticGroup[]>([]);
   const [overviewOpen, setOverviewOpen] = useState(false);
+  const [configurationOpen, setConfigurationOpen] = useState(false);
   const [infoAnchor, setInfoAnchor] = useState<HTMLElement | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
   const [mandatoryDocs, setMandatoryDocs] = useState<string[] | null>(null);
@@ -372,27 +374,18 @@ export default function Grupo() {
             Añadir documento
           </Button>
 
-          <IconButton onClick={() => setDeleteModalOpen(true)} color="error">
+            <IconButton onClick={() => setDeleteModalOpen(true)} sx={{ bgcolor: "white" }}>
             <Trash2 size={18} />
-          </IconButton>
+            </IconButton>
 
-          {/* Fila 2: Generar / Ver (igual tamaño que la fila de arriba) */}
-          {/* <Button fullWidth onClick={() => downloadDocumentSummaryExcel(group.id)}>
-            Generar Documento Resumen
-          </Button> */}
-
+          {/* Fila 2: Ver Resumen / Configuración */}
           <Button fullWidth onClick={() => setOverviewOpen(true)} startIcon={<EqualizerIcon />}>
             Ver Resumen
           </Button>
 
-          {/* Fila 3: Información (ocupa el ancho de ambas columnas) */}
-          <div
-            onMouseEnter={openInfo}
-            onMouseLeave={scheduleCloseInfo}
-            style={{ display: "flex", justifyContent: "center", alignItems: "center" }}
-          >
-            <InfoOutlineIcon />
-          </div>
+            <IconButton onClick={() => setConfigurationOpen(true)} sx={{ bgcolor: "white" }}>
+              <InfoOutlineIcon fontSize="small" />
+            </IconButton>
         </Box>
 
           <Divider sx={{ mb: 1 }} />
@@ -562,6 +555,14 @@ export default function Grupo() {
           groupId={group.id}
           onClose={() => setOverviewOpen(false)}
           onExportExcel={() => downloadDocumentSummaryExcel(group.id)}
+        />
+      )}
+
+      {group && (
+        <GroupConfigurationInfoModal
+          open={configurationOpen}
+          group={group}
+          onClose={() => setConfigurationOpen(false)}
         />
       )}
 
