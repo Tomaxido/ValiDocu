@@ -41,18 +41,35 @@ class GroupConfigurationController extends Controller
     }
 
     /**
-     * Obtener todos los tipos de documentos disponibles para configuración (analizar = 1)
+     * Obtener todos los tipos de documentos disponibles para configuración
      */
     public function getAllAvailableDocumentTypes(): JsonResponse
     {
-        // Tipos de documentos disponibles - solo los que tienen analizar = 1
-        $documentTypes = DocumentType::with(['fieldSpecs' => function($query) {
-            $query->where('is_required', true);
-        }])->where('analizar', 1)->get();
-        
-        return response()->json([
-            'document_types' => $documentTypes
-        ]);
+        try {
+            // TODOS los tipos de documentos con sus especificaciones de campos
+            $documentTypes = DocumentType::with('fieldSpecs')->get();
+            
+            // Transformar para incluir field_specs en snake_case para el frontend
+            $documentTypes = $documentTypes->map(function ($docType) {
+                $docTypeArray = $docType->toArray();
+                $docTypeArray['field_specs'] = $docType->fieldSpecs->toArray();
+                return $docTypeArray;
+            });
+            
+            // Campos globales para documentos con analizar = 1
+            $globalFields = DocumentFieldSpec::where('is_required', true)->get();
+            
+            return response()->json([
+                'document_types' => $documentTypes,
+                'global_fields' => $globalFields
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error in getAllAvailableDocumentTypes: ' . $e->getMessage());
+            return response()->json([
+                'error' => 'Error al obtener tipos de documentos',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -62,16 +79,18 @@ class GroupConfigurationController extends Controller
     {
         $group = DocumentGroup::findOrFail($groupId);
         
-        // Tipos de documentos disponibles - solo los que tienen analizar = 1
-        $documentTypes = DocumentType::with(['fieldSpecs' => function($query) {
-            $query->where('is_required', true);
-        }])->where('analizar', 1)->get();
+        // TODOS los tipos de documentos
+        $documentTypes = DocumentType::get();
+        
+        // Campos globales para documentos con analizar = 1
+        $globalFields = DocumentFieldSpec::where('is_required', true)->get();
         
         // Configuración actual del grupo
         $groupConfiguration = $this->getGroupConfiguration($groupId);
         
         return response()->json([
             'document_types' => $documentTypes,
+            'global_fields' => $globalFields,
             'group_configuration' => $groupConfiguration
         ]);
     }
@@ -111,26 +130,61 @@ class GroupConfigurationController extends Controller
             foreach ($newConfigurations as $documentTypeId => $config) {
                 // Solo procesar tipos de documento marcados como obligatorios
                 if (isset($config['isRequired']) && $config['isRequired']) {
-                    $requiredFields = $config['requiredFields'] ?? [];
                     
-                    foreach ($requiredFields as $fieldSpecId) {
+                    // Verificar si el tipo de documento tiene análisis
+                    $docType = \App\Models\DocumentType::find($documentTypeId);
+                    
+                    if ($docType && $docType->analizar == 1) {
+                        // Para documentos con análisis, usar campos globales seleccionados
+                        $requiredFields = $config['requiredFields'] ?? [];
+                        
+                        if (!empty($requiredFields)) {
+                            foreach ($requiredFields as $fieldSpecId) {
+                                // Verificar que el field_spec_id existe antes de insertar
+                                $fieldExists = DB::table('document_field_specs')->where('id', $fieldSpecId)->exists();
+                                if ($fieldExists) {
+                                    $insertData[] = [
+                                        'group_id' => $groupId,
+                                        'field_spec_id' => $fieldSpecId,
+                                        'document_type_id' => $documentTypeId
+                                    ];
+                                }
+                            }
+                        }
+                    } else {
+                        // Para documentos sin análisis (analizar = 0)
+                        // Usar field_spec_id = NULL para indicar que es obligatorio pero sin campos específicos
                         $insertData[] = [
                             'group_id' => $groupId,
-                            'field_spec_id' => $fieldSpecId,
+                            'field_spec_id' => null,
                             'document_type_id' => $documentTypeId
                         ];
+                        
+                        Log::info("Marcando documento tipo {$documentTypeId} como obligatorio sin campos específicos (analizar=0)");
                     }
                 }
             }
             
             // Insertar nueva configuración
             if (!empty($insertData)) {
-                DB::table('group_field_specs')->insert($insertData);
+                try {
+                    DB::table('group_field_specs')->insert($insertData);
+                } catch (\Illuminate\Database\QueryException $e) {
+                    // Si hay un error de foreign key, registrarlo y fallar graciosamente
+                    if ($e->getCode() == '23503') { // Código PostgreSQL para foreign key violation
+                        Log::error('Foreign key violation in group_field_specs', [
+                            'error' => $e->getMessage(),
+                            'insertData' => $insertData
+                        ]);
+                        throw new \Exception('Error de configuración: Algunos campos seleccionados no existen. Por favor, actualice la página e intente nuevamente.');
+                    }
+                    throw $e;
+                }
             }
             
-            // Registrar cambio en el historial
+            // Registrar cambio en el historial solo si hay cambios reales
             $userId = auth()->id();
-            if ($userId) {
+            if ($userId && $this->hasRealChanges($oldConfiguration, $newConfigurations)) {
                 GroupConfigurationHistory::logConfigurationChange(
                     $groupId,
                     $userId,
@@ -262,39 +316,72 @@ class GroupConfigurationController extends Controller
      */
     private function getGroupConfiguration(int $groupId): array
     {
-        return DB::table('group_field_specs as gfs')
+        $configuration = [];
+        
+        // Obtener configuraciones con campos específicos (documentos con analizar = 1)
+        $configurationsWithFields = DB::table('group_field_specs as gfs')
             ->join('document_types as dt', 'gfs.document_type_id', '=', 'dt.id')
             ->join('document_field_specs as dfs', 'gfs.field_spec_id', '=', 'dfs.id')
             ->where('gfs.group_id', $groupId)
+            ->whereNotNull('gfs.field_spec_id')
+            ->where('dt.analizar', 1)
             ->select(
                 'dt.id as document_type_id',
                 'dt.nombre_doc as document_type_name',
-                'dfs.id as field_spec_id',
-                'dfs.field_key',
-                'dfs.label',
-                'dfs.datatype',
-                'dfs.is_required'
+                'dt.analizar',
+                'dfs.id as field_spec_id'
             )
             ->get()
-            ->groupBy('document_type_id')
-            ->map(function($fields, $docTypeId) {
-                $firstField = $fields->first();
-                return [
-                    'document_type_id' => $docTypeId,
-                    'document_type_name' => $firstField->document_type_name,
-                    'required_fields' => $fields->map(function($field) {
-                        return [
-                            'field_spec_id' => $field->field_spec_id,
-                            'field_key' => $field->field_key,
-                            'label' => $field->label,
-                            'datatype' => $field->datatype,
-                            'is_required' => $field->is_required
-                        ];
-                    })->values()
-                ];
-            })
-            ->values()
-            ->toArray();
+            ->groupBy('document_type_id');
+            
+        // Obtener configuraciones sin campos específicos (analizar = 0)
+        $configurationsWithoutFields = DB::table('group_field_specs as gfs')
+            ->join('document_types as dt', 'gfs.document_type_id', '=', 'dt.id')
+            ->where('gfs.group_id', $groupId)
+            ->whereNull('gfs.field_spec_id')
+            ->where('dt.analizar', 0)
+            ->select(
+                'dt.id as document_type_id',
+                'dt.nombre_doc as document_type_name',
+                'dt.analizar'
+            )
+            ->get()
+            ->keyBy('document_type_id');
+        
+        // Obtener campos globales una sola vez para todos los documentos con analizar = 1
+        $globalRequiredFields = [];
+        if ($configurationsWithFields->isNotEmpty()) {
+            $allSelectedFieldIds = $configurationsWithFields->first()->pluck('field_spec_id')->unique();
+            $globalRequiredFields = DB::table('document_field_specs')
+                ->whereIn('id', $allSelectedFieldIds)
+                ->where('is_required', true)
+                ->select('id as field_spec_id', 'field_key', 'label', 'datatype', 'is_required')
+                ->get()
+                ->toArray();
+        }
+        
+        // Procesar configuraciones con campos (analizar = 1)
+        foreach ($configurationsWithFields as $docTypeId => $fields) {
+            $firstField = $fields->first();
+            $configuration[] = [
+                'document_type_id' => $docTypeId,
+                'document_type_name' => $firstField->document_type_name,
+                'analizar' => $firstField->analizar,
+                'required_fields' => $globalRequiredFields  // Mismos campos para todos
+            ];
+        }
+        
+        // Procesar configuraciones sin campos (analizar = 0)
+        foreach ($configurationsWithoutFields as $docTypeId => $docType) {
+            $configuration[] = [
+                'document_type_id' => $docTypeId,
+                'document_type_name' => $docType->document_type_name,
+                'analizar' => $docType->analizar,
+                'required_fields' => []
+            ];
+        }
+        
+        return $configuration;
     }
 
     /**
@@ -312,13 +399,57 @@ class GroupConfigurationController extends Controller
             ->groupBy('document_type_id');
 
         foreach ($groupSpecs as $documentTypeId => $specs) {
+            $fieldIds = $specs->pluck('field_spec_id')->filter()->map('intval')->toArray();
+            
             $configuration[$documentTypeId] = [
                 'isRequired' => true,
-                'requiredFields' => $specs->pluck('field_spec_id')->toArray()
+                'requiredFields' => $fieldIds  // Vacío para documentos con analizar=0
             ];
         }
 
         return $configuration;
+    }
+
+    /**
+     * Verificar si hay cambios reales entre configuraciones
+     */
+    private function hasRealChanges(?array $oldConfig, ?array $newConfig): bool
+    {
+        // Normalizar ambas configuraciones
+        $oldNormalized = $this->normalizeForComparison($oldConfig);
+        $newNormalized = $this->normalizeForComparison($newConfig);
+        
+        // Usar serialize para comparación más confiable
+        return serialize($oldNormalized) !== serialize($newNormalized);
+    }
+
+    /**
+     * Normalizar configuración para comparación
+     */
+    private function normalizeForComparison(?array $config): array
+    {
+        if (empty($config)) {
+            return [];
+        }
+
+        $normalized = [];
+        
+        foreach ($config as $docTypeId => $typeConfig) {
+            if (isset($typeConfig['isRequired']) && $typeConfig['isRequired'] === true) {
+                $requiredFields = $typeConfig['requiredFields'] ?? [];
+                if (!empty($requiredFields)) {
+                    $fieldIds = array_map('intval', array_filter($requiredFields, 'is_numeric'));
+                    sort($fieldIds);
+                    $normalized[(int)$docTypeId] = [
+                        'isRequired' => true,
+                        'requiredFields' => $fieldIds
+                    ];
+                }
+            }
+        }
+
+        ksort($normalized);
+        return $normalized;
     }
 }
 

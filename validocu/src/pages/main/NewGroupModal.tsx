@@ -2,12 +2,11 @@ import React, { useRef, useState, useEffect } from "react";
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, Button, List, ListItem, ListItemText, IconButton,
-  Box, Typography, Stepper, Step, StepLabel, Card, CardContent,
-  FormControlLabel, Checkbox, Accordion, AccordionSummary, AccordionDetails,
-  Chip, Alert
+  Box, Typography, Alert
 } from "@mui/material";
-import { X, ChevronDown, FileText, Settings } from "lucide-react";
+import { X, FileText } from "lucide-react";
 import { getAllAvailableDocumentTypes, updateGroupConfiguration } from "../../utils/api";
+import DocumentConfigurationPanel from "../../components/shared/DocumentConfigurationPanel";
 
 interface Props {
   isOpen: boolean;
@@ -52,8 +51,83 @@ export default function NewGroupModal({ isOpen, onClose, onUpload, onGroupCreate
   // Estados para configuración
   const [step, setStep] = useState(0); // 0: archivos, 1: configuración
   const [availableDocumentTypes, setAvailableDocumentTypes] = useState<DocumentTypeWithFields[]>([]);
+  const [globalFields, setGlobalFields] = useState<any[]>([]);
   const [selectedConfiguration, setSelectedConfiguration] = useState<ConfigurationState>({});
   const [loadingDocTypes, setLoadingDocTypes] = useState(false);
+
+  // Helper para obtener field_specs de forma segura
+  const getFieldSpecs = (docType: DocumentTypeWithFields) => {
+    return docType.field_specs || (docType as any).fieldSpecs || [];
+  };
+
+  // Handlers para configuración de documentos (consistente con GroupConfigurationModal)
+  const handleDocumentTypeToggle = (documentTypeId: number) => {
+    setSelectedConfiguration(prev => {
+      const current = prev[documentTypeId] || { isRequired: false, requiredFields: [] };
+      
+      return {
+        ...prev,
+        [documentTypeId]: {
+          isRequired: !current.isRequired,
+          // Si se desmarca como obligatorio, limpiar campos obligatorios
+          // Si se marca como obligatorio, mantener los campos actuales
+          requiredFields: !current.isRequired ? current.requiredFields : []
+        }
+      };
+    });
+  };
+
+  const handleFieldToggle = (documentTypeId: number, fieldSpecId: number) => {
+    setSelectedConfiguration(prev => {
+      const newConfig = { ...prev };
+      
+      // Verificar si es un documento con análisis
+      const docType = availableDocumentTypes.find(dt => dt.id === documentTypeId);
+      
+      if (docType && docType.analizar === 1) {
+        // Para documentos con análisis, configurar solo el tipo específico seleccionado
+        const currentFields = prev[documentTypeId]?.requiredFields || [];
+        const isSelected = currentFields.includes(fieldSpecId);
+        
+        const newFields = isSelected 
+          ? currentFields.filter(id => id !== fieldSpecId)
+          : [...currentFields, fieldSpecId];
+        
+        // Aplicar el cambio solo al tipo de documento específico
+        newConfig[documentTypeId] = {
+          ...newConfig[documentTypeId],
+          requiredFields: newFields
+        };
+      }
+      
+      return newConfig;
+    });
+  };
+
+  const handleSelectAllFields = (documentTypeId: number, allFieldIds: number[]) => {
+    setSelectedConfiguration(prev => {
+      const newConfig = { ...prev };
+      
+      // Verificar si es un documento con análisis
+      const docType = availableDocumentTypes.find(dt => dt.id === documentTypeId);
+      
+      if (docType && docType.analizar === 1) {
+        // Para documentos con análisis, configurar solo el tipo específico seleccionado
+        const current = prev[documentTypeId] || { isRequired: false, requiredFields: [] };
+        const hasAllSelected = allFieldIds.every(id => current.requiredFields.includes(id));
+        
+        const newFields = hasAllSelected ? [] : allFieldIds;
+        
+        // Aplicar el cambio solo al tipo de documento específico
+        newConfig[documentTypeId] = {
+          ...newConfig[documentTypeId],
+          requiredFields: newFields
+        };
+      }
+      
+      return newConfig;
+    });
+  };
 
   // Cargar tipos de documentos disponibles cuando se abre la modal
   useEffect(() => {
@@ -66,21 +140,34 @@ export default function NewGroupModal({ isOpen, onClose, onUpload, onGroupCreate
     setLoadingDocTypes(true);
     try {
       const response = await getAllAvailableDocumentTypes();
+      
+      if (!response || !response.document_types) {
+        console.warn('No se recibieron tipos de documentos válidos:', response);
+        setAvailableDocumentTypes([]);
+        setGlobalFields([]);
+        return;
+      }
+      
       setAvailableDocumentTypes(response.document_types || []);
+      setGlobalFields(response.global_fields || []);
       
       // Inicializar configuración por defecto (todos los campos requeridos seleccionados)
       const defaultConfig: ConfigurationState = {};
       response.document_types?.forEach((docType: DocumentTypeWithFields) => {
+        const fieldSpecs = getFieldSpecs(docType);
         defaultConfig[docType.id] = {
           isRequired: false,  // Por defecto no obligatorio
-          requiredFields: docType.field_specs
-            .filter(spec => spec.is_required)
-            .map(spec => spec.id)
+          requiredFields: fieldSpecs
+            .filter((spec: any) => spec.is_required)
+            .map((spec: any) => spec.id)
         };
       });
       setSelectedConfiguration(defaultConfig);
     } catch (error) {
       console.error('Error loading document types:', error);
+      setAvailableDocumentTypes([]);
+      setGlobalFields([]);
+      setSelectedConfiguration({});
     } finally {
       setLoadingDocTypes(false);
     }
@@ -135,39 +222,6 @@ export default function NewGroupModal({ isOpen, onClose, onUpload, onGroupCreate
     if (step === 1) {
       setStep(0);
     }
-  };
-
-  const handleFieldToggle = (documentTypeId: number, fieldSpecId: number) => {
-    setSelectedConfiguration(prev => {
-      const currentConfig = prev[documentTypeId] || { isRequired: false, requiredFields: [] };
-      const newFields = currentConfig.requiredFields.includes(fieldSpecId)
-        ? currentConfig.requiredFields.filter(id => id !== fieldSpecId)
-        : [...currentConfig.requiredFields, fieldSpecId];
-      
-      return {
-        ...prev,
-        [documentTypeId]: {
-          ...currentConfig,
-          requiredFields: newFields
-        }
-      };
-    });
-  };
-
-  const handleDocumentTypeToggle = (documentTypeId: number) => {
-    setSelectedConfiguration(prev => {
-      const currentConfig = prev[documentTypeId] || { isRequired: false, requiredFields: [] };
-      
-      return {
-        ...prev,
-        [documentTypeId]: {
-          ...currentConfig,
-          isRequired: !currentConfig.isRequired,
-          // Si se desmarca como obligatorio, limpiar campos obligatorios
-          requiredFields: !currentConfig.isRequired ? currentConfig.requiredFields : []
-        }
-      };
-    });
   };
 
   const handleSubmit = async () => {
@@ -239,72 +293,14 @@ export default function NewGroupModal({ isOpen, onClose, onUpload, onGroupCreate
               </Box>
             ) : (
               <Box sx={{ maxHeight: '400px', overflowY: 'auto' }}>
-                {availableDocumentTypes.map((docType) => (
-                  <Accordion key={docType.id} defaultExpanded>
-                    <AccordionSummary expandIcon={<ChevronDown size={20} />}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
-                        <FormControlLabel
-                          control={
-                            <Checkbox
-                              checked={selectedConfiguration[docType.id]?.isRequired || false}
-                              onChange={() => handleDocumentTypeToggle(docType.id)}
-                              color="primary"
-                            />
-                          }
-                          label={
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <FileText size={18} />
-                              <Typography variant="h6">{docType.nombre_doc}</Typography>
-                            </Box>
-                          }
-                          sx={{ flexGrow: 1 }}
-                        />
-                        <Chip 
-                          label={selectedConfiguration[docType.id]?.isRequired ? 
-                            `Obligatorio - ${selectedConfiguration[docType.id]?.requiredFields?.length || 0} etiquetas` : 
-                            'Opcional'
-                          }
-                          size="small"
-                          color={selectedConfiguration[docType.id]?.isRequired ? 'primary' : 'default'}
-                        />
-                      </Box>
-                    </AccordionSummary>
-                    <AccordionDetails>
-                      {selectedConfiguration[docType.id]?.isRequired ? (
-                        <>
-                          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                            Selecciona las etiquetas que serán obligatorias para documentos de tipo "{docType.nombre_doc}":
-                          </Typography>
-                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                            {docType.field_specs.map((fieldSpec) => (
-                              <FormControlLabel
-                                key={fieldSpec.id}
-                                control={
-                                  <Checkbox
-                                    checked={selectedConfiguration[docType.id]?.requiredFields?.includes(fieldSpec.id) || false}
-                                    onChange={() => handleFieldToggle(docType.id, fieldSpec.id)}
-                                  />
-                                }
-                                label={
-                                  <Box>
-                                    <Typography variant="body1">{fieldSpec.label}</Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                      Clave: {fieldSpec.field_key}
-                                    </Typography>
-                                  </Box>
-                                }
-                              />
-                            ))}
-                          </Box>
-                        </>
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">
-                          Este tipo de documento no está marcado como obligatorio para este grupo.
-                        </Typography>
-                      )}
-                    </AccordionDetails>
-                  </Accordion>
-                ))}
+                <DocumentConfigurationPanel
+                  availableDocumentTypes={availableDocumentTypes}
+                  globalFields={globalFields}
+                  selectedConfiguration={selectedConfiguration}
+                  onDocumentTypeToggle={handleDocumentTypeToggle}
+                  onFieldToggle={handleFieldToggle}
+                  onSelectAllFields={handleSelectAllFields}
+                />
               </Box>
             )}
           </Box>

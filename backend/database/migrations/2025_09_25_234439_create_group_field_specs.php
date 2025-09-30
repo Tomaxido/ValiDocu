@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('group_field_specs', function (Blueprint $table) {
             $table->integer('group_id');
-            $table->integer('field_spec_id');
+            $table->integer('field_spec_id')->nullable();
             $table->integer('document_type_id');
 
             $table->foreign('group_id')->references('id')->on('document_groups')->onDelete('cascade');

@@ -80,6 +80,7 @@ export interface DocumentFieldSpec {
 export interface GroupConfiguration {
   document_type_id: number;
   document_type_name: string;
+  analizar?: number;
   required_fields: DocumentFieldSpec[];
 }
 
@@ -93,7 +94,8 @@ export interface DocumentTypeWithFields {
   id: number;
   nombre_doc: string;
   analizar?: number;
-  field_specs: DocumentFieldSpec[];
+  field_specs?: DocumentFieldSpec[];
+  fieldSpecs?: DocumentFieldSpec[];  // Para compatibilidad con Laravel camelCase
 }
 
 export interface ConfigurationHistoryEntry {

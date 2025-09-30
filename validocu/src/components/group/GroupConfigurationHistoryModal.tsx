@@ -312,7 +312,15 @@ const GroupConfigurationHistoryModal: React.FC<GroupConfigurationHistoryModalPro
                         Fecha completa:
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        {new Date(entry.created_at).toLocaleString('es-ES')}
+                        {new Date(entry.created_at).toLocaleString('es-CL', {
+                          timeZone: 'America/Santiago',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit'
+                        })}
                       </Typography>
                     </Box>
 

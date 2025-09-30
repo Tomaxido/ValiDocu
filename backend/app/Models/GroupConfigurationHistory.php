@@ -76,46 +76,83 @@ class GroupConfigurationHistory extends Model
             'fields_changed' => [],
         ];
 
-        if (!$oldConfig || !$newConfig) {
+        // Normalizar configuraciones para comparación
+        $oldNormalized = self::normalizeConfiguration($oldConfig);
+        $newNormalized = self::normalizeConfiguration($newConfig);
+
+        if (empty($oldNormalized) && empty($newNormalized)) {
             return $summary;
         }
 
-        $oldDocTypes = array_keys($oldConfig);
-        $newDocTypes = array_keys($newConfig);
+        $oldDocTypes = array_keys($oldNormalized);
+        $newDocTypes = array_keys($newNormalized);
 
-        // Tipos de documentos añadidos
-        $summary['document_types_added'] = array_diff($newDocTypes, $oldDocTypes);
+        // Tipos de documentos añadidos (cualquier tipo marcado como obligatorio)
+        foreach (array_diff($newDocTypes, $oldDocTypes) as $docTypeId) {
+            $summary['document_types_added'][] = (int)$docTypeId;
+        }
 
-        // Tipos de documentos removidos
-        $summary['document_types_removed'] = array_diff($oldDocTypes, $newDocTypes);
+        // Tipos de documentos removidos (cualquier tipo que ya no está marcado como obligatorio)
+        foreach (array_diff($oldDocTypes, $newDocTypes) as $docTypeId) {
+            $summary['document_types_removed'][] = (int)$docTypeId;
+        }
 
-        // Tipos de documentos modificados
+        // Tipos de documentos modificados (solo si realmente cambiaron)
         foreach ($newDocTypes as $docTypeId) {
-            if (isset($oldConfig[$docTypeId]) && $oldConfig[$docTypeId] !== $newConfig[$docTypeId]) {
-                $summary['document_types_modified'][] = $docTypeId;
+            if (isset($oldNormalized[$docTypeId])) {
+                $oldFields = array_map('intval', $oldNormalized[$docTypeId]['requiredFields'] ?? []);
+                $newFields = array_map('intval', $newNormalized[$docTypeId]['requiredFields'] ?? []);
+                $oldRequired = $oldNormalized[$docTypeId]['isRequired'] ?? false;
+                $newRequired = $newNormalized[$docTypeId]['isRequired'] ?? false;
 
-                // Detalle de campos cambiados
-                $oldFields = $oldConfig[$docTypeId]['requiredFields'] ?? [];
-                $newFields = $newConfig[$docTypeId]['requiredFields'] ?? [];
-                $oldRequired = $oldConfig[$docTypeId]['isRequired'] ?? false;
-                $newRequired = $newConfig[$docTypeId]['isRequired'] ?? false;
+                // Ordenar arrays para comparación correcta
+                sort($oldFields);
+                sort($newFields);
 
-                $fieldChanges = [
-                    'document_type_id' => $docTypeId,
-                    'required_status_changed' => $oldRequired !== $newRequired,
-                    'fields_added' => array_diff($newFields, $oldFields),
-                    'fields_removed' => array_diff($oldFields, $newFields),
-                ];
+                $fieldsChanged = $oldFields !== $newFields;
+                $statusChanged = $oldRequired !== $newRequired;
 
-                if (!empty($fieldChanges['fields_added']) || 
-                    !empty($fieldChanges['fields_removed']) || 
-                    $fieldChanges['required_status_changed']) {
+                if ($fieldsChanged || $statusChanged) {
+                    $summary['document_types_modified'][] = (int)$docTypeId;
+
+                    $fieldChanges = [
+                        'document_type_id' => (int)$docTypeId,
+                        'required_status_changed' => $statusChanged,
+                        'fields_added' => array_values(array_diff($newFields, $oldFields)),
+                        'fields_removed' => array_values(array_diff($oldFields, $newFields)),
+                    ];
+
                     $summary['fields_changed'][] = $fieldChanges;
                 }
             }
         }
 
         return $summary;
+    }
+
+    /**
+     * Normalizar configuración para comparación consistente
+     */
+    private static function normalizeConfiguration(?array $config): array
+    {
+        if (empty($config)) {
+            return [];
+        }
+
+        $normalized = [];
+        
+        foreach ($config as $docTypeId => $typeConfig) {
+            // Incluir cualquier tipo que esté marcado como obligatorio
+            if (isset($typeConfig['isRequired']) && $typeConfig['isRequired'] === true) {
+                $requiredFields = $typeConfig['requiredFields'] ?? [];
+                $normalized[(int)$docTypeId] = [
+                    'isRequired' => true,
+                    'requiredFields' => array_map('intval', array_filter($requiredFields, 'is_numeric'))
+                ];
+            }
+        }
+
+        return $normalized;
     }
 
     /**
