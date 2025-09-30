@@ -38,6 +38,13 @@ class DocumentSummaryController extends Controller
     public function downloadGroupSummaryExcel($groupId)
     {
         try {
+            // 0) Obtener información del grupo
+            $groupInfo = DB::table('document_groups')
+                ->where('id', $groupId)
+                ->first(['name']);
+            
+            $groupName = $groupInfo ? $groupInfo->name : 'Grupo Desconocido';
+
             // 1) Documentos del grupo
             $docs = DB::table('semantic_doc_index as sdi')
                 ->join('documents as d', 'd.id', '=', 'sdi.document_id')
@@ -50,11 +57,31 @@ class DocumentSummaryController extends Controller
                 abort(404, 'No hay documentos asociados a este grupo.');
             }
 
-            // 2) Documentos obligatorios (ordenados por largo desc para matches más específicos)
-            $obligatorios = DB::table('document_types')
-                ->get(['nombre_doc', 'analizar'])
+            // 2) Documentos obligatorios ESPECÍFICOS para este grupo (desde group_field_specs)
+            $obligatorios = DB::table('group_field_specs as gfs')
+                ->join('document_types as dt', 'gfs.document_type_id', '=', 'dt.id')
+                ->where('gfs.group_id', $groupId)
+                ->get(['dt.nombre_doc', 'dt.analizar'])
                 ->sortByDesc(function($o) { return mb_strlen((string)$o->nombre_doc, 'UTF-8'); })
                 ->values();
+
+            // Si no hay configuración específica para el grupo, generar Excel mínimo
+            if ($obligatorios->isEmpty()) {
+                // Crear Excel básico con todos los documentos como "extras"
+                $export = new OverviewGroupSummaryExport(
+                    fechaGeneracion: Carbon::now('America/Santiago'),
+                    usuarioResponsable: 'Administrador',
+                    tablaNoAnalizar: [], // sin obligatorios
+                    tablaUnmatched: $docs->map(function($d) {
+                        return ['nombre_documento' => (string)$d->filename];
+                    })->toArray(), // todos como unmatched
+                    tablaAnalizar: [], // sin analizar
+                    tablaPendientes: [], // sin pendientes
+                    groupId: $groupId,
+                    groupName: $groupName
+                );
+                return Excel::download($export, "resumen_group_{$groupId}.xlsx");
+            }
 
             // Índice por nombre_doc normalizado para contar coincidencias (1..n permitidas, pero necesitamos >=1)
             $oblIndex = []; // key = normNombreDoc => ['nombre_doc'=>orig, 'analizar'=>int, 'count'=>0]
@@ -150,7 +177,6 @@ class DocumentSummaryController extends Controller
                         title: (string)$doc->filename
                     );
 
-                    // % cumplimiento = 0% (no hay datos reales)
                     $tablaAnalizar[] = [
                         'nombre_documento' => (string)$doc->filename,
                         'estado'           => (int)$doc->status,
@@ -190,60 +216,144 @@ class DocumentSummaryController extends Controller
                     ['Empresa', $data['EMPRESA_DEUDOR'] ?? ''],
                 ];
 
+                // Obtener campos configurados para este grupo y tipo de documento
+                $documentType = null;
+                foreach ($obligatorios as $obl) {
+                    $normFile = $this->normalizeName($doc->filename);
+                    $normDoc = $this->normalizeName($obl->nombre_doc);
+                    if ($this->matchFilenameToNombreDoc($normFile, $normDoc) && $obl->analizar === 1) {
+                        $documentType = $obl;
+                        break;
+                    }
+                }
+
+                // Obtener campos configurados específicamente para este grupo y tipo de documento
+                $configuredFields = [];
+                $requiredFields = [];
+                if ($documentType) {
+                    $configuredFieldsData = DB::table('group_field_specs as gfs')
+                        ->join('document_field_specs as dfs', 'gfs.field_spec_id', '=', 'dfs.id')
+                        ->join('document_types as dt', 'gfs.document_type_id', '=', 'dt.id')
+                        ->where('gfs.group_id', $groupId)
+                        ->where('dt.nombre_doc', $documentType->nombre_doc)
+                        ->where('dt.analizar', 1)
+                        ->whereNotNull('gfs.field_spec_id')
+                        ->get(['dfs.field_key', 'dfs.is_required', 'dfs.label'])
+                        ->keyBy('field_key');
+                    
+                    $configuredFields = $configuredFieldsData;
+                    $requiredFields = $configuredFieldsData->where('is_required', true);
+                }
+
                 // Filas + cálculo de cumplimiento
                 $rows = [];
                 $ruts = ['RUT_DEUDOR', 'RUT_CORREDOR', 'EMPRESA_DEUDOR_RUT', 'EMPRESA_CORREDOR_RUT'];
-
                 $okCount = 0;
                 $invCount = 0;
+                $foundRequiredFields = 0;
+                $totalRequiredFields = count($requiredFields);
                 $invalidComments = [];
+                $processedFields = [];
 
+                // 1. Procesar TODOS los campos detectados en el documento
                 foreach ($data as $key => $value) {
                     if (is_array($value) || is_object($value)) {
                         $value = json_encode($value, JSON_UNESCAPED_UNICODE);
                     }
 
+                    $processedFields[] = $key;
+
                     $state = 'OK';
                     if (in_array((string)$key, $ruts, true)) {
                         $limpio = strtoupper(preg_replace('/[^0-9K]/', '', $value));
-                        if (strlen($limpio) < 2) continue;
+                        if (strlen($limpio) >= 2) {
+                            $rut = substr($limpio, 0, -1);
+                            $dv  = substr($limpio, -1);
 
-                        $rut = substr($limpio, 0, -1);
-                        $dv  = substr($limpio, -1);
-
-                        $sii = $this->checkRut($rut, $dv); // devuelve Response
-                        if ($sii->getStatusCode() === 400) {
-                            $state = 'INVÁLIDO';
-                            $invalidComments[] = 'RUT: ' . $value . ' NO EXISTE EN SII';
+                            $sii = $this->checkRut($rut, $dv);
+                            if ($sii->getStatusCode() === 400) {
+                                $state = 'INVÁLIDO';
+                                $invalidComments[] = 'RUT: ' . $value . ' NO EXISTE EN SII';
+                            }
                         }
                     }
 
-                    $observaciones = count($invalidComments) > 0 ? implode("\n", $invalidComments) : 'Dato Inválido';
                     $comment = $state === 'INVÁLIDO' ? 'NO EXISTE EN SII' : 'OK';
 
-                    if ($state === 'OK')       $okCount++;
+                    if ($state === 'OK') $okCount++;
                     if ($state === 'INVÁLIDO') $invCount++;
 
-                    $rows[]  = [str_replace('_', ' ', (string)$key), (string)$value, $state, $comment];
+                    // Contar campos obligatorios encontrados (solo si está en la configuración)
+                    if (!empty($requiredFields) && $requiredFields->has($key)) {
+                        if (!empty($value) && $state === 'OK') {
+                            $foundRequiredFields++;
+                        }
+                    }
+
+                    // Usar label si está disponible en la configuración, sino usar el field_key formateado
+                    $fieldLabel = $key;
+                    if (!empty($configuredFields) && $configuredFields->has($key)) {
+                        $fieldConfig = $configuredFields->get($key);
+                        $fieldLabel = $fieldConfig->label ?? str_replace('_', ' ', $key);
+                    } else {
+                        $fieldLabel = str_replace('_', ' ', $key);
+                    }
+
+                    $rows[] = [$fieldLabel, (string)$value, $state, $comment];
                 }
 
-                $totalVars = $okCount + $invCount;
-                $pct = $totalVars > 0 ? round(($okCount / $totalVars) * 100) . '%' : '0%';
+                // 2. Agregar campos obligatorios que NO fueron encontrados
+                if (!empty($requiredFields)) {
+                    foreach ($requiredFields as $fieldKey => $fieldConfig) {
+                        if (!in_array($fieldKey, $processedFields)) {
+                            $fieldLabel = $fieldConfig->label ?? str_replace('_', ' ', $fieldKey);
+                            $rows[] = [$fieldLabel, '', 'FALTANTE', 'Campo obligatorio no detectado'];
+                        }
+                    }
+                }
+
+                // Calcular porcentaje: si hay configuración específica, usar campos obligatorios, sino usar validación RUT
+                if ($totalRequiredFields > 0) {
+                    $pct = round(($foundRequiredFields / $totalRequiredFields) * 100) . '%';
+                } else {
+                    $totalVars = $okCount + $invCount;
+                    $pct = $totalVars > 0 ? round(($okCount / $totalVars) * 100) . '%' : '0%';
+                }
 
                 // Crear sheet del documento
                 $sheets[] = new DocumentSummaryExport(
                     rows: $rows,
                     headings: ['VARIABLE','INFORMACIÓN', 'ESTADO', 'COMENTARIO'],
                     headerRows: $headerRows,
-                    title: (string)$doc->filename // título = d.filename
+                    title: (string)$doc->filename
                 );
 
                 // Entrada para la Overview con % calculado
                 $status = (int)$doc->status;
+                
+                // Generar observaciones más precisas
+                $observaciones = [];
+                if ($totalRequiredFields > 0) {
+                    $missingRequired = $totalRequiredFields - $foundRequiredFields;
+                    if ($missingRequired > 0) {
+                        $observaciones[] = "{$missingRequired} campos obligatorios faltantes";
+                    }
+                    if ($foundRequiredFields === $totalRequiredFields) {
+                        $observaciones[] = "Todos los campos obligatorios presentes";
+                    }
+                }
+                
+                if (count($invalidComments) > 0) {
+                    $observaciones[] = count($invalidComments) . " RUTs inválidos en SII";
+                }
+                
+                $finalObservaciones = !empty($observaciones) ? implode(", ", $observaciones) : 
+                    ($status === 1 ? 'Conforme' : ($status === 2 ? 'Inconforme' : 'Sin observaciones'));
+                
                 $tablaAnalizar[] = [
                     'nombre_documento' => (string)$doc->filename,
                     'estado'           => $status === 1 ? 'Conforme' : ($status === 2 ? 'Inconforme' : '—'),
-                    'observaciones'    => $status === 1 ? '-' : ($status === 2 ? $observaciones : '—'),
+                    'observaciones'    => $finalObservaciones,
                     'porcentaje'       => $pct,
                 ];
             }
@@ -262,14 +372,16 @@ class DocumentSummaryController extends Controller
                 ];
             }, $unmatched);
 
-            // NUEVO: pasar también "pendientes"
+            // NUEVO: pasar también "pendientes" y nombre del grupo
             $overview = new OverviewGroupSummaryExport(
                 fechaGeneracion: \Carbon\Carbon::now('America/Santiago'),
                 usuarioResponsable: 'Administrador',
                 tablaNoAnalizar: $tablaNoAnalizar,
                 tablaUnmatched:  $tablaUnmatched,
                 tablaAnalizar:   $tablaAnalizar,        // con % calculado
-                tablaPendientes: $obligatoriosPendientes
+                tablaPendientes: $obligatoriosPendientes,
+                groupId: $groupId,
+                groupName: $groupName
             );
 
             // Insertar Overview como PRIMERA hoja

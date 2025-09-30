@@ -25,9 +25,8 @@ class DocumentFieldSpecSeeder extends Seeder
         ];
 
     // 2) DocType objetivo
-    $DOC_TYPE = 'CONTRATO DE MUTUO Y MANDATO';
-    $docTypeId = DB::table('document_types')->where('nombre_doc', $DOC_TYPE)->value('id');
-
+    //$DOC_TYPE = 'CONTRATO DE MUTUO Y MANDATO';
+    $docTypeId = DB::table('document_types')->where('analizar', 1)->value('id');
         $RUT_REGEX          = '^\d{1,2}\.?\d{3}\.?\d{3}-[\dkK]$';
         // Revisa fechas validas con formato DD-MM-YYYY, DD/MM/YYYY y DD.MM.YYYY incluyendo años bisiestos
         //$FECHA_ISO_REGEX    = '^(?:(?:29([-./])02(?:\1)(?:(?:(?:1[6-9]|20)(?:04|08|[2468][048]|[13579][26]))|(?:1600|2[048]00)))|(?:(?:(?:0[1-9]|1\d|2[0-8])([-./])(?:0[1-9]|1[0-2]))|(?:29|30)([-./])(?:0(?:1|[3-9])|(?:1[0-2]))|31([-./])(0[13578]|1[02]))(?:\2|\3|\4)(?:1[6-9]|2\d)\d\d)$';
@@ -196,7 +195,7 @@ class DocumentFieldSpecSeeder extends Seeder
                 'suggestion_template' => 'Ingrese el RUT de la empresa del corredor. Ej.: 22316054-2',
                 'example_text' => '10545076-5',
             ],
-
+            /*
             // Tipo de documento (lo validamos por igualdad, no por regex)
             [
                 'field_key' => 'TIPO_DOCUMENTO',
@@ -206,7 +205,7 @@ class DocumentFieldSpecSeeder extends Seeder
                 'regex' => null, // se compara por valor exacto en lógica de análisis
                 'suggestion_template' => 'El tipo de documento debe ser exactamente: Contrato de mutuos',
                 'example_text' => $DOC_TYPE,
-            ],
+            ],*/
         ];
 
         // 5) Construcción de filas para upsert

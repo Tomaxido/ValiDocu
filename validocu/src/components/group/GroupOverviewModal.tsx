@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, Chip, Stack, Typography, Divider, Box, Paper,
-  Table, TableHead, TableRow, TableCell, TableBody
+  Table, TableHead, TableRow, TableCell, TableBody, CircularProgress
 } from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
 import { fetchGroupOverview, type GroupOverviewResponse } from "../../api/summary_excel";
@@ -23,6 +23,7 @@ function StatusChip({ v }: { v: 1 | 2 | null }) {
 export default function GroupOverviewModal({ open, groupId, onClose, onExportExcel }: Props) {
   const [data, setData] = useState<GroupOverviewResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -34,6 +35,20 @@ export default function GroupOverviewModal({ open, groupId, onClose, onExportExc
       .catch((e) => setErr(e?.message ?? "Error"))
       .finally(() => setLoading(false));
   }, [open, groupId]);
+
+  const handleExportExcel = async () => {
+    if (!onExportExcel) return;
+    
+    setExportingExcel(true);
+    try {
+      await onExportExcel();
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      // Optionally show error message to user
+    } finally {
+      setExportingExcel(false);
+    }
+  };
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
@@ -133,8 +148,12 @@ export default function GroupOverviewModal({ open, groupId, onClose, onExportExc
 
       <DialogActions>
         {onExportExcel && (
-          <Button onClick={onExportExcel} startIcon={<DownloadIcon />}>
-            Exportar a Excel
+          <Button 
+            onClick={handleExportExcel} 
+            startIcon={exportingExcel ? <CircularProgress size={16} /> : <DownloadIcon />}
+            disabled={exportingExcel}
+          >
+            {exportingExcel ? "Generando..." : "Exportar a Excel"}
           </Button>
         )}
         <Button variant="outlined" onClick={onClose}>Cerrar</Button>

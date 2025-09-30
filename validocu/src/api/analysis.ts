@@ -45,6 +45,22 @@ export type DocumentNormStatus = {
   resumen: string;
 };
 
+export type MissingFieldsResponse = {
+  missing_fields: Array<{
+    field_key: string;
+    label: string;
+  }>;
+  required_fields: Array<{
+    field_key: string;
+    label: string;
+  }>;
+  detected_fields: string[];
+  document_type: string | null;
+  total_missing: number;
+  compliance_percentage: number;
+  message?: string;
+};
+
 export async function getLastDocumentAnalysis(documentId: number): Promise<AnalyzeResponse> {
   const res = await fetch(`${BASE_URL}/api/v1/documents/${documentId}/analysis`, {
     method: 'GET',
@@ -125,5 +141,14 @@ export async function summaryDoc(doc_id: number): Promise<DocumentNormStatus> {
     headers: { 'Accept': 'application/json' },
   });
   if (!res.ok) throw new Error(`Statuses load failed: ${res.status}`);
+  return res.json();
+}
+
+export async function getMissingFields(documentId: number): Promise<MissingFieldsResponse> {
+  const res = await fetch(`${BASE_URL}/api/v1/documents/${documentId}/missing-fields`, {
+    method: 'GET',
+    headers: { 'Accept': 'application/json' },
+  });
+  if (!res.ok) throw new Error(`Missing fields load failed: ${res.status}`);
   return res.json();
 }

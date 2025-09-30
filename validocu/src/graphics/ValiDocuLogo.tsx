@@ -42,7 +42,7 @@ export default function BrandMark({
     u: DEFAULTS.secondary,
   },
   width = background ? '100%' : 220,
-  height = background ? 64 : 'auto',
+  height = background ? 64 : undefined, // Cambio 'auto' por undefined para que use el height natural del SVG
   className,
 }: Props) {
   const styleVars: React.CSSProperties = {

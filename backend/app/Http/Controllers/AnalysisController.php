@@ -8,6 +8,7 @@ use App\Models\AnalysisIssue;
 use App\Models\DocumentFieldSpec;
 use App\Services\ValidationService;
 use App\Services\SuggestionService;
+use App\Services\GroupValidationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -15,6 +16,12 @@ use Illuminate\Support\Facades\Schema;
 
 class AnalysisController extends Controller
 {
+    protected GroupValidationService $groupValidationService;
+
+    public function __construct(GroupValidationService $groupValidationService)
+    {
+        $this->groupValidationService = $groupValidationService;
+    }
     public function analyze(int $documentId): JsonResponse
     {
         $doc = Document::findOrFail($documentId);
@@ -94,23 +101,102 @@ class AnalysisController extends Controller
         ]);
     }
 
+    /**
+     * Regenerar sugerencias para todos los documentos de un grupo
+     */
+    public function regenerateGroupSuggestions(int $groupId): void
+    {
+        Log::info("Regenerando sugerencias para el grupo {$groupId}");
+        
+        // Obtener todos los documentos del grupo que tienen tipo asignado
+        $documents = DB::table('documents')
+            ->where('document_group_id', $groupId)
+            ->whereNotNull('tipo')
+            ->where('tipo', '>', 0)
+            ->pluck('id');
+        Log::info("Documentos encontrados en el grupo {$groupId}: " . count($documents));
+        foreach ($documents as $documentId) {
+            try {
+                // Eliminar análisis y sugerencias existentes
+                $this->deleteDocumentSuggestions($documentId);
+                
+                // Regenerar sugerencias
+                $this->createSuggestions($documentId);
+                
+                Log::info("Sugerencias regeneradas para documento {$documentId}");
+            } catch (\Exception $e) {
+                Log::error("Error regenerando sugerencias para documento {$documentId}: " . $e->getMessage());
+            }
+        }
+        
+        Log::info("Completada regeneración de sugerencias para grupo {$groupId}, procesados " . count($documents) . " documentos");
+    }
+    
+    /**
+     * Eliminar análisis y sugerencias existentes de un documento
+     */
+    private function deleteDocumentSuggestions(int $documentId): void
+    {
+        // Obtener IDs de análisis existentes
+        $analysisIds = DB::table('document_analyses')
+            ->where('document_id', $documentId)
+            ->pluck('id');
+            
+        if ($analysisIds->isNotEmpty()) {
+            // Eliminar issues relacionados
+            DB::table('analysis_issues')
+                ->whereIn('document_analysis_id', $analysisIds)
+                ->delete();
+                
+            // Eliminar análisis
+            DB::table('document_analyses')
+                ->where('document_id', $documentId)
+                ->delete();
+        }
+        
+        // Resetear normative_gap del documento
+        DB::table('documents')
+            ->where('id', $documentId)
+            ->update(['normative_gap' => 0]);
+    }
+
     public function createSuggestions(int $documentId): void
     {
-        // $doc = Document::findOrFail($documentId);
+        $doc = Document::findOrFail($documentId);
+        
+        // Obtener el grupo del documento
+        $groupId = $doc->document_group_id;
+        if (!$groupId) {
+            Log::info("Documento {$documentId} no tiene grupo asociado, omitiendo creación de sugerencias");
+            return;
+        }
 
         // 1) Inferir doc_type desde semantic_index.json_layout (fallback: 'acuerdo')
         $si = DB::table('semantic_doc_index')->where('document_id', $documentId)->first(['json_global']);
         $layout = $si ? json_decode($si->json_global, true) : [];
 
-        if (!array_key_exists('TIPO_DOCUMENTO', $layout))
-        {
-            return;
-        }
 
         $tipo_documento = $layout['TIPO_DOCUMENTO'];
-        // Buscar el ID del tipo de documento basado en el nombre
-        $docTypeId = DB::table('document_types')->where('nombre_doc', $tipo_documento)->value('id');
-        $field_specs = DB::table('document_field_specs')->where('doc_type_id', $docTypeId)->get(['id', 'field_key', 'label', 'is_required', 'datatype', 'regex']);
+        $docTypeId = $doc->tipo;
+        
+        if (!$docTypeId) {
+            Log::info("No se encontró tipo de documento para '{$tipo_documento}', omitiendo sugerencias");
+            return;
+        }
+        
+        // Obtener configuración específica del grupo para este tipo de documento
+        $groupRequiredFields = $this->groupValidationService->getGroupRequiredFields($groupId, $docTypeId);
+        
+        if (empty($groupRequiredFields)) {
+            Log::info("No hay campos obligatorios configurados para el grupo {$groupId} y tipo de documento {$docTypeId}");
+            return;
+        }
+        
+        // Obtener solo las especificaciones de campos que están configuradas como obligatorias para este grupo
+        $field_specs = DB::table('document_field_specs')
+            ->whereIn('id', $groupRequiredFields)
+            ->where('doc_type_id', $docTypeId)
+            ->get(['id', 'field_key', 'label', 'is_required', 'datatype', 'regex']);
 
         // ==========================================================
         // 2) Evaluación: existencia y regex contra json_global
@@ -129,24 +215,23 @@ class AnalysisController extends Controller
                 ? (string)$value
                 : (is_null($value) ? '' : json_encode($value, JSON_UNESCAPED_UNICODE));
 
-            // 2.1) Clave faltante (y requerida)
+            // 2.1) Clave faltante (obligatoria para este grupo)
             if (!$exists) {
-                if ((int)$spec->is_required === 1) {
-                    $issues[] = [
-                        'id' => $spec->id,
-                        'reason' => 'missing',
-                        // 'field_key'  => $key,
-                        // 'issue_type' => 'missing_field',
-                        // 'message'    => "Falta el campo obligatorio «{$label}» en json_global.",
-                        // 'evidence'   => ['path' => $key],
-                    ];
-                }
+                // Como ya filtramos por campos obligatorios del grupo, todos los campos son obligatorios
+                $issues[] = [
+                    'id' => $spec->id,
+                    'reason' => 'missing',
+                    // 'field_key'  => $key,
+                    // 'issue_type' => 'missing_field',
+                    // 'message'    => "Falta el campo obligatorio «{$label}» en json_global.",
+                    // 'evidence'   => ['path' => $key],
+                ];
                 // Si no existe, no seguimos evaluando regex
                 continue;
             }
 
-            // 2.2) Vacío si es requerido
-            if ((int)$spec->is_required === 1 && trim($strVal) === '') {
+            // 2.2) Vacío (obligatorio para este grupo)
+            if (trim($strVal) === '') {
                 $issues[] = [
                     'id' => $spec->id,
                     'reason' => 'missing'
@@ -273,6 +358,86 @@ class AnalysisController extends Controller
             // 'analysis' => $analysis,
             'issues'   => $issues,
         ]);
+    }
+
+    /**
+     * Obtener campos faltantes para un documento basándose en la configuración del grupo
+     */
+    public function getMissingFields(int $documentId): JsonResponse
+    {
+        try {
+            // 1. Obtener información del documento y su grupo
+            $document = DB::table('documents as d')
+                ->join('semantic_doc_index as sdi', 'd.id', '=', 'sdi.document_id')
+                ->where('d.id', $documentId)
+                ->first(['d.filename', 'sdi.document_group_id', 'sdi.json_global']);
+
+            if (!$document) {
+                return response()->json(['error' => 'Documento no encontrado'], 404);
+            }
+
+            $groupId = $document->document_group_id;
+            $detectedFields = $document->json_global ? json_decode($document->json_global, true) : [];
+
+            // 2. Determinar el tipo de documento basándose en su nombre
+            $documentType = DB::table('group_field_specs as gfs')
+                ->join('document_types as dt', 'gfs.document_type_id', '=', 'dt.id')
+                ->where('gfs.group_id', $groupId)
+                ->where('dt.analizar', 1) // Solo documentos que se analizan
+                ->get(['dt.id', 'dt.nombre_doc'])
+                ->first(function($docType) use ($document) {
+                    $filename = strtoupper($document->filename);
+                    $docName = strtoupper($docType->nombre_doc);
+                    return str_contains($filename, $docName);
+                });
+
+            if (!$documentType) {
+                return response()->json([
+                    'missing_fields' => [],
+                    'required_fields' => [],
+                    'detected_fields' => array_keys($detectedFields),
+                    'document_type' => null,
+                    'message' => 'Tipo de documento no configurado para este grupo'
+                ]);
+            }
+
+            // 3. Obtener campos obligatorios para este tipo de documento en el grupo
+            $requiredFields = DB::table('group_field_specs as gfs')
+                ->join('document_field_specs as dfs', 'gfs.field_spec_id', '=', 'dfs.id')
+                ->where('gfs.group_id', $groupId)
+                ->where('gfs.document_type_id', $documentType->id)
+                ->whereNotNull('gfs.field_spec_id')
+                ->where('dfs.is_required', true)
+                ->get(['dfs.field_key', 'dfs.label']);
+
+            // 4. Determinar campos faltantes
+            $requiredFieldKeys = $requiredFields->pluck('field_key')->toArray();
+            $detectedFieldKeys = array_keys($detectedFields);
+            $missingFieldKeys = array_diff($requiredFieldKeys, $detectedFieldKeys);
+
+            $missingFields = $requiredFields->filter(function($field) use ($missingFieldKeys) {
+                return in_array($field->field_key, $missingFieldKeys);
+            })->values();
+
+            return response()->json([
+                'missing_fields' => $missingFields,
+                'required_fields' => $requiredFields,
+                'detected_fields' => $detectedFieldKeys,
+                'document_type' => $documentType->nombre_doc,
+                'total_missing' => count($missingFields),
+                'compliance_percentage' => count($requiredFieldKeys) > 0 
+                    ? round((count($requiredFieldKeys) - count($missingFields)) / count($requiredFieldKeys) * 100)
+                    : 100
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error getting missing fields', [
+                'document_id' => $documentId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json(['error' => 'Error interno del servidor'], 500);
+        }
     }
 
     private function inferDocType(array $layout): ?string

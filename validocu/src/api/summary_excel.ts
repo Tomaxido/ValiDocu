@@ -7,7 +7,11 @@ export async function downloadDocumentSummaryExcel(groupID: number): Promise<voi
     method: 'GET',
     headers: { 'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
   });
-  if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error('Excel download error:', errorText);
+    throw new Error(`Download failed: ${res.status}`);
+  }
 
   const blob = await res.blob();
   const link = document.createElement('a');
