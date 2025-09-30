@@ -360,6 +360,86 @@ class AnalysisController extends Controller
         ]);
     }
 
+    /**
+     * Obtener campos faltantes para un documento basándose en la configuración del grupo
+     */
+    public function getMissingFields(int $documentId): JsonResponse
+    {
+        try {
+            // 1. Obtener información del documento y su grupo
+            $document = DB::table('documents as d')
+                ->join('semantic_doc_index as sdi', 'd.id', '=', 'sdi.document_id')
+                ->where('d.id', $documentId)
+                ->first(['d.filename', 'sdi.document_group_id', 'sdi.json_global']);
+
+            if (!$document) {
+                return response()->json(['error' => 'Documento no encontrado'], 404);
+            }
+
+            $groupId = $document->document_group_id;
+            $detectedFields = $document->json_global ? json_decode($document->json_global, true) : [];
+
+            // 2. Determinar el tipo de documento basándose en su nombre
+            $documentType = DB::table('group_field_specs as gfs')
+                ->join('document_types as dt', 'gfs.document_type_id', '=', 'dt.id')
+                ->where('gfs.group_id', $groupId)
+                ->where('dt.analizar', 1) // Solo documentos que se analizan
+                ->get(['dt.id', 'dt.nombre_doc'])
+                ->first(function($docType) use ($document) {
+                    $filename = strtoupper($document->filename);
+                    $docName = strtoupper($docType->nombre_doc);
+                    return str_contains($filename, $docName);
+                });
+
+            if (!$documentType) {
+                return response()->json([
+                    'missing_fields' => [],
+                    'required_fields' => [],
+                    'detected_fields' => array_keys($detectedFields),
+                    'document_type' => null,
+                    'message' => 'Tipo de documento no configurado para este grupo'
+                ]);
+            }
+
+            // 3. Obtener campos obligatorios para este tipo de documento en el grupo
+            $requiredFields = DB::table('group_field_specs as gfs')
+                ->join('document_field_specs as dfs', 'gfs.field_spec_id', '=', 'dfs.id')
+                ->where('gfs.group_id', $groupId)
+                ->where('gfs.document_type_id', $documentType->id)
+                ->whereNotNull('gfs.field_spec_id')
+                ->where('dfs.is_required', true)
+                ->get(['dfs.field_key', 'dfs.label']);
+
+            // 4. Determinar campos faltantes
+            $requiredFieldKeys = $requiredFields->pluck('field_key')->toArray();
+            $detectedFieldKeys = array_keys($detectedFields);
+            $missingFieldKeys = array_diff($requiredFieldKeys, $detectedFieldKeys);
+
+            $missingFields = $requiredFields->filter(function($field) use ($missingFieldKeys) {
+                return in_array($field->field_key, $missingFieldKeys);
+            })->values();
+
+            return response()->json([
+                'missing_fields' => $missingFields,
+                'required_fields' => $requiredFields,
+                'detected_fields' => $detectedFieldKeys,
+                'document_type' => $documentType->nombre_doc,
+                'total_missing' => count($missingFields),
+                'compliance_percentage' => count($requiredFieldKeys) > 0 
+                    ? round((count($requiredFieldKeys) - count($missingFields)) / count($requiredFieldKeys) * 100)
+                    : 100
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error getting missing fields', [
+                'document_id' => $documentId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json(['error' => 'Error interno del servidor'], 500);
+        }
+    }
+
     private function inferDocType(array $layout): ?string
     {
         foreach ($layout as $et) {

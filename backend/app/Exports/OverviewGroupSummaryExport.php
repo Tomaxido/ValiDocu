@@ -18,7 +18,9 @@ class OverviewGroupSummaryExport implements WithEvents, WithColumnWidths, WithTi
         private array  $tablaNoAnalizar,   // [ ['nombre_documento'=>'...', 'estado'=>'OK'], ... ]
         private array  $tablaUnmatched,    // [ ['nombre_documento'=>'...'], ... ]
         private array  $tablaAnalizar,     // [ ['nombre_documento'=>'...', 'estado'=>int, 'observaciones'=>'...', 'porcentaje'=>'..%'], ... ]
-        private array  $tablaPendientes = [] // NUEVO: [ ['nombre_documento'=>'...', 'estado'=>'Pendiente'], ... ]
+        private array  $tablaPendientes = [], // NUEVO: [ ['nombre_documento'=>'...', 'estado'=>'Pendiente'], ... ]
+        private int    $groupId = 0,
+        private string $groupName = ''
     ) {}
 
     public function title(): string

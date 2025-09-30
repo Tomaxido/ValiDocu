@@ -13,6 +13,13 @@ class GroupSummaryService
 
     public function overview(int $groupId): array
     {
+        // 0) Obtener información del grupo
+        $groupInfo = DB::table('document_groups')
+            ->where('id', $groupId)
+            ->first(['name']);
+        
+        $groupName = $groupInfo ? $groupInfo->name : 'Grupo Desconocido';
+
         // 1) Documentos del grupo (idéntico a downloadGroupSummaryExcel)
         $docs = DB::table('semantic_doc_index as sdi')
             ->join('documents as d', 'd.id', '=', 'sdi.document_id')
@@ -25,11 +32,33 @@ class GroupSummaryService
             abort(404, 'No hay documentos asociados a este grupo.');
         }
 
-        // 2) Documento obligatorios (ordenados por largo desc → matches específicos)
-        $obligatorios = DB::table('document_types')
-            ->get(['nombre_doc', 'analizar'])
+        // 2) Documentos obligatorios ESPECÍFICOS para este grupo (desde group_field_specs)
+        $obligatorios = DB::table('group_field_specs as gfs')
+            ->join('document_types as dt', 'gfs.document_type_id', '=', 'dt.id')
+            ->where('gfs.group_id', $groupId)
+            ->get(['dt.nombre_doc', 'dt.analizar'])
             ->sortByDesc(function($o) { return mb_strlen((string)$o->nombre_doc, 'UTF-8'); })
             ->values();
+
+        // Si no hay configuración específica para el grupo, retornar resumen vacío
+        if ($obligatorios->isEmpty()) {
+            return [
+                'group_id'   => $groupId,
+                'group_name' => $groupName,
+
+                'generated_at'     => Carbon::now('America/Santiago')->toIso8601String(),
+                'responsible_user' => 'Administrador',
+
+                'totals' => ['total'=>0,'conforme'=>0,'inconforme'=>0,'sin_procesar'=>0],
+
+                'pending_mandatory'          => [],
+                'not_to_analyze'             => [],
+                'unmatched_in_obligatorios'  => array_map(function($d) {
+                    return ['name' => (string)$d->filename];
+                }, $docs->toArray()),
+                'analyze'                    => [],
+            ];
+        }
 
         // Índice por nombre_doc normalizado para contar apariciones
         $oblIndex = []; // normNombreDoc => ['nombre_doc'=>..., 'analizar'=>int, 'count'=>0]
@@ -92,62 +121,56 @@ class GroupSummaryService
             }
         }
 
-        // 4) Construir “analizar” con % cumplimiento (calc igual al Excel)
+                // 4) Construir "analizar" con % cumplimiento basado en campos obligatorios del grupo
         $tablaAnalizar = [];
         $totals = ['total'=>0,'conforme'=>0,'inconforme'=>0,'sin_procesar'=>0];
 
         foreach ($matchedAnalyze as $doc) {
             $documentId = (int)$doc->document_id;
+            $detectedFields = [];
+            $compliancePct = 0;
 
             $si = DB::table('semantic_doc_index')
                 ->where('document_id', $documentId)
                 ->first(['json_global']);
 
-            // Si no hay json_global o es inválido, % = 0%
-            $pctStr = '0%';
-            $okCount = 0; $invCount = 0;
-            $data = null;
-
-            if ($si) {
+            if ($si && $si->json_global) {
                 $parsed = json_decode($si->json_global, true);
                 if (is_array($parsed)) {
-                    $data = $parsed;
-                    Log::info($data);
+                    $detectedFields = array_keys($parsed);
                 }
             }
 
-            if (is_array($data)) {
-                // Mismo filtro que usa el Excel: ignora llaves sensibles/ID
-                $ruts = ['RUT_DEUDOR', 'RUT_CORREDOR', 'EMPRESA_DEUDOR_RUT', 'EMPRESA_CORREDOR_RUT'];
-                $invalidComments = [];
-                foreach ($data as $key => $value) {
-                    if (is_array($value) || is_object($value)) continue;
-
-                    $estado = 'OK';
-                    if (in_array((string)$key, $ruts, true)) {
-                        $limpio = strtoupper(preg_replace('/[^0-9K]/', '', $value));
-                        if (strlen($limpio) < 2) continue;
-
-                        $rut = substr($limpio, 0, -1);
-                        $dv  = substr($limpio, -1);
-
-                        $sii = $this->checkRut($rut, $dv); // devuelve Response
-                        if ($sii->getStatusCode() === 400) {
-                            $estado = 'INVÁLIDO';
-                            $invalidComments[] = 'RUT: ' . $value . ' NO EXISTE EN SII';
-                        }
-                    }
-
-                    if ($estado === 'OK') $okCount++;
-                    elseif ($estado === 'INVÁLIDO') $invCount++;
-
-                    $observaciones = count($invalidComments) > 0 ? implode(', ', $invalidComments) : 'Dato Inválido';
+            // Calcular % cumplimiento basándose en campos obligatorios del grupo
+            $documentType = null;
+            foreach ($obligatorios as $obl) {
+                $normFile = $this->normalizeName((string)$doc->filename);
+                $normDoc = $this->normalizeName((string)$obl->nombre_doc);
+                if ($this->matchFilenameToNombreDoc($normFile, $normDoc) && $obl->analizar === 1) {
+                    $documentType = $obl;
+                    break;
                 }
+            }
 
-                $totalVars = $okCount + $invCount;
-                Log::info("Doc $documentId: totalVars=$totalVars, ok=$okCount, inv=$invCount");
-                $pctStr = $totalVars > 0 ? round(($okCount / $totalVars) * 100) . '%' : '0%';
-                Log::info("Doc $documentId: compliance_pct=$pctStr");
+            if ($documentType) {
+                // Obtener campos obligatorios para este tipo de documento
+                $requiredFields = DB::table('group_field_specs as gfs')
+                    ->join('document_field_specs as dfs', 'gfs.field_spec_id', '=', 'dfs.id')
+                    ->join('document_types as dt', 'gfs.document_type_id', '=', 'dt.id')
+                    ->where('gfs.group_id', $groupId)
+                    ->where('dt.nombre_doc', $documentType->nombre_doc)
+                    ->where('dt.analizar', 1)
+                    ->whereNotNull('gfs.field_spec_id')
+                    ->where('dfs.is_required', true)
+                    ->pluck('dfs.field_key')
+                    ->toArray();
+
+                if (count($requiredFields) > 0) {
+                    $foundFields = array_intersect($requiredFields, $detectedFields);
+                    $compliancePct = round((count($foundFields) / count($requiredFields)) * 100);
+                } else {
+                    $compliancePct = 100; // Si no hay campos obligatorios, 100%
+                }
             }
 
             $status = (int)$doc->status;
@@ -155,8 +178,8 @@ class GroupSummaryService
                 'name'            => (string)$doc->filename,
                 'status'          => $status,
                 'status_label'    => $status === 1 ? 'Conforme' : ($status === 2 ? 'Inconforme' : '—'),
-                'observations'    => $status === 1 ? '-' : ($status === 2 ? $observaciones : '—'),
-                'compliance_pct'  => (int) str_replace('%','', $pctStr),
+                'observations'    => $status === 1 ? '-' : ($status === 2 ? 'Requiere revisión' : '—'),
+                'compliance_pct'  => $compliancePct,
             ];
 
             $totals['total']++;
@@ -176,7 +199,7 @@ class GroupSummaryService
 
         return [
             'group_id'   => $groupId,
-            'group_name' => '', // si tienes el nombre en otra tabla, puedes rellenarlo aquí
+            'group_name' => $groupName,
 
             'generated_at'     => Carbon::now('America/Santiago')->toIso8601String(),
             'responsible_user' => 'Administrador',

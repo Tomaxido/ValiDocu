@@ -16,7 +16,9 @@ import {
   listSuggestionStatuses,
   type Issue,
   type SuggestionStatus,
-  summaryDoc
+  summaryDoc,
+  getMissingFields,
+  type MissingFieldsResponse
 } from "../../api/analysis";
 import SuggestionsModal from "./SuggestionsModal";
 
@@ -79,6 +81,7 @@ export default function DocInfoPanel({
   const [issuesList, setIssuesList] = useState<Issue[] | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [docSummary, setDocSummary] = useState<string | null>(null);
+  const [missingFields, setMissingFields] = useState<MissingFieldsResponse | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -91,8 +94,18 @@ export default function DocInfoPanel({
 
   useEffect(() => {
     reAnalyze();
-    // Obtener resumen del documento
+    loadMissingFields();
   }, [selectedDoc]);
+
+  const loadMissingFields = async () => {
+    try {
+      const fields = await getMissingFields(selectedDoc.id);
+      setMissingFields(fields);
+    } catch (error) {
+      console.error('Error loading missing fields:', error);
+      setMissingFields(null);
+    }
+  };
 
   useEffect(() => {
     setDocSummary(null); // Limpiar el resumen antes de cargar uno nuevo

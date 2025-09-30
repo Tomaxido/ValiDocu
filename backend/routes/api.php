@@ -50,6 +50,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/groups/{groupId}/overview', [DocumentSummaryController::class, 'overviewJson']);
     Route::get('/mandatory-docs', [DocumentSummaryController::class, 'mandatoryDocs']);
     Route::get('/document-summary/{document_id}', [App\Http\Controllers\DocumentUploadController::class, 'getDocumentSummary']);
+    Route::get('/documents/{documentId}/missing-fields', [AnalysisController::class, 'getMissingFields']);
     
     // Gestión de usuarios en grupos
     Route::post('/groups/{group_id}/users', [DocumentUploadController::class, 'addUserToGroup'])->middleware(['auth:sanctum']);

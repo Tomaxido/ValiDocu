@@ -179,15 +179,6 @@ export default function SuggestionsModal({
 
               }
             </Stack>
-            {onReanalyze && (
-              <Button
-                onClick={onReanalyze} 
-                disabled={loading || saving}
-                startIcon={<ReplayIcon />}
-              >
-                {loading ? "Cargando…" : "Re-analizar"}
-              </Button>
-            )}
           </Stack>
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
