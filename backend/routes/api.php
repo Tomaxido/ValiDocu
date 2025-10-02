@@ -8,6 +8,7 @@ use App\Http\Controllers\IssueController;
 use App\Http\Controllers\DocumentSummaryController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\GroupConfigurationController;
+use App\Http\Controllers\GroupAccessRequestController;
 
 Route::prefix('v1')->group(function () {
     
@@ -65,5 +66,12 @@ Route::prefix('v1')->group(function () {
     Route::get('/groups/configuration/defaults', [GroupConfigurationController::class, 'getDefaultConfiguration'])->middleware(['auth:sanctum']);
     Route::post('/groups/{group_id}/initialize-configuration', [GroupConfigurationController::class, 'initializeGroupConfiguration'])->middleware(['auth:sanctum']);
     Route::get('/groups/{group_id}/configuration/history', [GroupConfigurationController::class, 'getConfigurationHistory'])->middleware(['auth:sanctum']);
+
+    // Gestión de solicitudes de acceso a grupos privados
+    Route::post('/groups/{group_id}/request-access', [GroupAccessRequestController::class, 'requestAccess'])->middleware(['auth:sanctum']);
+    Route::get('/admin/access-requests/pending', [GroupAccessRequestController::class, 'getPendingRequests'])->middleware(['auth:sanctum']);
+    Route::patch('/admin/access-requests/{request_id}/review', [GroupAccessRequestController::class, 'reviewRequest'])->middleware(['auth:sanctum']);
+    Route::get('/groups/{group_id}/access-requests', [GroupAccessRequestController::class, 'getGroupRequestHistory'])->middleware(['auth:sanctum']);
+    Route::get('/my-access-requests', [GroupAccessRequestController::class, 'getMyRequests'])->middleware(['auth:sanctum']);
 
 });

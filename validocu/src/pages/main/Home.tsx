@@ -11,11 +11,12 @@ import {
   Tooltip,
   Alert,
 } from "@mui/material";
-import { Folder, Plus, Search as SearchIcon, Settings2, } from "lucide-react";
+import { Folder, Plus, Search as SearchIcon, Settings2, Lock, Users } from "lucide-react";
 import { createGroup, getDocumentGroups, buscarDocumentosPorTexto, obtenerDocumentosVencidos, marcarDocumentosVencidos, buscarSemanticaConFiltros } from "../../utils/api";
 import type { DocumentGroup, ExpiredDocumentResponse } from "../../utils/interfaces";
 import NewGroupModal from "./NewGroupModal";
 import GroupConfigurationModal from "../../components/group/GroupConfigurationModal";
+import RequestAccessModal from "../../components/group/RequestAccessModal";
 import { SnackbarDocsVencidos } from "../../components/SnackbarDocsVencidos";
 import { getDocumentFilters, type Filters } from "../../utils/api";
 
@@ -33,6 +34,10 @@ export default function Home() {
   // Estado para el modal de configuración
   const [configModalOpen, setConfigModalOpen] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<DocumentGroup | null>(null);
+
+  // Estado para el modal de solicitud de acceso
+  const [requestAccessModalOpen, setRequestAccessModalOpen] = useState(false);
+  const [selectedGroupForAccess, setSelectedGroupForAccess] = useState<DocumentGroup | null>(null);
 
   // Ancla del menú
   const [filtersAnchor, setFiltersAnchor] = useState<null | HTMLElement>(null);
@@ -136,9 +141,9 @@ export default function Home() {
     }
   };
 
-  const handleFileUpload = async (groupName: string, files: FileList): Promise<{ group_id?: number }> => {
+  const handleFileUpload = async (groupName: string, files: FileList, isPrivate: boolean = false): Promise<{ group_id?: number }> => {
     try {
-      const response = await createGroup(groupName, files);
+      const response = await createGroup(groupName, files, isPrivate);
       
       return response;
     } catch (err: any) {
@@ -178,6 +183,16 @@ export default function Home() {
       // Fallback: recargar página  
       window.location.reload();
     }
+  };
+
+  const handleOpenRequestAccess = (group: DocumentGroup) => {
+    setSelectedGroupForAccess(group);
+    setRequestAccessModalOpen(true);
+  };
+
+  const handleCloseRequestAccess = () => {
+    setRequestAccessModalOpen(false);
+    setSelectedGroupForAccess(null);
   };
 
   if (documentGroups === null) return <Typography sx={{ p: 3 }}>Cargando...</Typography>;
@@ -578,16 +593,33 @@ export default function Home() {
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                               <Folder size={22} />
                               <Typography variant="subtitle1" fontWeight={600}>{g.name}</Typography>
+                              {g.is_private && (
+                                <Tooltip title="Grupo privado - Solo visible para ti y usuarios autorizados">
+                                  <Lock size={16} color="#ff9800" />
+                                </Tooltip>
+                              )}
                             </Box>
-                            <Tooltip title="Configurar grupo">
-                              <IconButton
-                                size="small"
-                                onClick={() => handleOpenGroupConfiguration(g)}
-                                sx={{ ml: 1 }}
-                              >
-                                <Settings2 size={16} />
-                              </IconButton>
-                            </Tooltip>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              {g.is_private && g.created_by && (
+                                <Tooltip title="Solicitar acceso para otro usuario">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleOpenRequestAccess(g)}
+                                  >
+                                    <Users size={16} />
+                                  </IconButton>
+                                </Tooltip>
+                              )}
+                              <Tooltip title="Configurar grupo">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleOpenGroupConfiguration(g)}
+                                  sx={{ ml: 1 }}
+                                >
+                                  <Settings2 size={16} />
+                                </IconButton>
+                              </Tooltip>
+                            </Box>
                           </Box>
                         </TableCell>
                         <TableCell>
@@ -651,6 +683,19 @@ export default function Home() {
           open={configModalOpen}
           group={selectedGroup}
           onClose={handleCloseGroupConfiguration}
+        />
+      )}
+
+      {/* Modal de solicitud de acceso */}
+      {selectedGroupForAccess && (
+        <RequestAccessModal
+          isOpen={requestAccessModalOpen}
+          onClose={handleCloseRequestAccess}
+          groupId={selectedGroupForAccess.id}
+          groupName={selectedGroupForAccess.name}
+          onRequestSent={() => {
+            // Opcional: actualizar algún estado o mostrar confirmación
+          }}
         />
       )}
     </Box>

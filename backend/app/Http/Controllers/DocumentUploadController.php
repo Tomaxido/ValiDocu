@@ -204,18 +204,23 @@ class DocumentUploadController extends Controller
         $request->validate([
             'group_name' => 'required|string|max:255',
             'documents.*' => 'required|file',
+            'is_private' => 'nullable|boolean'
         ]);
 
+        $user = $request->user();
+        
         $group = DocumentGroup::create([
             'name' => $request->group_name,
             'status' => 0,
+            'is_private' => $request->boolean('is_private', false),
+            'created_by' => $user->id,
         ]);
 
         // Añadir el usuario autenticado como propietario del grupo
-        $user = $request->user();
         $group->users()->attach($user->id, [
             'active' => 1, // puede ver (predeterminado para quien lo crea)
-            'managed_by' => $user->id // quien lo aprobó (él mismo)
+            'managed_by' => $user->id, // quien lo aprobó (él mismo)
+            'can_edit' => 1 // el creador siempre puede editar
         ]);
 
         $this->_addDocumentsToGroup($request, $group);
@@ -408,11 +413,15 @@ class DocumentUploadController extends Controller
         ]);
 
         $group = DocumentGroup::findOrFail($group_id);
-        
-        // Verificar que el usuario tenga acceso al grupo
         $user = $request->user();
-        if (!$group->users()->where('user_id', $user->id)->wherePivot('active', 1)->exists()) {
-            return response()->json(['message' => 'No tienes permisos para añadir documentos a este grupo'], 403);
+        
+        // Verificar que el usuario tenga acceso al grupo y permisos de edición
+        if (!$group->userHasAccess($user->id)) {
+            return response()->json(['message' => 'No tienes acceso a este grupo'], 403);
+        }
+        
+        if (!$group->userCanEdit($user->id)) {
+            return response()->json(['message' => 'No tienes permisos de edición en este grupo'], 403);
         }
 
         $this->_addDocumentsToGroup($request, $group);
@@ -424,22 +433,23 @@ class DocumentUploadController extends Controller
     public function show(Request $request, $id)
     {
         $user = $request->user();
-        $group = $user->activeDocumentGroups()
-                     ->with(['documents', 'users'])
-                     ->find($id);
+        $group = DocumentGroup::with(['documents', 'users', 'creator'])->findOrFail($id);
 
-        if (!$group) {
-            return response()->json(['message' => 'Grupo no encontrado o sin permisos'], 404);
+        // Verificar que el usuario tiene acceso al grupo
+        if (!$group->userHasAccess($user->id)) {
+            return response()->json(['message' => 'No tienes acceso a este grupo'], 403);
         }
+
+        // Agregar información adicional sobre permisos del usuario
+        $group->user_can_edit = $group->userCanEdit($user->id);
+        $group->is_owner = $group->created_by === $user->id;
 
         return response()->json($group);
     }
     public function index(Request $request)
     {
         $user = $request->user();
-        $groups = $user->activeDocumentGroups()
-                      ->with(['documents', 'users'])
-                      ->get();
+        $groups = $user->accessibleDocumentGroups()->get();
         return response()->json($groups);
     }
 

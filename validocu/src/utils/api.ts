@@ -84,9 +84,10 @@ import { authService } from "../api/auth";
     return await getJSON(`/api/v1/documents/${idGrupo}`) as DocumentGroup;
   }
   
-  export async function createGroup(grupoNombre: string, files: FileList): Promise<{ group_id: number }> {
+  export async function createGroup(grupoNombre: string, files: FileList, isPrivate: boolean = false): Promise<{ group_id: number }> {
     const formData = new FormData();
     formData.append("group_name", grupoNombre);
+    formData.append("is_private", isPrivate.toString());
     for (const file of Array.from(files)) {
       formData.append("documents[]", file);
     }
@@ -265,4 +266,37 @@ export async function initializeGroupConfiguration(groupId: number): Promise<any
 
 export async function getGroupConfigurationHistory(groupId: number): Promise<any> {
   return getJSON(`/api/v1/groups/${groupId}/configuration/history`);
+}
+
+// === Gestión de solicitudes de acceso a grupos ===
+
+export async function requestGroupAccess(groupId: string | number, userEmail: string, permissionType: number, requestReason?: string): Promise<any> {
+  const body = {
+    user_email: userEmail,
+    permission_type: permissionType,
+    request_reason: requestReason
+  };
+  
+  return await post(`/api/v1/groups/${groupId}/request-access`, JSON.stringify(body));
+}
+
+export async function getPendingAccessRequests(): Promise<any> {
+  return await getJSON('/api/v1/admin/access-requests/pending');
+}
+
+export async function reviewAccessRequest(requestId: string | number, action: 'approve' | 'reject', adminComment?: string): Promise<any> {
+  const body = {
+    action,
+    admin_comment: adminComment
+  };
+  
+  return await post(`/api/v1/admin/access-requests/${requestId}/review`, JSON.stringify(body));
+}
+
+export async function getGroupRequestHistory(groupId: string | number): Promise<any> {
+  return await getJSON(`/api/v1/groups/${groupId}/access-requests`);
+}
+
+export async function getMyAccessRequests(): Promise<any> {
+  return await getJSON('/api/v1/my-access-requests');
 }
