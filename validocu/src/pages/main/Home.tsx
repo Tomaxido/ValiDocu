@@ -11,12 +11,13 @@ import {
   Tooltip,
   Alert,
 } from "@mui/material";
-import { Folder, Plus, Search as SearchIcon, Settings2, Lock, Users } from "lucide-react";
+import { Folder, Plus, Search as SearchIcon, Settings2, Lock, Users, Shield } from "lucide-react";
 import { createGroup, getDocumentGroups, buscarDocumentosPorTexto, obtenerDocumentosVencidos, marcarDocumentosVencidos, buscarSemanticaConFiltros } from "../../utils/api";
 import type { DocumentGroup, ExpiredDocumentResponse } from "../../utils/interfaces";
 import NewGroupModal from "./NewGroupModal";
 import GroupConfigurationModal from "../../components/group/GroupConfigurationModal";
 import RequestAccessModal from "../../components/group/RequestAccessModal";
+import PendingRequestsModal from "../../components/admin/PendingRequestsModal";
 import { SnackbarDocsVencidos } from "../../components/SnackbarDocsVencidos";
 import { getDocumentFilters, type Filters } from "../../utils/api";
 
@@ -38,6 +39,9 @@ export default function Home() {
   // Estado para el modal de solicitud de acceso
   const [requestAccessModalOpen, setRequestAccessModalOpen] = useState(false);
   const [selectedGroupForAccess, setSelectedGroupForAccess] = useState<DocumentGroup | null>(null);
+
+  // Estado para el modal de administración
+  const [pendingRequestsModalOpen, setPendingRequestsModalOpen] = useState(false);
 
   // Ancla del menú
   const [filtersAnchor, setFiltersAnchor] = useState<null | HTMLElement>(null);
@@ -206,6 +210,23 @@ export default function Home() {
       {/* Header */}
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Typography variant="h5" fontWeight={700}>Unidad de Sprint 1</Typography>
+        
+        {/* Botón de administración para solicitudes pendientes */}
+        <Tooltip title="Administrar solicitudes de acceso">
+          <IconButton 
+            onClick={() => setPendingRequestsModalOpen(true)}
+            sx={{ 
+              color: 'primary.main',
+              backgroundColor: 'primary.contrastText',
+              '&:hover': {
+                backgroundColor: 'primary.light',
+                color: 'white',
+              }
+            }}
+          >
+            <Shield />
+          </IconButton>
+        </Tooltip>
       </Stack>
 
       <Menu
@@ -698,6 +719,12 @@ export default function Home() {
           }}
         />
       )}
+
+      {/* Modal de administración de solicitudes pendientes */}
+      <PendingRequestsModal
+        open={pendingRequestsModalOpen}
+        onClose={() => setPendingRequestsModalOpen(false)}
+      />
     </Box>
   );
 }

@@ -52,6 +52,27 @@ import { authService } from "../api/auth";
     }
     return await res.json();
   }
+
+  async function postFormData(url: string, formData: FormData): Promise<any> {
+    const token = authService.getToken();
+    const headers: HeadersInit = {};
+    
+    // Para FormData NO establecer Content-Type, el navegador lo hace automáticamente
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    
+    const res = await fetch(baseURL + url, { 
+      method: "POST", 
+      headers,
+      body: formData 
+    });
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData?.message ?? "Error al subir documentos");
+    }
+    return await res.json();
+  }
   
   async function postJSON(url: string, body: any): Promise<any> {
     const headers = await getAuthHeaders();
@@ -87,12 +108,12 @@ import { authService } from "../api/auth";
   export async function createGroup(grupoNombre: string, files: FileList, isPrivate: boolean = false): Promise<{ group_id: number }> {
     const formData = new FormData();
     formData.append("group_name", grupoNombre);
-    formData.append("is_private", isPrivate.toString());
+    formData.append("is_private", isPrivate ? "1" : "0");
     for (const file of Array.from(files)) {
       formData.append("documents[]", file);
     }
     
-    const response = await post(`/api/v1/documents/`, formData);
+    const response = await postFormData(`/api/v1/documents`, formData);
     return response;
   }
   
@@ -102,7 +123,7 @@ import { authService } from "../api/auth";
       formData.append("documents[]", file);
     }
     
-    await post(`/api/v1/documents/${grupoId}`, formData);
+    await postFormData(`/api/v1/documents/${grupoId}`, formData);
     return;
   }
   
@@ -277,7 +298,7 @@ export async function requestGroupAccess(groupId: string | number, userEmail: st
     request_reason: requestReason
   };
   
-  return await post(`/api/v1/groups/${groupId}/request-access`, JSON.stringify(body));
+  return await postJSON(`/api/v1/groups/${groupId}/request-access`, body);
 }
 
 export async function getPendingAccessRequests(): Promise<any> {
@@ -290,7 +311,7 @@ export async function reviewAccessRequest(requestId: string | number, action: 'a
     admin_comment: adminComment
   };
   
-  return await post(`/api/v1/admin/access-requests/${requestId}/review`, JSON.stringify(body));
+  return await postJSON(`/api/v1/admin/access-requests/${requestId}/review`, body);
 }
 
 export async function getGroupRequestHistory(groupId: string | number): Promise<any> {
