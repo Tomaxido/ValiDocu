@@ -88,6 +88,20 @@ import { authService } from "../api/auth";
     return await res.json();
   }
   
+  async function patchJSON(url: string, body: any): Promise<any> {
+    const headers = await getAuthHeaders();
+    const res = await fetch(baseURL + url, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData?.message ?? "Error en la petición");
+    }
+    return await res.json();
+  }
+  
   export async function getSemanticGroupData(documents: Document[]): Promise<SemanticGroup[]> {
     const ids = documents.map(doc => doc.id);
     const data = await postJSON("/api/v1/semantic-data/by-filenames", { ids: ids });
@@ -301,8 +315,9 @@ export async function requestGroupAccess(groupId: string | number, userEmail: st
   return await postJSON(`/api/v1/groups/${groupId}/request-access`, body);
 }
 
-export async function getPendingAccessRequests(): Promise<any> {
-  return await getJSON('/api/v1/admin/access-requests/pending');
+export async function getPendingAccessRequests(): Promise<any[]> {
+  const response = await getJSON('/api/v1/admin/access-requests/pending');
+  return response.requests || [];
 }
 
 export async function reviewAccessRequest(requestId: string | number, action: 'approve' | 'reject', adminComment?: string): Promise<any> {
@@ -311,13 +326,54 @@ export async function reviewAccessRequest(requestId: string | number, action: 'a
     admin_comment: adminComment
   };
   
-  return await postJSON(`/api/v1/admin/access-requests/${requestId}/review`, body);
+  return await patchJSON(`/api/v1/admin/access-requests/${requestId}/review`, body);
 }
 
 export async function getGroupRequestHistory(groupId: string | number): Promise<any> {
   return await getJSON(`/api/v1/groups/${groupId}/access-requests`);
 }
 
+// === Información detallada del grupo ===
+
+export async function getGroupDetails(groupId: string | number): Promise<any> {
+  return await getJSON(`/api/v1/groups/${groupId}/details`);
+}
+
+export async function getGroupMembers(groupId: string | number): Promise<any> {
+  return await getJSON(`/api/v1/groups/${groupId}/members`);
+}
+
 export async function getMyAccessRequests(): Promise<any> {
   return await getJSON('/api/v1/my-access-requests');
+}
+
+// === Búsqueda de usuarios ===
+
+export async function searchUsers(query: string): Promise<{ id: string; email: string; name?: string }[]> {
+  if (!query.trim()) return [];
+  
+  try {
+    return await getJSON(`/api/v1/users/search?q=${encodeURIComponent(query)}`);
+  } catch (error) {
+    console.error("Error searching users:", error);
+    return [];
+  }
+}
+
+// === Verificación de acceso a grupos ===
+
+export async function checkGroupAccess(groupId: string): Promise<{ hasAccess: boolean; reason?: string }> {
+  try {
+    return await getJSON(`/api/v1/groups/${groupId}/check-access`);
+  } catch (error: any) {
+    // Si hay error 403, el usuario no tiene acceso
+    if (error.status === 403) {
+      return { hasAccess: false, reason: 'access_denied' };
+    }
+    // Si hay error 404, el grupo no existe
+    if (error.status === 404) {
+      return { hasAccess: false, reason: 'group_not_found' };
+    }
+    throw error;
+  }
 }

@@ -635,4 +635,77 @@ class DocumentUploadController extends Controller
             'count' => $pendingUsers->count()
         ]);
     }
+
+    /**
+     * Obtener información detallada del grupo
+     */
+    public function getGroupDetails(Request $request, int $groupId): JsonResponse
+    {
+        $user = $request->user();
+        
+        // Verificar que el usuario es administrador o tiene acceso al grupo
+        $isAdmin = $user->hasRole('admin');
+        if (!$isAdmin) {
+            $group = DocumentGroup::findOrFail($groupId);
+            if (!$group->userHasAccess($user->id)) {
+                return response()->json(['message' => 'No tienes acceso a este grupo'], 403);
+            }
+        }
+
+        $group = DocumentGroup::with(['creator'])
+                             ->withCount('documents')
+                             ->findOrFail($groupId);
+
+        // Contar usuarios activos manualmente
+        $activeUsersCount = $group->users()->wherePivot('active', 1)->count();
+
+        return response()->json([
+            'id' => $group->id,
+            'name' => $group->name,
+            'created_by' => $group->created_by,
+            'creator_name' => $group->creator->name ?? 'Usuario eliminado',
+            'created_at' => $group->created_at,
+            'is_private' => $group->is_private,
+            'document_count' => $group->documents_count,
+            'member_count' => $activeUsersCount
+        ]);
+    }
+
+    /**
+     * Obtener miembros del grupo
+     */
+    public function getGroupMembers(Request $request, int $groupId): JsonResponse
+    {
+        $user = $request->user();
+        
+        // Verificar que el usuario es administrador o tiene acceso al grupo
+        $isAdmin = $user->hasRole('admin');
+        if (!$isAdmin) {
+            $group = DocumentGroup::findOrFail($groupId);
+            if (!$group->userHasAccess($user->id)) {
+                return response()->json(['message' => 'No tienes acceso a este grupo'], 403);
+            }
+        }
+
+        $group = DocumentGroup::findOrFail($groupId);
+        
+        $members = $group->users()
+                        ->select(['users.id', 'users.name', 'users.email'])
+                        ->withPivot(['active', 'can_edit', 'created_at'])
+                        ->wherePivot('active', 1)
+                        ->orderBy('pivot_created_at', 'asc')
+                        ->get()
+                        ->map(function ($member) {
+                            return [
+                                'id' => $member->id,
+                                'name' => $member->name,
+                                'email' => $member->email,
+                                'permission_type' => $member->pivot->can_edit,
+                                'active' => $member->pivot->active,
+                                'joined_at' => $member->pivot->created_at
+                            ];
+                        });
+
+        return response()->json($members);
+    }
 }

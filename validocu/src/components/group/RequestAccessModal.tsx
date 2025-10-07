@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
-  TextField, Button, Typography, Box, MenuItem, FormControl, InputLabel, Select
+  TextField, Button, Typography, Box, MenuItem, FormControl, InputLabel, Select,
+  Paper, List, ListItem, ListItemText, ListItemButton, Popper, ClickAwayListener
 } from "@mui/material";
-import { requestGroupAccess } from "../../utils/api";
+import { requestGroupAccess, searchUsers } from "../../utils/api";
 
 interface Props {
   isOpen: boolean;
@@ -18,6 +19,65 @@ export default function RequestAccessModal({ isOpen, onClose, groupId, groupName
   const [permissionType, setPermissionType] = useState<number>(0);
   const [requestReason, setRequestReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Estados para autocompletado
+  const [suggestions, setSuggestions] = useState<{ id: string; email: string; name?: string }[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const textFieldRef = useRef<HTMLDivElement>(null);
+
+  // Función para buscar usuarios
+  const searchForUsers = async (query: string) => {
+    if (query.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    try {
+      const users = await searchUsers(query);
+      setSuggestions(users);
+      setShowSuggestions(users.length > 0);
+    } catch (error) {
+      console.error('Error searching users:', error);
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  // Manejar cambios en el input de email
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setUserEmail(value);
+
+    // Limpiar timeout anterior
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+
+    // Establecer nuevo timeout para buscar
+    const timeout = setTimeout(() => {
+      searchForUsers(value);
+    }, 300); // 300ms de debounce
+
+    setSearchTimeout(timeout);
+  };
+
+  // Seleccionar usuario de las sugerencias
+  const handleSelectUser = (user: { id: string; email: string; name?: string }) => {
+    setUserEmail(user.email);
+    setShowSuggestions(false);
+    setSuggestions([]);
+  };
+
+  // Limpiar timeout al desmontar
+  useEffect(() => {
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, [searchTimeout]);
 
   const handleSubmit = async () => {
     if (!userEmail.trim()) {
@@ -54,6 +114,11 @@ export default function RequestAccessModal({ isOpen, onClose, groupId, groupName
       setUserEmail("");
       setPermissionType(0);
       setRequestReason("");
+      setSuggestions([]);
+      setShowSuggestions(false);
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
       onClose();
     }
   };
@@ -70,15 +135,44 @@ export default function RequestAccessModal({ isOpen, onClose, groupId, groupName
             Como propietario de este grupo privado, puedes solicitar que un administrador otorgue acceso a otro usuario.
           </Typography>
           
-          <TextField
-            label="Email del usuario"
-            type="email"
-            fullWidth
-            value={userEmail}
-            onChange={(e) => setUserEmail(e.target.value)}
-            placeholder="usuario@ejemplo.com"
-            disabled={isSubmitting}
-          />
+          <ClickAwayListener onClickAway={() => setShowSuggestions(false)}>
+            <Box sx={{ position: 'relative' }}>
+              <TextField
+                ref={textFieldRef}
+                label="Email del usuario"
+                type="email"
+                fullWidth
+                value={userEmail}
+                onChange={handleEmailChange}
+                placeholder="usuario@ejemplo.com"
+                disabled={isSubmitting}
+                autoComplete="off"
+              />
+              
+              <Popper
+                open={showSuggestions}
+                anchorEl={textFieldRef.current}
+                placement="bottom-start"
+                style={{ zIndex: 1300, width: textFieldRef.current?.clientWidth || 'auto' }}
+              >
+                <Paper elevation={4} sx={{ maxHeight: 200, overflow: 'auto' }}>
+                  <List dense>
+                    {suggestions.map((user) => (
+                      <ListItemButton
+                        key={user.id}
+                        onClick={() => handleSelectUser(user)}
+                      >
+                        <ListItemText
+                          primary={user.email}
+                          secondary={user.name || ''}
+                        />
+                      </ListItemButton>
+                    ))}
+                  </List>
+                </Paper>
+              </Popper>
+            </Box>
+          </ClickAwayListener>
 
           <FormControl fullWidth disabled={isSubmitting}>
             <InputLabel>Tipo de permiso</InputLabel>

@@ -48,4 +48,20 @@ class AuthController extends Controller
             'message' => 'Logged out successfully',
         ];
     }
+
+    public function searchUsers(Request $request)
+    {
+        $query = $request->query('q', '');
+        
+        if (strlen(trim($query)) < 2) {
+            return response()->json([]);
+        }
+        
+        $users = User::where('email', 'ILIKE', '%' . $query . '%')
+            ->orWhere('name', 'ILIKE', '%' . $query . '%')
+            ->limit(10)
+            ->get(['id', 'email', 'name']);
+            
+        return response()->json($users);
+    }
 }

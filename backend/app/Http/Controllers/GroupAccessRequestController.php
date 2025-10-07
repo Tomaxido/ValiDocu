@@ -92,13 +92,17 @@ class GroupAccessRequestController extends Controller
     {
         $user = $request->user();
 
-        // TODO: Verificar que el usuario es administrador
-        // Por ahora, asumimos que cualquier usuario puede ver las solicitudes pendientes
+        // Verificar que el usuario es administrador
+        if (!$user->hasRole('admin')) {
+            return response()->json([
+                'message' => 'No tienes permisos para ver las solicitudes de acceso'
+            ], 403);
+        }
 
         $pendingRequests = GroupAccessRequest::with([
-            'group',
-            'requestedUser',
-            'requestingUser'
+            'group:id,name',
+            'requestedUser:id,name,email',
+            'requestingUser:id,name,email'
         ])
         ->pending()
         ->orderBy('created_at', 'asc') // Ordenar por antigüedad como especifica el criterio
@@ -188,27 +192,42 @@ class GroupAccessRequestController extends Controller
     public function getGroupRequestHistory(Request $request, $groupId): JsonResponse
     {
         $user = $request->user();
-        $group = DocumentGroup::findOrFail($groupId);
-
-        // Verificar que el usuario tiene acceso al grupo
-        if (!$group->userHasAccess($user->id)) {
-            return response()->json([
-                'message' => 'No tienes acceso a este grupo'
-            ], 403);
+        
+        // Verificar que el usuario es administrador o tiene acceso al grupo
+        $isAdmin = $user->hasRole('admin');
+        if (!$isAdmin) {
+            $group = \App\Models\DocumentGroup::findOrFail($groupId);
+            if (!$group->userHasAccess($user->id)) {
+                return response()->json([
+                    'message' => 'No tienes acceso a este grupo'
+                ], 403);
+            }
         }
 
         $requests = GroupAccessRequest::with([
-            'requestedUser',
-            'requestingUser',
-            'reviewedBy'
+            'requestedUser:id,name,email',
+            'requestingUser:id,name,email',
+            'reviewedBy:id,name,email'
         ])
         ->where('group_id', $groupId)
         ->orderBy('created_at', 'desc')
-        ->get();
+        ->get()
+        ->map(function ($request) {
+            return [
+                'id' => $request->id,
+                'user_name' => $request->requestedUser->name ?? 'Usuario eliminado',
+                'user_email' => $request->requestedUser->email ?? 'Email no disponible',
+                'permission_type' => $request->permission_type,
+                'status' => $request->status === 0 ? 'pending' : ($request->status === 1 ? 'approved' : 'rejected'),
+                'request_reason' => $request->request_reason,
+                'created_at' => $request->created_at,
+                'reviewed_at' => $request->reviewed_at,
+                'reviewed_by' => $request->reviewedBy->name ?? null,
+                'admin_comment' => $request->admin_comment
+            ];
+        });
 
-        return response()->json([
-            'requests' => $requests
-        ]);
+        return response()->json($requests);
     }
 
     /**

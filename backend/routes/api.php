@@ -15,6 +15,7 @@ Route::prefix('v1')->group(function () {
     Route::post('/login', [AuthController::class, 'login']); // ->middleware(['throttle:6,1']); // rate limit básico
     Route::post('/logout', [AuthController::class, 'logout'])->middleware(['auth:sanctum']);
     Route::get('/me', [AuthController::class, 'me'])->middleware(['auth:sanctum']);
+    Route::get('/users/search', [AuthController::class, 'searchUsers'])->middleware(['auth:sanctum']);
     
 
     Route::get('/documents', [DocumentUploadController::class, 'index'])->middleware(['auth:sanctum']);
@@ -73,5 +74,9 @@ Route::prefix('v1')->group(function () {
     Route::patch('/admin/access-requests/{request_id}/review', [GroupAccessRequestController::class, 'reviewRequest'])->middleware(['auth:sanctum']);
     Route::get('/groups/{group_id}/access-requests', [GroupAccessRequestController::class, 'getGroupRequestHistory'])->middleware(['auth:sanctum']);
     Route::get('/my-access-requests', [GroupAccessRequestController::class, 'getMyRequests'])->middleware(['auth:sanctum']);
+
+    // Información detallada de grupos
+    Route::get('/groups/{group_id}/details', [DocumentUploadController::class, 'getGroupDetails'])->middleware(['auth:sanctum']);
+    Route::get('/groups/{group_id}/members', [DocumentUploadController::class, 'getGroupMembers'])->middleware(['auth:sanctum']);
 
 });

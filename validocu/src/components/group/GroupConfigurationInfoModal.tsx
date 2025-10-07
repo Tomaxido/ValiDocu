@@ -295,42 +295,6 @@ const GroupConfigurationInfoModal: React.FC<Props> = ({ open, group, onClose }) 
                       ))}
                     </Stack>
                   )}
-
-                  <Box sx={{ mt: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-                    <Typography variant="subtitle2" gutterBottom>
-                      Acciones disponibles:
-                    </Typography>
-                    <List dense>
-                      <ListItem disableGutters>
-                        <ListItemText
-                          primary="Editar configuración"
-                          secondary="Modificar tipos de documentos obligatorios y campos requeridos"
-                        />
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          onClick={handleEditClick}
-                          startIcon={<EditIcon />}
-                        >
-                          Editar
-                        </Button>
-                      </ListItem>
-                      <ListItem disableGutters>
-                        <ListItemText
-                          primary="Ver historial"
-                          secondary="Consultar el historial de cambios de configuración"
-                        />
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          onClick={handleHistoryClick}
-                          startIcon={<HistoryIcon />}
-                        >
-                          Historial
-                        </Button>
-                      </ListItem>
-                    </List>
-                  </Box>
                 </>
               )}
             </Box>

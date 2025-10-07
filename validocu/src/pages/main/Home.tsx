@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { redirect, useNavigate, useLocation } from "react-router-dom";
 import {
   Box, Typography, IconButton, Button, Paper, InputBase, Stack,
   Card, CardActionArea, CardContent,
@@ -11,19 +11,22 @@ import {
   Tooltip,
   Alert,
 } from "@mui/material";
-import { Folder, Plus, Search as SearchIcon, Settings2, Lock, Users, Shield } from "lucide-react";
+import { Folder, Plus, Search as SearchIcon, Settings2, Lock, Users, Shield, Info } from "lucide-react";
 import { createGroup, getDocumentGroups, buscarDocumentosPorTexto, obtenerDocumentosVencidos, marcarDocumentosVencidos, buscarSemanticaConFiltros } from "../../utils/api";
 import type { DocumentGroup, ExpiredDocumentResponse } from "../../utils/interfaces";
 import NewGroupModal from "./NewGroupModal";
 import GroupConfigurationModal from "../../components/group/GroupConfigurationModal";
 import RequestAccessModal from "../../components/group/RequestAccessModal";
 import PendingRequestsModal from "../../components/admin/PendingRequestsModal";
+import GroupDetailModal from "../../components/group/GroupDetailModal";
 import { SnackbarDocsVencidos } from "../../components/SnackbarDocsVencidos";
 import { getDocumentFilters, type Filters } from "../../utils/api";
 
 
 export default function Home() {
   const navigate = useNavigate();
+  const location = useLocation();
+  
   const [documentGroups, setDocumentGroups] = useState<DocumentGroup[] | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -31,6 +34,10 @@ export default function Home() {
   const [buscando, setBuscando] = useState(false);
   const [busquedaRealizada, setBusquedaRealizada] = useState(false);
   const [respuestaDocsVencidos, setRespuestaDocsVencidos] = useState<ExpiredDocumentResponse | null>(null);
+  
+  // Estado para mensajes de alerta
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
+  const [alertSeverity, setAlertSeverity] = useState<'error' | 'warning' | 'info' | 'success'>('info');
   
   // Estado para el modal de configuración
   const [configModalOpen, setConfigModalOpen] = useState(false);
@@ -42,6 +49,10 @@ export default function Home() {
 
   // Estado para el modal de administración
   const [pendingRequestsModalOpen, setPendingRequestsModalOpen] = useState(false);
+
+  // Estado para el modal de información del grupo
+  const [groupInfoModalOpen, setGroupInfoModalOpen] = useState(false);
+  const [selectedGroupForInfo, setSelectedGroupForInfo] = useState<DocumentGroup | null>(null);
 
   // Ancla del menú
   const [filtersAnchor, setFiltersAnchor] = useState<null | HTMLElement>(null);
@@ -98,6 +109,24 @@ export default function Home() {
     obtenerDocumentosVencidos().then(docs => setRespuestaDocsVencidos(docs));
     marcarDocumentosVencidos();
   }, []);
+
+  // Effect para manejar mensajes de estado de navegación
+  useEffect(() => {
+    if (location.state?.message) {
+      setAlertMessage(location.state.message);
+      setAlertSeverity(location.state.severity || 'info');
+      
+      // Limpiar el estado de navegación
+      navigate(location.pathname, { replace: true, state: {} });
+      
+      // Auto-hide después de 5 segundos
+      const timer = setTimeout(() => {
+        setAlertMessage(null);
+      }, 5000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [location.state, navigate, location.pathname]);
 
   // const buscar = async () => {
   //   if (!query.trim()) {
@@ -199,10 +228,31 @@ export default function Home() {
     setSelectedGroupForAccess(null);
   };
 
+  const handleOpenGroupDetail = (group: DocumentGroup) => {
+    setSelectedGroupForInfo(group);
+    setGroupInfoModalOpen(true);
+  };
+
+  const handleCloseGroupDetail = () => {
+    setGroupInfoModalOpen(false);
+    setSelectedGroupForInfo(null);
+  };
+
   if (documentGroups === null) return <Typography sx={{ p: 3 }}>Cargando...</Typography>;
 
   return (
     <Box sx={{p: 3, bgcolor: "background.default", minHeight: "100dvh", paddingX: "6em" }}>
+      {/* Alerta de acceso denegado o mensajes del sistema */}
+      {alertMessage && (
+        <Alert 
+          severity={alertSeverity} 
+          sx={{ mb: 2 }} 
+          onClose={() => setAlertMessage(null)}
+        >
+          {alertMessage}
+        </Alert>
+      )}
+      
       {/* Alerta de documentos vencidos 
       // TODO: aunque se crea el mensaje de alerta, no se ve la alerta como tal */}
       <SnackbarDocsVencidos respuestaDocsVencidos={respuestaDocsVencidos}/>
@@ -210,23 +260,6 @@ export default function Home() {
       {/* Header */}
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Typography variant="h5" fontWeight={700}>Unidad de Sprint 1</Typography>
-        
-        {/* Botón de administración para solicitudes pendientes */}
-        <Tooltip title="Administrar solicitudes de acceso">
-          <IconButton 
-            onClick={() => setPendingRequestsModalOpen(true)}
-            sx={{ 
-              color: 'primary.main',
-              backgroundColor: 'primary.contrastText',
-              '&:hover': {
-                backgroundColor: 'primary.light',
-                color: 'white',
-              }
-            }}
-          >
-            <Shield />
-          </IconButton>
-        </Tooltip>
       </Stack>
 
       <Menu
@@ -614,23 +647,22 @@ export default function Home() {
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                               <Folder size={22} />
                               <Typography variant="subtitle1" fontWeight={600}>{g.name}</Typography>
-                              {g.is_private && (
+                              {g.is_private === 1 && (
                                 <Tooltip title="Grupo privado - Solo visible para ti y usuarios autorizados">
                                   <Lock size={16} color="#ff9800" />
                                 </Tooltip>
                               )}
                             </Box>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              {g.is_private && g.created_by && (
-                                <Tooltip title="Solicitar acceso para otro usuario">
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleOpenRequestAccess(g)}
-                                  >
-                                    <Users size={16} />
-                                  </IconButton>
-                                </Tooltip>
-                              )}
+                              <Tooltip title="Ver información del grupo">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleOpenGroupDetail(g)}
+                                  sx={{ color: 'info.main' }}
+                                >
+                                  <Info size={16} />
+                                </IconButton>
+                              </Tooltip>
                               <Tooltip title="Configurar grupo">
                                 <IconButton
                                   size="small"
@@ -640,6 +672,16 @@ export default function Home() {
                                   <Settings2 size={16} />
                                 </IconButton>
                               </Tooltip>
+                              {g.is_private === 1 && g.created_by && (
+                                <Tooltip title="Solicitar acceso para otro usuario">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleOpenRequestAccess(g)}
+                                  >
+                                    <Users size={16} />
+                                  </IconButton>
+                                </Tooltip>
+                              )}
                             </Box>
                           </Box>
                         </TableCell>
@@ -647,7 +689,7 @@ export default function Home() {
                           <Stack direction="row" spacing={1} alignItems="center">
                             {/* Peor estado de vencimiento: solo negativos */}
                             {(() => {
-                              const isPdf = d => d.filename && d.filename.toLowerCase().endsWith('.pdf');
+                              const isPdf = (d: any) => d.filename && d.filename.toLowerCase().endsWith('.pdf');
                               const docsPdf = g.documents.filter(isPdf);
                               const docsVencidos = docsPdf.filter(d => d.due_date === 1);
                               const docsPorVencer = docsPdf.filter(d => d.due_date === 2);
@@ -725,6 +767,15 @@ export default function Home() {
         open={pendingRequestsModalOpen}
         onClose={() => setPendingRequestsModalOpen(false)}
       />
+
+      {/* Modal de información detallada del grupo */}
+      {selectedGroupForInfo && (
+        <GroupDetailModal
+          open={groupInfoModalOpen}
+          group={selectedGroupForInfo}
+          onClose={handleCloseGroupDetail}
+        />
+      )}
     </Box>
   );
 }
