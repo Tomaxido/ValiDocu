@@ -204,18 +204,23 @@ class DocumentUploadController extends Controller
         $request->validate([
             'group_name' => 'required|string|max:255',
             'documents.*' => 'required|file',
+            'is_private' => 'nullable|boolean'
         ]);
 
+        $user = $request->user();
+        
         $group = DocumentGroup::create([
             'name' => $request->group_name,
             'status' => 0,
+            'is_private' => $request->boolean('is_private', false),
+            'created_by' => $user->id,
         ]);
 
         // Añadir el usuario autenticado como propietario del grupo
-        $user = $request->user();
         $group->users()->attach($user->id, [
             'active' => 1, // puede ver (predeterminado para quien lo crea)
-            'managed_by' => $user->id // quien lo aprobó (él mismo)
+            'managed_by' => $user->id, // quien lo aprobó (él mismo)
+            'can_edit' => 1 // el creador siempre puede editar
         ]);
 
         $this->_addDocumentsToGroup($request, $group);
@@ -408,11 +413,15 @@ class DocumentUploadController extends Controller
         ]);
 
         $group = DocumentGroup::findOrFail($group_id);
-        
-        // Verificar que el usuario tenga acceso al grupo
         $user = $request->user();
-        if (!$group->users()->where('user_id', $user->id)->wherePivot('active', 1)->exists()) {
-            return response()->json(['message' => 'No tienes permisos para añadir documentos a este grupo'], 403);
+        
+        // Verificar que el usuario tenga acceso al grupo y permisos de edición
+        if (!$group->userHasAccess($user->id)) {
+            return response()->json(['message' => 'No tienes acceso a este grupo'], 403);
+        }
+        
+        if (!$group->userCanEdit($user->id)) {
+            return response()->json(['message' => 'No tienes permisos de edición en este grupo'], 403);
         }
 
         $this->_addDocumentsToGroup($request, $group);
@@ -424,22 +433,23 @@ class DocumentUploadController extends Controller
     public function show(Request $request, $id)
     {
         $user = $request->user();
-        $group = $user->activeDocumentGroups()
-                     ->with(['documents', 'users'])
-                     ->find($id);
+        $group = DocumentGroup::with(['documents', 'users', 'creator'])->findOrFail($id);
 
-        if (!$group) {
-            return response()->json(['message' => 'Grupo no encontrado o sin permisos'], 404);
+        // Verificar que el usuario tiene acceso al grupo
+        if (!$group->userHasAccess($user->id)) {
+            return response()->json(['message' => 'No tienes acceso a este grupo'], 403);
         }
+
+        // Agregar información adicional sobre permisos del usuario
+        $group->user_can_edit = $group->userCanEdit($user->id);
+        $group->is_owner = $group->created_by === $user->id;
 
         return response()->json($group);
     }
     public function index(Request $request)
     {
         $user = $request->user();
-        $groups = $user->activeDocumentGroups()
-                      ->with(['documents', 'users'])
-                      ->get();
+        $groups = $user->accessibleDocumentGroups()->get();
         return response()->json($groups);
     }
 
@@ -624,5 +634,78 @@ class DocumentUploadController extends Controller
             'pending_users' => $pendingUsers,
             'count' => $pendingUsers->count()
         ]);
+    }
+
+    /**
+     * Obtener información detallada del grupo
+     */
+    public function getGroupDetails(Request $request, int $groupId): JsonResponse
+    {
+        $user = $request->user();
+        
+        // Verificar que el usuario es administrador o tiene acceso al grupo
+        $isAdmin = $user->hasRole('admin');
+        if (!$isAdmin) {
+            $group = DocumentGroup::findOrFail($groupId);
+            if (!$group->userHasAccess($user->id)) {
+                return response()->json(['message' => 'No tienes acceso a este grupo'], 403);
+            }
+        }
+
+        $group = DocumentGroup::with(['creator'])
+                             ->withCount('documents')
+                             ->findOrFail($groupId);
+
+        // Contar usuarios activos manualmente
+        $activeUsersCount = $group->users()->wherePivot('active', 1)->count();
+
+        return response()->json([
+            'id' => $group->id,
+            'name' => $group->name,
+            'created_by' => $group->created_by,
+            'creator_name' => $group->creator->name ?? 'Usuario eliminado',
+            'created_at' => $group->created_at,
+            'is_private' => $group->is_private,
+            'document_count' => $group->documents_count,
+            'member_count' => $activeUsersCount
+        ]);
+    }
+
+    /**
+     * Obtener miembros del grupo
+     */
+    public function getGroupMembers(Request $request, int $groupId): JsonResponse
+    {
+        $user = $request->user();
+        
+        // Verificar que el usuario es administrador o tiene acceso al grupo
+        $isAdmin = $user->hasRole('admin');
+        if (!$isAdmin) {
+            $group = DocumentGroup::findOrFail($groupId);
+            if (!$group->userHasAccess($user->id)) {
+                return response()->json(['message' => 'No tienes acceso a este grupo'], 403);
+            }
+        }
+
+        $group = DocumentGroup::findOrFail($groupId);
+        
+        $members = $group->users()
+                        ->select(['users.id', 'users.name', 'users.email'])
+                        ->withPivot(['active', 'can_edit', 'created_at'])
+                        ->wherePivot('active', 1)
+                        ->orderBy('pivot_created_at', 'asc')
+                        ->get()
+                        ->map(function ($member) {
+                            return [
+                                'id' => $member->id,
+                                'name' => $member->name,
+                                'email' => $member->email,
+                                'permission_type' => $member->pivot->can_edit,
+                                'active' => $member->pivot->active,
+                                'joined_at' => $member->pivot->created_at
+                            ];
+                        });
+
+        return response()->json($members);
     }
 }

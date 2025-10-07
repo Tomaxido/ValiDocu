@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from "react";
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, Button, List, ListItem, ListItemText, IconButton,
-  Box, Typography, Alert
+  Box, Typography, Alert, FormControlLabel, Switch
 } from "@mui/material";
 import { X, FileText } from "lucide-react";
 import { getAllAvailableDocumentTypes, updateGroupConfiguration } from "../../utils/api";
@@ -11,7 +11,7 @@ import DocumentConfigurationPanel from "../../components/shared/DocumentConfigur
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onUpload: (groupName: string, files: FileList) => Promise<{ group_id?: number }>;
+  onUpload: (groupName: string, files: FileList, isPrivate?: boolean) => Promise<{ group_id?: number }>;
   onGroupCreated?: (groupId: number) => void; // Nuevo callback para cuando se crea el grupo
 }
 
@@ -44,6 +44,7 @@ interface ConfigurationState {
 export default function NewGroupModal({ isOpen, onClose, onUpload, onGroupCreated }: Readonly<Props>) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [groupName, setGroupName] = useState("");
+  const [isPrivate, setIsPrivate] = useState(false);
   const [fileList, setFileList] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -232,7 +233,7 @@ export default function NewGroupModal({ isOpen, onClose, onUpload, onGroupCreate
     
     try {
       // 1. Crear el grupo con los archivos
-      const response = await onUpload(groupName, dt.files);
+      const response = await onUpload(groupName, dt.files, isPrivate);
       
       // 2. Si hay configuración seleccionada, enviarla al backend
       if (response?.group_id && Object.keys(selectedConfiguration).length > 0) {
@@ -247,6 +248,7 @@ export default function NewGroupModal({ isOpen, onClose, onUpload, onGroupCreate
       setIsUploading(false);
       setFileList([]);
       setGroupName("");
+      setIsPrivate(false);
       setStep(0);
       setSelectedConfiguration({});
       onClose();
@@ -278,6 +280,27 @@ export default function NewGroupModal({ isOpen, onClose, onUpload, onGroupCreate
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
               sx={{ mt: 1, mb: 2 }}
+            />
+            
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={isPrivate}
+                  onChange={(e) => setIsPrivate(e.target.checked)}
+                  color="primary"
+                />
+              }
+              label={
+                <Box>
+                  <Typography variant="body2" fontWeight="medium">
+                    Grupo privado
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Solo tú podrás ver y administrar este grupo. Puedes solicitar que otros usuarios accedan mediante autorización de un administrador.
+                  </Typography>
+                </Box>
+              }
+              sx={{ mb: 2, alignItems: 'flex-start' }}
             />
           </>
         ) : (

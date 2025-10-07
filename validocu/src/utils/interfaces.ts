@@ -15,9 +15,14 @@ export interface DocumentGroup {
     id: number;
     name: string;
     status: number;
+    is_private?: number;
+    created_by?: string;
     created_at: string;
     updated_at: string;
     documents: Document[];
+    // Propiedades adicionales que pueden venir del backend
+    user_can_edit?: boolean;
+    is_owner?: boolean;
 };
 
 export interface GroupedDocument {

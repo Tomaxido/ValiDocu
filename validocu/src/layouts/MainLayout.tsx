@@ -4,11 +4,18 @@ import { Link as RouterLink } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
 import BrandMark from '../graphics/ValiDocuLogo';
 import UserMenu from '../components/auth/UserMenu';
+import AccessRequestsIndicator from '../components/admin/AccessRequestsIndicator';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Props { children: ReactNode; }
 
 export default function MainLayout({ children }: Props) {
   const theme = useTheme();
+  const { user } = useAuth();
+  
+  // Verificar si el usuario tiene rol de admin
+  const isAdmin = user?.roles?.some(role => role.slug === 'admin' || role.name === 'admin' || role.name === 'Administrador') || false;
+  
   return (
     <Box
       sx={{
@@ -67,6 +74,9 @@ export default function MainLayout({ children }: Props) {
             <Link component={RouterLink} underline="none" color="inherit" to="/perfil">
               Perfil
             </Link>
+            
+            {/* Indicador de solicitudes pendientes para administradores */}
+            <AccessRequestsIndicator isAdmin={isAdmin} />
             
             {/* Importar y usar UserMenu aquí */}
             <UserMenu />

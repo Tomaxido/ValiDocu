@@ -187,20 +187,7 @@ export default function DocumentConfigurationPanel({
                                   <Typography variant="body2">
                                     {field.label}
                                   </Typography>
-                                  <Chip 
-                                    label={field.field_key} 
-                                    size="small" 
-                                    variant="outlined"
-                                    sx={{ fontSize: '0.7rem', height: '18px' }}
-                                  />
                                 </Box>
-                              }
-                              secondary={
-                                <Typography variant="caption" color="text.secondary">
-                                  {field.datatype && `Tipo: ${field.datatype}`}
-                                  {field.regex && field.datatype && ` • `}
-                                  {field.regex && `Patrón: ${field.regex.slice(0, 30)}...`}
-                                </Typography>
                               }
                             />
                           </ListItem>

@@ -1,15 +1,18 @@
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import {
   getDocumentGroupById,
+  getDocumentGroups,
   uploadDocumentsToGroup,
   deleteDocuments,
   getSemanticGroupData,
   marcarDocumentosVencidos,
   obtenerDocumentosVencidosDeGrupo as obtenerDocumentosVencidosDeGrupo,
-  buscaDocJsonLayoutPorIdDocumento 
+  buscaDocJsonLayoutPorIdDocumento
 } from "../../utils/api";
 import { type DocumentGroup, type Document, type GroupedDocument, type SemanticGroup, type ExpiredDocumentResponse } from "../../utils/interfaces";
+import { canUserEdit } from "../../utils/permissions";
+import { useAuth } from "../../contexts/AuthContext";
 import UploadModal from "./UploadModal";
 import DeleteModal from "./DeleteModal";
 import GroupedImageViewer from "./GroupedImageViewer";
@@ -55,7 +58,12 @@ function StatusChip({ status } : { status?: number }) {
 
 export default function Grupo() {
   const { grupoId } = useParams<{ grupoId: string }>();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  
   const [group, setGroup] = useState<DocumentGroup | null>(null);
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [groupedDocs, setGroupedDocs] = useState<GroupedDocument[]>([]);
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -72,6 +80,9 @@ export default function Grupo() {
   const hoverTimerRef = useRef<number | null>(null);
   const [respuestaDocsVencidos, setRespuestaDocsVencidos] = useState<ExpiredDocumentResponse | null>(null);
   const [docLayout, setDocLayout] = useState<any>(null);
+
+  // Verificar permisos de edición del usuario actual
+  const userCanEdit = canUserEdit(group, user?.id?.toString());
 
   const splitRef = useRef<HTMLDivElement | null>(null);
   const [ratio, setRatio] = useState(0.66);
@@ -184,24 +195,76 @@ export default function Grupo() {
   };
 
   useEffect(() => {
-    marcarDocumentosVencidos();
-    if (grupoId) {
-      // TEST
-      obtenerDocumentosVencidosDeGrupo(grupoId).then(setRespuestaDocsVencidos);
-      getDocumentGroupById(grupoId).then((g) => {
+    const checkAccessAndLoadGroup = async () => {
+      if (!grupoId || !user) return;
+      
+      setLoading(true);
+      
+      try {
+        // Primero obtener la lista de grupos del usuario para verificar acceso
+        const userGroups = await getDocumentGroups();
+        const targetGroup = userGroups.find((g: DocumentGroup) => g.id.toString() === grupoId);
+        
+        if (!targetGroup) {
+          setAccessDenied(true);
+          
+          // Redirigir al home después de 3 segundos
+          setTimeout(() => {
+            navigate('/', { 
+              state: { 
+                message: 'El grupo solicitado no existe o no tienes permisos para acceder a él.',
+                severity: 'error' 
+              } 
+            });
+          }, 3000);
+          return;
+        }
+        
+        // Si el grupo está en la lista de userGroups, el usuario ya tiene acceso autorizado
+        // No necesitamos verificación adicional porque el backend ya filtró correctamente
+        
+        // Si tiene acceso, cargar los detalles completos del grupo
+        marcarDocumentosVencidos();
+        obtenerDocumentosVencidosDeGrupo(grupoId).then(setRespuestaDocsVencidos);
+        
+        const g = await getDocumentGroupById(grupoId);
         setGroup(g);
         const grouped = groupDocuments(g.documents);
         setGroupedDocs(grouped);
+        
         if (grouped.length > 0 && grouped[0].pdf) {
           setSelectedDoc(grouped[0].pdf);
-          setDocLayout(null); // Limpiar layout al seleccionar documento inicial
+          setDocLayout(null);
           getSemanticGroupData(grouped[0].images).then(
             data => setSemanticGroupData(data)
           );
         }
-      });
-    }
-  }, [grupoId]);
+      } catch (error: any) {
+        console.error('Error loading group:', error);
+        
+        // Manejar diferentes tipos de error
+        let message = 'Error al acceder al grupo.';
+        if (error.message?.includes('403') || error.message?.includes('Forbidden')) {
+          message = 'No tienes permisos para acceder a este grupo.';
+        } else if (error.message?.includes('404') || error.message?.includes('Not Found')) {
+          message = 'El grupo solicitado no existe.';
+        } else if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+          message = 'Tu sesión ha expirado. Por favor inicia sesión nuevamente.';
+        }
+        
+        navigate('/', { 
+          state: { 
+            message,
+            severity: 'error' 
+          } 
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAccessAndLoadGroup();
+  }, [grupoId, user, navigate]);
 
   const beginDrag = (clientX: number) => {
     const el = splitRef.current;
@@ -244,7 +307,39 @@ export default function Grupo() {
     window.addEventListener("touchcancel", end);
   };
 
-  if (!group) return <Typography sx={{ p: 2 }}>Cargando grupo...</Typography>;
+  // Estados de carga y acceso
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+        <CircularProgress />
+        <Typography sx={{ ml: 2 }}>Verificando acceso y cargando grupo...</Typography>
+      </Box>
+    );
+  }
+
+  if (accessDenied) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '50vh', p: 3 }}>
+        <Typography variant="h5" color="error" gutterBottom>
+          Acceso Denegado
+        </Typography>
+        <Typography variant="body1" color="text.secondary" sx={{ mb: 2, textAlign: 'center' }}>
+          No tienes permisos para acceder a este grupo privado.
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Serás redirigido al inicio en unos segundos...
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (!group) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+        <Typography>Error al cargar el grupo</Typography>
+      </Box>
+    );
+  }
 
   const handleFileUpload = async (files: FileList) => {
     if (!grupoId) return;
@@ -291,11 +386,6 @@ export default function Grupo() {
 
   const leftPct = Math.round(ratio * 100);
   const rightPct = 100 - leftPct;
-
-  const currentGroup = selectedDoc
-    ? groupedDocs.find(g => g.pdf?.id === selectedDoc.id)
-    : undefined;
-  const currentImageIds = currentGroup ? currentGroup.images.map(d => d.id) : [];
 
   return (
     <Box
@@ -357,7 +447,23 @@ export default function Grupo() {
             }),
           })}
         >
-          <Typography variant="h6" fontWeight={700}>Grupo: {group.name}</Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+            <Typography variant="h6" fontWeight={700}>Grupo: {group.name}</Typography>
+            <Chip 
+              label={userCanEdit ? 'Edición' : 'Solo lectura'} 
+              size="small" 
+              color={userCanEdit ? 'warning' : 'info'}
+              sx={{ ml: 1 }}
+            />
+          </Box>
+
+          {!userCanEdit && (
+            <Box sx={{ mb: 2, p: 1, bgcolor: 'info.light', borderRadius: 1 }}>
+              <Typography variant="caption" color="info.dark">
+                Solo tienes permisos de lectura en este grupo. No puedes añadir ni eliminar documentos.
+              </Typography>
+            </Box>
+          )}
 
         {/* === Acciones del grupo (2 columnas iguales) === */}
         <Box
@@ -370,13 +476,24 @@ export default function Grupo() {
           }}
         >
           {/* Fila 1: Añadir / Eliminar (mismo tamaño) */}
-          <Button onClick={() => setIsModalOpen(true)} fullWidth startIcon={<Plus size={18} />}>
+          <Button 
+            onClick={() => setIsModalOpen(true)} 
+            fullWidth 
+            startIcon={<Plus size={18} />}
+            disabled={!userCanEdit}
+            title={!userCanEdit ? "No tienes permisos de edición en este grupo" : "Añadir documento"}
+          >
             Añadir documento
           </Button>
 
-            <IconButton onClick={() => setDeleteModalOpen(true)} sx={{ bgcolor: "white" }}>
+          <IconButton 
+            onClick={() => setDeleteModalOpen(true)} 
+            sx={{ bgcolor: "white" }}
+            disabled={!userCanEdit}
+            title={!userCanEdit ? "No tienes permisos de edición en este grupo" : "Eliminar documentos"}
+          >
             <Trash2 size={18} />
-            </IconButton>
+          </IconButton>
 
           {/* Fila 2: Ver Resumen / Configuración */}
           <Button fullWidth onClick={() => setOverviewOpen(true)} startIcon={<EqualizerIcon />}>

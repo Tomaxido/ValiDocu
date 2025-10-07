@@ -69,16 +69,25 @@ class User extends Authenticatable
     public function documentGroups()
     {
         return $this->belongsToMany(DocumentGroup::class, 'users_groups', 'user_id', 'group_id')
-                    ->withPivot('active', 'managed_by')
+                    ->withPivot('active', 'managed_by', 'can_edit')
                     ->withTimestamps();
     }
 
     public function activeDocumentGroups()
     {
         return $this->belongsToMany(DocumentGroup::class, 'users_groups', 'user_id', 'group_id')
-                    ->withPivot('active', 'managed_by')
+                    ->withPivot('active', 'managed_by', 'can_edit')
                     ->wherePivot('active', 1)
                     ->withTimestamps();
+    }
+
+    /**
+     * Obtener todos los grupos accesibles por este usuario (públicos + privados con acceso)
+     */
+    public function accessibleDocumentGroups()
+    {
+        return DocumentGroup::accessibleBy($this->id)
+                           ->with(['documents', 'users']);
     }
 
     public function permissions()
