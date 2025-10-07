@@ -11,6 +11,7 @@ import {
   buscaDocJsonLayoutPorIdDocumento
 } from "../../utils/api";
 import { type DocumentGroup, type Document, type GroupedDocument, type SemanticGroup, type ExpiredDocumentResponse } from "../../utils/interfaces";
+import { canUserEdit } from "../../utils/permissions";
 import { useAuth } from "../../contexts/AuthContext";
 import UploadModal from "./UploadModal";
 import DeleteModal from "./DeleteModal";
@@ -79,6 +80,9 @@ export default function Grupo() {
   const hoverTimerRef = useRef<number | null>(null);
   const [respuestaDocsVencidos, setRespuestaDocsVencidos] = useState<ExpiredDocumentResponse | null>(null);
   const [docLayout, setDocLayout] = useState<any>(null);
+
+  // Verificar permisos de edición del usuario actual
+  const userCanEdit = canUserEdit(group, user?.id?.toString());
 
   const splitRef = useRef<HTMLDivElement | null>(null);
   const [ratio, setRatio] = useState(0.66);
@@ -443,7 +447,23 @@ export default function Grupo() {
             }),
           })}
         >
-          <Typography variant="h6" fontWeight={700}>Grupo: {group.name}</Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+            <Typography variant="h6" fontWeight={700}>Grupo: {group.name}</Typography>
+            <Chip 
+              label={userCanEdit ? 'Edición' : 'Solo lectura'} 
+              size="small" 
+              color={userCanEdit ? 'warning' : 'info'}
+              sx={{ ml: 1 }}
+            />
+          </Box>
+
+          {!userCanEdit && (
+            <Box sx={{ mb: 2, p: 1, bgcolor: 'info.light', borderRadius: 1 }}>
+              <Typography variant="caption" color="info.dark">
+                Solo tienes permisos de lectura en este grupo. No puedes añadir ni eliminar documentos.
+              </Typography>
+            </Box>
+          )}
 
         {/* === Acciones del grupo (2 columnas iguales) === */}
         <Box
@@ -456,13 +476,24 @@ export default function Grupo() {
           }}
         >
           {/* Fila 1: Añadir / Eliminar (mismo tamaño) */}
-          <Button onClick={() => setIsModalOpen(true)} fullWidth startIcon={<Plus size={18} />}>
+          <Button 
+            onClick={() => setIsModalOpen(true)} 
+            fullWidth 
+            startIcon={<Plus size={18} />}
+            disabled={!userCanEdit}
+            title={!userCanEdit ? "No tienes permisos de edición en este grupo" : "Añadir documento"}
+          >
             Añadir documento
           </Button>
 
-            <IconButton onClick={() => setDeleteModalOpen(true)} sx={{ bgcolor: "white" }}>
+          <IconButton 
+            onClick={() => setDeleteModalOpen(true)} 
+            sx={{ bgcolor: "white" }}
+            disabled={!userCanEdit}
+            title={!userCanEdit ? "No tienes permisos de edición en este grupo" : "Eliminar documentos"}
+          >
             <Trash2 size={18} />
-            </IconButton>
+          </IconButton>
 
           {/* Fila 2: Ver Resumen / Configuración */}
           <Button fullWidth onClick={() => setOverviewOpen(true)} startIcon={<EqualizerIcon />}>

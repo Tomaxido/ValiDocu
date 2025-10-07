@@ -5,6 +5,8 @@ export interface PendingRequest {
   id: number;
   user_email: string;
   user_name?: string;
+  user_rname?: string; // Nombre del usuario que solicita
+  user_remail?: string; // Email del usuario que solicita
   group_name: string;
   group_id: number;
   permission_type: number;

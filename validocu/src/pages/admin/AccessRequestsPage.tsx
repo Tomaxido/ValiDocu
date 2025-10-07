@@ -6,6 +6,11 @@ import {
 } from '@mui/material';
 import { Check, X, Eye, Clock, User, Shield } from 'lucide-react';
 import { reviewAccessRequest } from '../../utils/api';
+import { 
+  getPermissionTypeLabel, 
+  getPermissionTypeColor, 
+  formatRequestingUser 
+} from '../../utils/permissions';
 import { usePendingAccessRequests, type PendingRequest } from '../../hooks/usePendingAccessRequests';
 
 interface ReviewDialogProps {
@@ -52,11 +57,19 @@ function ReviewDialog({ open, request, onClose, onReview, isSubmitting }: Review
             <Typography variant="subtitle2" gutterBottom>Detalles de la solicitud</Typography>
             <Stack spacing={1}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Typography variant="body2" color="text.secondary">Usuario:</Typography>
+                <Typography variant="body2" color="text.secondary">Usuario destino:</Typography>
                 <Typography variant="body2" fontWeight={600}>
                   {request.user_name ? `${request.user_name} (${request.user_email})` : request.user_email}
                 </Typography>
               </Box>
+              {(request.user_rname || request.user_remail) && (
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography variant="body2" color="text.secondary">Solicitado por:</Typography>
+                  <Typography variant="body2" fontWeight={600}>
+                    {formatRequestingUser(request.user_rname, request.user_remail)}
+                  </Typography>
+                </Box>
+              )}
               <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Typography variant="body2" color="text.secondary">Grupo:</Typography>
                 <Typography variant="body2" fontWeight={600}>{request.group_name}</Typography>
@@ -64,9 +77,9 @@ function ReviewDialog({ open, request, onClose, onReview, isSubmitting }: Review
               <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Typography variant="body2" color="text.secondary">Tipo de permiso:</Typography>
                 <Chip 
-                  label={request.permission_type === 1 ? 'Lectura y edición' : 'Solo lectura'} 
+                  label={getPermissionTypeLabel(request.permission_type)} 
                   size="small"
-                  color={request.permission_type === 1 ? 'warning' : 'info'}
+                  color={getPermissionTypeColor(request.permission_type)}
                 />
               </Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -264,9 +277,9 @@ export default function AccessRequestsPage() {
                   </TableCell>
                   <TableCell>
                     <Chip 
-                      label={request.permission_type === 1 ? 'Lectura y edición' : 'Solo lectura'} 
+                      label={getPermissionTypeLabel(request.permission_type)} 
                       size="small"
-                      color={request.permission_type === 1 ? 'warning' : 'info'}
+                      color={getPermissionTypeColor(request.permission_type)}
                     />
                   </TableCell>
                   <TableCell>

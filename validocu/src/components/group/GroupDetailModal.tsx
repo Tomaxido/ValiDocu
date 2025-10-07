@@ -49,6 +49,15 @@ import {
   updateGroupConfiguration,
   initializeGroupConfiguration
 } from '../../utils/api';
+import { 
+  getPermissionTypeLabel, 
+  getPermissionTypeColor, 
+  getStatusText, 
+  getStatusColor,
+  canUserEdit,
+  isGroupOwner,
+  formatRequestingUser
+} from '../../utils/permissions';
 import type { 
   DocumentGroup, 
   GroupConfiguration, 
@@ -392,10 +401,6 @@ const GroupDetailModal: React.FC<Props> = ({ open, group, onClose }) => {
     }
   };
 
-  const getPermissionTypeLabel = (type: number) => {
-    return type === 1 ? 'Lectura y edición' : 'Solo lectura';
-  };
-
   if (!open) return null;
 
   return (
@@ -572,7 +577,7 @@ const GroupDetailModal: React.FC<Props> = ({ open, group, onClose }) => {
                                   <Chip 
                                     label={getPermissionTypeLabel(member.permission_type)}
                                     size="small"
-                                    color={member.permission_type === 1 ? 'warning' : 'info'}
+                                    color={getPermissionTypeColor(member.permission_type)}
                                   />
                                 </TableCell>
                                 <TableCell>
@@ -639,7 +644,7 @@ const GroupDetailModal: React.FC<Props> = ({ open, group, onClose }) => {
                                   <Chip 
                                     label={getPermissionTypeLabel(request.permission_type)}
                                     size="small"
-                                    color={request.permission_type === 1 ? 'warning' : 'info'}
+                                    color={getPermissionTypeColor(request.permission_type)}
                                   />
                                 </TableCell>
                                 <TableCell>

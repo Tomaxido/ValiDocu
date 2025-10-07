@@ -5,6 +5,7 @@ import {
   Paper, List, ListItem, ListItemText, ListItemButton, Popper, ClickAwayListener
 } from "@mui/material";
 import { requestGroupAccess, searchUsers } from "../../utils/api";
+import { getPermissionTypeLabel, requestValidations, PERMISSION_TYPES } from "../../utils/permissions";
 
 interface Props {
   isOpen: boolean;
@@ -16,7 +17,7 @@ interface Props {
 
 export default function RequestAccessModal({ isOpen, onClose, groupId, groupName, onRequestSent }: Props) {
   const [userEmail, setUserEmail] = useState("");
-  const [permissionType, setPermissionType] = useState<number>(0);
+  const [permissionType, setPermissionType] = useState<number>(PERMISSION_TYPES.READ_ONLY);
   const [requestReason, setRequestReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -80,8 +81,24 @@ export default function RequestAccessModal({ isOpen, onClose, groupId, groupName
   }, [searchTimeout]);
 
   const handleSubmit = async () => {
+    // Validaciones usando las utilidades
     if (!userEmail.trim()) {
       alert("Por favor ingresa el email del usuario");
+      return;
+    }
+
+    if (!requestValidations.validateEmail(userEmail)) {
+      alert("Por favor ingresa un email válido");
+      return;
+    }
+
+    if (!requestValidations.validatePermissionType(permissionType)) {
+      alert("Tipo de permiso inválido");
+      return;
+    }
+
+    if (requestReason && !requestValidations.validateRequestReason(requestReason)) {
+      alert("La razón de la solicitud no puede exceder 500 caracteres");
       return;
     }
 
@@ -93,7 +110,7 @@ export default function RequestAccessModal({ isOpen, onClose, groupId, groupName
       
       // Limpiar formulario
       setUserEmail("");
-      setPermissionType(0);
+      setPermissionType(PERMISSION_TYPES.READ_ONLY);
       setRequestReason("");
       
       if (onRequestSent) {
@@ -112,7 +129,7 @@ export default function RequestAccessModal({ isOpen, onClose, groupId, groupName
   const handleClose = () => {
     if (!isSubmitting) {
       setUserEmail("");
-      setPermissionType(0);
+      setPermissionType(PERMISSION_TYPES.READ_ONLY);
       setRequestReason("");
       setSuggestions([]);
       setShowSuggestions(false);
@@ -181,8 +198,8 @@ export default function RequestAccessModal({ isOpen, onClose, groupId, groupName
               onChange={(e) => setPermissionType(e.target.value as number)}
               label="Tipo de permiso"
             >
-              <MenuItem value={0}>Solo lectura</MenuItem>
-              <MenuItem value={1}>Lectura y edición</MenuItem>
+              <MenuItem value={PERMISSION_TYPES.READ_ONLY}>{getPermissionTypeLabel(PERMISSION_TYPES.READ_ONLY)}</MenuItem>
+              <MenuItem value={PERMISSION_TYPES.EDIT}>{getPermissionTypeLabel(PERMISSION_TYPES.EDIT)}</MenuItem>
             </Select>
           </FormControl>
 
