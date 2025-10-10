@@ -107,7 +107,7 @@ class AnalysisController extends Controller
     public function regenerateGroupSuggestions(int $groupId): void
     {
         Log::info("Regenerando sugerencias para el grupo {$groupId}");
-        
+
         // Obtener todos los documentos del grupo que tienen tipo asignado
         $documents = DB::table('documents')
             ->where('document_group_id', $groupId)
@@ -119,19 +119,19 @@ class AnalysisController extends Controller
             try {
                 // Eliminar análisis y sugerencias existentes
                 $this->deleteDocumentSuggestions($documentId);
-                
+
                 // Regenerar sugerencias
                 $this->createSuggestions($documentId);
-                
+
                 Log::info("Sugerencias regeneradas para documento {$documentId}");
             } catch (\Exception $e) {
                 Log::error("Error regenerando sugerencias para documento {$documentId}: " . $e->getMessage());
             }
         }
-        
+
         Log::info("Completada regeneración de sugerencias para grupo {$groupId}, procesados " . count($documents) . " documentos");
     }
-    
+
     /**
      * Eliminar análisis y sugerencias existentes de un documento
      */
@@ -141,19 +141,19 @@ class AnalysisController extends Controller
         $analysisIds = DB::table('document_analyses')
             ->where('document_id', $documentId)
             ->pluck('id');
-            
+
         if ($analysisIds->isNotEmpty()) {
             // Eliminar issues relacionados
             DB::table('analysis_issues')
                 ->whereIn('document_analysis_id', $analysisIds)
                 ->delete();
-                
+
             // Eliminar análisis
             DB::table('document_analyses')
                 ->where('document_id', $documentId)
                 ->delete();
         }
-        
+
         // Resetear normative_gap del documento
         DB::table('documents')
             ->where('id', $documentId)
@@ -163,7 +163,7 @@ class AnalysisController extends Controller
     public function createSuggestions(int $documentId): void
     {
         $doc = Document::findOrFail($documentId);
-        
+
         // Obtener el grupo del documento
         $groupId = $doc->document_group_id;
         if (!$groupId) {
@@ -175,23 +175,21 @@ class AnalysisController extends Controller
         $si = DB::table('semantic_doc_index')->where('document_id', $documentId)->first(['json_global']);
         $layout = $si ? json_decode($si->json_global, true) : [];
 
-
-        $tipo_documento = $layout['TIPO_DOCUMENTO'];
         $docTypeId = $doc->tipo;
-        
+
         if (!$docTypeId) {
-            Log::info("No se encontró tipo de documento para '{$tipo_documento}', omitiendo sugerencias");
+            Log::info("No se encontró tipo de documento, omitiendo sugerencias");
             return;
         }
-        
+
         // Obtener configuración específica del grupo para este tipo de documento
         $groupRequiredFields = $this->groupValidationService->getGroupRequiredFields($groupId, $docTypeId);
-        
+
         if (empty($groupRequiredFields)) {
             Log::info("No hay campos obligatorios configurados para el grupo {$groupId} y tipo de documento {$docTypeId}");
             return;
         }
-        
+
         // Obtener solo las especificaciones de campos que están configuradas como obligatorias para este grupo
         $field_specs = DB::table('document_field_specs')
             ->whereIn('id', $groupRequiredFields)
@@ -343,7 +341,7 @@ class AnalysisController extends Controller
         foreach ($issues as $issue) {
             $fieldKey = $issue->field_key;
             $currentValue = isset($layout[$fieldKey]) ? $layout[$fieldKey] : null;
-            
+
             // Normalizar el valor a string para mostrar
             if (is_scalar($currentValue)) {
                 $issue->current_value = (string)$currentValue;
@@ -425,7 +423,7 @@ class AnalysisController extends Controller
                 'detected_fields' => $detectedFieldKeys,
                 'document_type' => $documentType->nombre_doc,
                 'total_missing' => count($missingFields),
-                'compliance_percentage' => count($requiredFieldKeys) > 0 
+                'compliance_percentage' => count($requiredFieldKeys) > 0
                     ? round((count($requiredFieldKeys) - count($missingFields)) / count($requiredFieldKeys) * 100)
                     : 100
             ]);
