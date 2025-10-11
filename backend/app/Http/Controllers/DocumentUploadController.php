@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\DocumentAdder;
 use Illuminate\Http\Request;
 use App\Models\DocumentGroup;
 use App\Models\Document;
@@ -25,180 +26,6 @@ class DocumentUploadController extends Controller
         $this->groupValidationService = $groupValidationService;
     }
 
-
-    function _addDocumentsToGroup(Request $request, DocumentGroup &$group) {
-        // Obtener tipos de documentos configurados para este grupo específico usando group_field_specs
-        $configuredTypes = $this->groupValidationService->getGroupRequiredDocumentTypes($group->id);
-        
-        // Si no hay configuración específica, usar configuración global como fallback
-        if (empty($configuredTypes)) {
-            $obligatorios = DB::table('document_types')
-                ->get(['id','nombre_doc', 'analizar'])
-                ->map(function($o) {
-                    $o->is_required_in_group = true; // Por defecto requerido
-                    return $o;
-                })
-                ->sortByDesc(function($o) { return mb_strlen((string)$o->nombre_doc, 'UTF-8'); })
-                ->values();
-        } else {
-            // Usar la configuración específica del grupo
-            $obligatorios = collect($configuredTypes)
-                ->map(function($type) {
-                    // Obtener información adicional del tipo de documento
-                    $docType = DB::table('document_types')->where('id', $type->id)->first();
-                    return (object)[
-                        'id' => $type->id,
-                        'nombre_doc' => $type->nombre_doc,
-                        'analizar' => $docType->analizar ?? 0,
-                        'is_required_in_group' => true
-                    ];
-                })
-                ->sortByDesc(function($o) { return mb_strlen((string)$o->nombre_doc, 'UTF-8'); })
-                ->values();
-        }
-
-        // Inicializar configuración por defecto si no existe
-        if (!$this->groupValidationService->hasGroupConfiguration($group->id)) {
-            Log::info("Inicializando configuración por defecto para el grupo {$group->id}");
-            $this->groupValidationService->initializeGroupConfiguration($group->id);
-        }
-
-        foreach ($request->file('documents') as $file) {
-            // ...existing code...
-            $path = $file->store('documents', 'public');
-            $originalFilename = $file->getClientOriginalName();
-            $document = $group->documents()->create([
-                'filename' => $originalFilename,
-                'filepath' => $path,
-                'mime_type' => $file->getClientMimeType(),
-                'status' => 0,
-            ]);
-            // Obtener ID del documento maestro
-            $document_master_id = $document->id;
-            
-            // Primero determinar el tipo y si debe ser analizado
-            $filename = (string)$document->filename;
-            $normFile = $this->normalizeName($filename);
-            Log::info("Analizando documento: {$filename}, normalizado: {$normFile}");
-            $found = false;
-            $analizar = 0;
-            $tipo = 0;
-            foreach ($obligatorios as $obl) {
-                $nombreDoc = (string)$obl->nombre_doc;
-                $analizar  = (int)$obl->analizar;
-                $idObligatorio = $obl->id ?? null;
-                Log::info("Nombre Documento Obligatorio: {$nombreDoc}, analizar: {$analizar}");
-                if ($this->matchFilenameToNombreDoc($normFile, $this->normalizeName($nombreDoc))) {
-                    $found = true;
-                    $tipo = $idObligatorio;
-                    break;
-                }
-            }
-            if (!$found) {
-                $tipo = 0;
-                $analizar = 0;
-            }
-            $document->tipo = $tipo;
-            $document->save();
-            
-            // Ahora convertir y procesar imágenes con el valor de analizar conocido
-            $originalBaseName = pathinfo($originalFilename, PATHINFO_FILENAME);
-            $images = $this->convertPdfToImages($path,$group);
-            $rechazado = $this->saveImages($images, $originalBaseName, $group, $document_master_id, $analizar);
-            if ($rechazado) {
-                $document->status = 2;
-                $document->save();
-            } else {
-                $document->status = 1;
-                $document->save();
-            }
-            if($analizar == 1){
-                app(\App\Http\Controllers\AnalysisController::class)->createSuggestions($document_master_id);
-            }
-
-            // === CREAR semantic_doc_index SI NO EXISTE ===
-            $exists = DB::table('semantic_doc_index')->where('document_id', $document_master_id)->exists();
-            if (!$exists) {
-                DB::table('semantic_doc_index')->insert([
-                    'document_id' => $document_master_id,
-                    'document_group_id' => $group->id,
-                    'json_global' => null,
-                    'resumen' => null,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-            }
-        }
-        
-        // Al final, validar todos los documentos contra la configuración del grupo
-        $this->validateGroupDocuments($group);
-    }
-    
-    /**
-     * Validar documentos del grupo contra su configuración
-     */
-    private function validateGroupDocuments(DocumentGroup $group): void
-    {
-        try {
-            $documents = $group->documents()->get(); // Obtener todos los documentos del grupo
-            
-            foreach ($documents as $document) {
-                $issues = $this->groupValidationService->validateDocumentAgainstGroup(
-                    $group->id,
-                    $document->document_type ?? 'unknown',
-                    $document->labels ?? []
-                );
-                
-                if (!empty($issues)) {
-                    // Marcar documento con issues pero no rechazado completamente
-                    $document->update(['status' => 3]); // Nuevo status: "Con observaciones"
-                    
-                    Log::info("Documento {$document->filename} tiene observaciones de validación", [
-                        'document_id' => $document->id,
-                        'group_id' => $group->id,
-                        'issues_count' => count($issues),
-                        'issues' => $issues
-                    ]);
-                }
-            }
-        } catch (\Exception $e) {
-            Log::error("Error validando documentos del grupo {$group->id}: " . $e->getMessage());
-        }
-    }
-    private function normalizeName(string $name): string
-    {
-        $ascii = Str::ascii($name);
-        $upper = mb_strtoupper($ascii, 'UTF-8');
-        // reemplazar múltiples espacios y signos por un solo espacio
-        $upper = preg_replace('/[^A-Z0-9]+/u', ' ', $upper);
-        $upper = trim(preg_replace('/\s+/', ' ', $upper) ?? '');
-        return $upper;
-    }
-
-    private function matchFilenameToNombreDoc(string $normFile, string $normNombre): bool
-    {
-        if ($normNombre === '') return false;
-        $parts = array_filter(preg_split('/\s+/', $normNombre) ?: [], function($w) {
-            return $w !== 'DE';
-        });
-        // construir regex: WORD1 (?:\s+(?:DE\s+)?WORD2) (?:\s+(?:DE\s+)?WORD3) ...
-        if (empty($parts)) return false;
-
-        $regex = '';
-        $first = true;
-        foreach ($parts as $w) {
-            $w = preg_quote($w, '/');
-            if ($first) {
-                $regex .= $w;
-                $first = false;
-            } else {
-                $regex .= '(?:\s+(?:DE\s+)?' . $w . ')';
-            }
-        }
-        // buscar en cualquier parte, case-insensitive (ya está upper), U para unicode
-        return (bool) preg_match('/' . $regex . '/u', $normFile);
-    }
-
     public function storeNewGroup(Request $request): JsonResponse
     {
         $request->validate([
@@ -208,7 +35,7 @@ class DocumentUploadController extends Controller
         ]);
 
         $user = $request->user();
-        
+
         $group = DocumentGroup::create([
             'name' => $request->group_name,
             'status' => 0,
@@ -223,188 +50,19 @@ class DocumentUploadController extends Controller
             'can_edit' => 1 // el creador siempre puede editar
         ]);
 
-        $this->_addDocumentsToGroup($request, $group);
-        
+        $this->makeJob($request, $group, 'storeNewGroup');
+
         // Inicializar configuración por defecto si no existe
         if (!$this->groupValidationService->hasGroupConfiguration($group->id)) {
             $this->groupValidationService->initializeGroupConfiguration($group->id);
         }
-        
+
         return response()->json([
             'message' => 'Grupo creado y documentos subidos.',
             'group_id' => $group->id,
             'group' => $group->load('users')
         ]);
     }
-    
-    public function saveImages($images, $originalBaseName, $group, $document_master_id, $analizar)
-    {
-        $modificado_global = false;
-        foreach ($images as $imgPath) {
-            // Detectar número de página desde el nombre generado
-            $pageNumber = '';
-            if (preg_match('/_p(\d+)\.png$/', $imgPath, $matches)) {
-                $pageNumber = $matches[1]; // ej: "1"
-            }
-
-            // Construir nuevo nombre amigable
-            $newFilename = $originalBaseName . '_p' . $pageNumber . '.png';
-
-            $document = $group->documents()->create([
-                'filename' => $newFilename,
-                'filepath' => $imgPath,
-                'mime_type' => 'image/png',
-                'status' => 0,
-            ]);
-            
-            // === Enviar a API FastAPI solo si analizar = 1 ===
-            if ($analizar == 1) {
-                try {
-                    $absolutePath = storage_path('app/public/' . $imgPath);
-
-                    $response = Http::attach(
-                        'file', fopen($absolutePath, 'r'), $newFilename
-                    )->post('http://localhost:5050/procesar/', [
-                        'master_id' => $document_master_id,
-                        'doc_id' => $document->id,
-                        'group_id' => $group->id,
-                        'page' => $pageNumber
-                    ]);
-
-                // Podís guardar respuesta si querís:
-                if ($response->successful()) {
-                    // actualizar estado, guardar json path, etc.
-
-                    $data = DB::table('semantic_index')
-                        ->select('id', 'json_layout')
-                        ->where('document_id', $document->id)
-                        ->first(); // ← obtiene un solo registro
-
-                    $layout = json_decode($data->json_layout, true);
-                    $modificado = false;
-                    $labelsRut = ['RUT_DEUDOR','RUT_CORREDOR','EMPRESA_DEUDOR_RUT','EMPRESA_CORREDOR_RUT'];
-
-                    foreach ($layout as &$campo) {
-                        if (!isset($campo['label'], $campo['text'])) continue;
-
-                        if (in_array($campo['label'], $labelsRut, true)) {
-                            $limpio = strtoupper(preg_replace('/[^0-9K]/', '', $campo['text']));
-                            if (strlen($limpio) < 2) continue;
-
-                            $rut = substr($limpio, 0, -1);
-                            $dv  = substr($limpio, -1);
-
-                            $sii = $this->checkRut($rut, $dv); // devuelve Response
-                            if ($sii->getStatusCode() === 400) {
-                                // marcar error manteniendo el prefijo del label y agregando _E
-                                $campo['label'] = $campo['label'] . '_E';
-                                $campo['text']  = $rut . '-' . $dv;
-                                $modificado = true;
-                            } else {
-                                $campo['text']  = $rut . '-' . $dv;
-                            }
-                        }
-                    }
-                    unset($campo);
-
-                    // Si se modificó, se actualiza el json en la tabla
-                    if ($modificado) {
-                        \Log::info("🔄 Actualizando json_layout para documento ID: {$document->id}");
-                        DB::table('semantic_index')
-                            ->where('document_id', $document->id)
-                            ->update([
-                                'json_layout' => json_encode($layout)
-                            ]);
-
-                        $document->update([
-                            'status' => 2, // Estado 2 para indicar que fue rechazado por campos errados.
-                            'metadata' => $response->json(), // solo si tenís columna metadata
-                        ]);
-                        $modificado_global = true;
-                    } else {
-                        $document->update([
-                            'status' => 1,
-                            'metadata' => $response->json(), // solo si tenís columna metadata
-                        ]);
-                    }
-                } else {
-                    \Log::error("Procesamiento falló para $newFilename", ['error' => $response->body()]);
-                }
-
-            } catch (\Exception $e) {
-                \Log::error("Error al procesar con IA", ['error' => $e->getMessage()]);
-            }
-            } else {
-                // Si no debe ser analizado, solo marcar con status 1 (procesado sin análisis)
-                $document->update([
-                    'status' => 1
-                ]);
-            }
-        }
-        return $modificado_global;
-    }
-
-    private function convertPdfToImages(string $relativePath, $group): array
-    {
-        $pdfPath = storage_path('app/public/' . $relativePath);
-        $filename = basename($relativePath);
-
-        Log::info("📄 Ruta PDF: $pdfPath");
-
-        if (!file_exists($pdfPath)) {
-            Log::error("❌ PDF no encontrado: $pdfPath");
-            return [];
-        }
-
-        try {
-            Log::info("📤 Enviando PDF a API: $filename");
-
-            $response = Http::attach(
-                'file',
-                fopen($pdfPath, 'r'),
-                $filename
-            )->post('http://localhost:5050/pdf_to_images/');
-
-            Log::info("🔁 Respuesta API status: " . $response->status());
-            Log::debug("📦 Respuesta body: " . $response->body());
-
-            if (!$response->successful()) {
-                Log::error("❌ Falló llamada a FastAPI", [
-                    'status' => $response->status(),
-                    'body' => $response->body()
-                ]);
-                return [];
-            }
-
-            $data = $response->json();
-
-            if (!isset($data['images']) || empty($data['images'])) {
-                Log::warning("⚠️ No se recibieron imágenes desde la API.");
-            }
-
-            $imagenesGuardadas = [];
-
-            foreach ($data['images'] as $img) {
-                $imgFilename = $img['filename'];
-                $base64 = $img['content_base64'];
-
-                Log::info("💾 Guardando imagen: $imgFilename");
-
-                $path = storage_path("app/public/documents/{$imgFilename}");
-                $result = file_put_contents($path, base64_decode($base64));
-
-                $imagenesGuardadas[] = "documents/{$imgFilename}";
-
-            }
-
-            return $imagenesGuardadas;
-
-        } catch (\Exception $e) {
-            Log::error("❌ Excepción en conversión PDF", ['error' => $e->getMessage()]);
-            return [];
-        }
-    }
-
 
     public function addToGroup(Request $request, int $group_id): JsonResponse
     {
@@ -413,23 +71,43 @@ class DocumentUploadController extends Controller
         ]);
 
         $group = DocumentGroup::findOrFail($group_id);
+
+        // Verificar que el usuario tenga acceso al grupo
         $user = $request->user();
-        
+
         // Verificar que el usuario tenga acceso al grupo y permisos de edición
         if (!$group->userHasAccess($user->id)) {
             return response()->json(['message' => 'No tienes acceso a este grupo'], 403);
         }
-        
+
         if (!$group->userCanEdit($user->id)) {
             return response()->json(['message' => 'No tienes permisos de edición en este grupo'], 403);
         }
 
-        $this->_addDocumentsToGroup($request, $group);
+        $this->makeJob($request, $group, 'addToGroup');
 
         return response()->json([
             'message' => 'Documentos añadidos al grupo ' . $group->name
         ]);
     }
+
+    private function makeJob(Request $request, DocumentGroup &$group, string $queueName): void
+    {
+        $documents = [];
+        foreach ($request->file('documents') as $file) {
+            $path = $file->store('documents', 'public');
+            $documents[] = [
+                'filename' => $file->getClientOriginalName(),
+                'filepath' => $path,
+                'mime_type' => $file->getClientMimeType(),
+                'status' => 0,
+            ];
+        }
+        DocumentAdder::dispatch(
+            $this->siiService, $this->groupValidationService, $documents, $group
+        )->onQueue($queueName);
+    }
+
     public function show(Request $request, $id)
     {
         $user = $request->user();
@@ -642,7 +320,7 @@ class DocumentUploadController extends Controller
     public function getGroupDetails(Request $request, int $groupId): JsonResponse
     {
         $user = $request->user();
-        
+
         // Verificar que el usuario es administrador o tiene acceso al grupo
         $isAdmin = $user->hasRole('admin');
         if (!$isAdmin) {
@@ -677,7 +355,7 @@ class DocumentUploadController extends Controller
     public function getGroupMembers(Request $request, int $groupId): JsonResponse
     {
         $user = $request->user();
-        
+
         // Verificar que el usuario es administrador o tiene acceso al grupo
         $isAdmin = $user->hasRole('admin');
         if (!$isAdmin) {
@@ -688,7 +366,7 @@ class DocumentUploadController extends Controller
         }
 
         $group = DocumentGroup::findOrFail($groupId);
-        
+
         $members = $group->users()
                         ->select(['users.id', 'users.name', 'users.email'])
                         ->withPivot(['active', 'can_edit', 'created_at'])
