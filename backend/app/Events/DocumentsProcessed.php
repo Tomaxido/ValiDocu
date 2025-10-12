@@ -21,6 +21,6 @@ class DocumentsProcessed implements ShouldBroadcast
 
     public function broadcastOn()
     {
-        return new Channel('documents.' . $this->userId);
+        return new Channel('documents');
     }
 }
