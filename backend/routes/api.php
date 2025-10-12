@@ -79,4 +79,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/groups/{group_id}/details', [DocumentUploadController::class, 'getGroupDetails'])->middleware(['auth:sanctum']);
     Route::get('/groups/{group_id}/members', [DocumentUploadController::class, 'getGroupMembers'])->middleware(['auth:sanctum']);
 
+    // Endpoint para testing de eventos WebSocket
+    Route::post('/test/documents-processed-event', [DocumentUploadController::class, 'testDocumentsProcessedEvent']);
+
 });

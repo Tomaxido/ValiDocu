@@ -386,4 +386,49 @@ class DocumentUploadController extends Controller
 
         return response()->json($members);
     }
+
+    /**
+     * Endpoint para probar el evento DocumentsProcessed
+     */
+    public function testDocumentsProcessedEvent(Request $request): JsonResponse
+    {
+        $request->validate([
+            'group_id' => 'required|integer',
+            'user_id' => 'nullable|string' // UUID opcional, usa el usuario autenticado por defecto
+        ]);
+
+        $groupId = $request->group_id;
+        $userId = $request->user_id ?? $request->user()->id;
+
+        try {
+            // Verificar que el grupo existe
+            $group = DocumentGroup::findOrFail($groupId);
+            
+            // Disparar el evento DocumentsProcessed
+            event(new \App\Events\DocumentsProcessed($groupId, $userId));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Evento DocumentsProcessed disparado exitosamente',
+                'data' => [
+                    'group_id' => $groupId,
+                    'user_id' => $userId,
+                    'group_name' => $group->name,
+                    'timestamp' => now()->toISOString()
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error al probar evento DocumentsProcessed:', [
+                'group_id' => $groupId,
+                'user_id' => $userId,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al disparar el evento: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
