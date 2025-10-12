@@ -2,7 +2,7 @@ import { useState, type JSX } from "react";
 import type { ExpiredDocumentResponse } from "../utils/interfaces";
 import { Alert, Snackbar } from "@mui/material";
 
-export function SnackbarDocsVencidos(
+export default function SnackbarDocsVencidos(
   { respuestaDocsVencidos }: { respuestaDocsVencidos: ExpiredDocumentResponse | null }
 ): JSX.Element {
   const docsVencidos = respuestaDocsVencidos?.documentosVencidos ?? [];

@@ -22,7 +22,6 @@ function formatBytes(bytes: number) {
 export default function UploadModal({ isOpen, onClose, onUpload }: Readonly<Props>) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [fileList, setFileList] = useState<File[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
 
   const dedupeMerge = (incoming: File[]) => {
@@ -65,13 +64,11 @@ export default function UploadModal({ isOpen, onClose, onUpload }: Readonly<Prop
     setFileList(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = async () => {
+  const onSubmit = () => {
     if (fileList.length === 0) return;
     const dt = new DataTransfer();
     fileList.forEach(f => dt.items.add(f));
-    setIsUploading(true);
-    await onUpload(dt.files);
-    setIsUploading(false);
+    onUpload(dt.files);
     setFileList([]);
     onClose();
   };
@@ -149,8 +146,8 @@ export default function UploadModal({ isOpen, onClose, onUpload }: Readonly<Prop
 
       <DialogActions>
         <Button onClick={onClose}>Cancelar</Button>
-        <Button onClick={handleSubmit} disabled={isUploading || fileList.length === 0}>
-          {isUploading ? "Subiendo..." : `Subir (${fileList.length})`}
+        <Button onClick={onSubmit} disabled={fileList.length === 0}>
+          Subir {fileList.length}
         </Button>
       </DialogActions>
     </Dialog>

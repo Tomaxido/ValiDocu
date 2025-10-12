@@ -19,7 +19,7 @@ import GroupConfigurationModal from "../../components/group/GroupConfigurationMo
 import RequestAccessModal from "../../components/group/RequestAccessModal";
 import PendingRequestsModal from "../../components/admin/PendingRequestsModal";
 import GroupDetailModal from "../../components/group/GroupDetailModal";
-import { SnackbarDocsVencidos } from "../../components/SnackbarDocsVencidos";
+import SnackbarDocsVencidos from "../../components/SnackbarDocsVencidos";
 import { getDocumentFilters, type Filters } from "../../utils/api";
 
 

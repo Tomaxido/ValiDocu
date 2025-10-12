@@ -3,10 +3,15 @@
 namespace App\Events;
 
 use Illuminate\Broadcasting\Channel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Broadcasting\InteractsWithSockets;
+use Illuminate\Broadcasting\PrivateChannel;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class DocumentsProcessed implements ShouldBroadcast
+// TODO: cambiar a ShouldBroadcast después de configurar cola correctamente, además de usar canales privados
+// https://laravel.com/docs/10.x/broadcasting#defining-broadcast-events
+class DocumentsProcessed implements ShouldBroadcastNow
 {
     use SerializesModels;
 
@@ -21,6 +26,6 @@ class DocumentsProcessed implements ShouldBroadcast
 
     public function broadcastOn()
     {
-        return new Channel('documents');
+        return new Channel("documents");
     }
 }

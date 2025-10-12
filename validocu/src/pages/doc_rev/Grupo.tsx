@@ -26,8 +26,8 @@ import {
   Box, Paper, Button, Typography, List, ListItemButton,
   ListItemText, Chip, Stack, IconButton, Divider, Popper, ListItem, CircularProgress
 } from "@mui/material";
-import { ChevronLeft, ChevronRight, Plus, Trash2, Settings } from "lucide-react";
-import { SnackbarDocsVencidos } from "../../components/SnackbarDocsVencidos";
+import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
+import SnackbarDocsVencidos from "../../components/SnackbarDocsVencidos";
 import EqualizerIcon from "@mui/icons-material/Equalizer";
 import InfoOutlineIcon from "@mui/icons-material/InfoOutline";
 

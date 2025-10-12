@@ -146,3 +146,8 @@ export interface ConfigurationHistoryEntry {
 export interface ConfigurationHistoryResponse {
   history: ConfigurationHistoryEntry[];
 }
+
+export interface ProcessedDocumentEvent {
+  groupId: number;
+  userId: string;
+}

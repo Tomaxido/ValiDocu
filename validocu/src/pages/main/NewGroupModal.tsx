@@ -46,7 +46,6 @@ export default function NewGroupModal({ isOpen, onClose, onUpload, onGroupCreate
   const [groupName, setGroupName] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
   const [fileList, setFileList] = useState<File[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
   
   // Estados para configuración
@@ -229,7 +228,6 @@ export default function NewGroupModal({ isOpen, onClose, onUpload, onGroupCreate
     if (!groupName || fileList.length === 0) return;
     const dt = new DataTransfer();
     fileList.forEach(f => dt.items.add(f));
-    setIsUploading(true);
     
     try {
       // 1. Crear el grupo con los archivos
@@ -245,7 +243,6 @@ export default function NewGroupModal({ isOpen, onClose, onUpload, onGroupCreate
         }
       }
       
-      setIsUploading(false);
       setFileList([]);
       setGroupName("");
       setIsPrivate(false);
@@ -258,7 +255,6 @@ export default function NewGroupModal({ isOpen, onClose, onUpload, onGroupCreate
         onGroupCreated(response.group_id);
       }
     } catch (error) {
-      setIsUploading(false);
       console.error('Error creating group:', error);
     }
   };
@@ -415,13 +411,8 @@ export default function NewGroupModal({ isOpen, onClose, onUpload, onGroupCreate
             <Button onClick={handleBack}>
               Volver
             </Button>
-            <Button 
-              onClick={handleSubmit} 
-              disabled={isUploading}
-              variant="contained"
-              color="primary"
-            >
-              {isUploading ? "Creando grupo..." : "Crear grupo con configuración"}
+            <Button onClick={handleSubmit}>
+              Crear grupo con configuración
             </Button>
           </>
         )}

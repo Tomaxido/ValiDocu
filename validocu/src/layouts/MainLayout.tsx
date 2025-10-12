@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react';
-import { AppBar, Toolbar, Box, Link } from '@mui/material';
+import { AppBar, Toolbar, Box, Link, IconButton } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
 import BrandMark from '../graphics/ValiDocuLogo';
 import UserMenu from '../components/auth/UserMenu';
 import AccessRequestsIndicator from '../components/admin/AccessRequestsIndicator';
 import { useAuth } from '../contexts/AuthContext';
+import { BellIcon } from 'lucide-react';
 
 interface Props { children: ReactNode; }
 
@@ -63,6 +64,10 @@ export default function MainLayout({ children }: Props) {
           </Link>
 
           <Box sx={{ flex: 1 }} />
+
+          <IconButton >
+            <BellIcon color="white" />
+          </IconButton>
 
           <Box sx={{ display: 'flex', gap: 3, alignItems: 'center' }}>
             <Link component={RouterLink} underline="none" color="inherit" to="/">
