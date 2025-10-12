@@ -1,5 +1,11 @@
 # validocu.cl en desarrollo
 
+Dominios de validocu
+* frontend: validocu.cl
+* backend laravel: api.validocu.cl
+* servidor reverb laravel: notifications.validocu.cl
+
+
 ## Paso 0: Modificar archivo hosts
 Agrega en tu máquina
 
