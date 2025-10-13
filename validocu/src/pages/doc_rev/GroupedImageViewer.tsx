@@ -5,7 +5,9 @@ import type { BoxAnnotation, GroupedImageViewerProps } from "../../utils/interfa
 import labelColors from "../../utils/labelColors.ts";
 import { Box, Button, Stack } from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
+import HistoryIcon from "@mui/icons-material/History";
 import jsPDF from "jspdf";
+import TraceabilityModal from "./TraceabilityModal";
 
 type BBox = [number, number, number, number];
 
@@ -19,6 +21,9 @@ export default function GroupedImageViewer({ filename, files }: Readonly<Grouped
   const [hoverByPage, setHoverByPage] = useState<Record<number, BBox[]>>({}); // nuevo
 
   const wrapperRefs = useRef<(HTMLDivElement | null)[]>([]);
+  
+  // Estado para el modal de trazabilidad
+  const [traceabilityModalOpen, setTraceabilityModalOpen] = useState(false);
 
   // Cargar layouts desde API
   useEffect(() => {
@@ -230,10 +235,19 @@ export default function GroupedImageViewer({ filename, files }: Readonly<Grouped
   if (files.length === 0) return <Box>No hay imágenes para mostrar.</Box>;
 
   return (
-    <Box>
-      <Button onClick={exportToPdf} sx={{ mb: 2 }} startIcon={<DownloadIcon />}>
-        Descargar como PDF
-      </Button>
+    <Box sx={{ position: 'relative' }}>
+      <Stack direction="row" spacing={1} sx={{ mb: 2, justifyContent: 'space-between', alignItems: 'center' }}>
+        <Button onClick={exportToPdf} startIcon={<DownloadIcon />}>
+          Descargar como PDF
+        </Button>
+        
+        <Button 
+          onClick={() => setTraceabilityModalOpen(true)} 
+          startIcon={<HistoryIcon />}
+        >
+          Ver Trazabilidad
+        </Button>
+      </Stack>
 
       <Stack
         sx={{
@@ -348,6 +362,14 @@ export default function GroupedImageViewer({ filename, files }: Readonly<Grouped
           </Box>
         ))}
       </Stack>
+
+      {/* Modal de Trazabilidad */}
+      <TraceabilityModal
+        open={traceabilityModalOpen}
+        onClose={() => setTraceabilityModalOpen(false)}
+        documentId={files[0]?.id?.toString() || ""}
+        documentName={filename}
+      />
     </Box>
   );
 }
