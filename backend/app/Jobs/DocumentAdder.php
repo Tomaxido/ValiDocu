@@ -18,10 +18,12 @@ class DocumentAdder implements ShouldQueue
 {
     use Queueable;
 
-    protected $siiService;
-    protected $groupValidationService;
-    protected $documents;
-    protected $group;
+    protected SiiService $siiService;
+    protected GroupValidationService $groupValidationService;
+    protected array $documents;
+    protected DocumentGroup $group;
+
+    protected int $numUnsuccessfulDocuments = 0;
 
     public function __construct(
         SiiService $siiService,
@@ -39,7 +41,7 @@ class DocumentAdder implements ShouldQueue
     public function handle(): void
     {
         $this->addDocumentsToGroup();
-        event(new DocumentsProcessed($this->group->id, $this->group->created_by));
+        event(new DocumentsProcessed($this->group, $this->documents, $this->numUnsuccessfulDocuments));
     }
 
     private function addDocumentsToGroup(): void {
@@ -117,6 +119,7 @@ class DocumentAdder implements ShouldQueue
                 $images = $this->convertPdfToImages($file['filepath']);
                 $rechazado = $this->saveImages($images, $originalBaseName, $document_master_id, $analizar);
                 if ($rechazado) {
+                    $this->numUnsuccessfulDocuments++;
                     $document->status = 2;
                     $document->save();
                 } else {

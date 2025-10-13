@@ -2,6 +2,7 @@
 
 namespace App\Events;
 
+use App\Models\DocumentGroup;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
@@ -15,13 +16,15 @@ class DocumentsProcessed implements ShouldBroadcastNow
 {
     use SerializesModels;
 
-    public $groupId;
-    public $userId;
+    public DocumentGroup $group;
+    public array $documents;
+    public int $numUnsuccessfulDocuments;
 
-    public function __construct($groupId, $userId)
+    public function __construct(DocumentGroup $group, array $documents, int $numUnsuccessfulDocuments)
     {
-        $this->groupId = $groupId;
-        $this->userId = $userId;
+        $this->group = $group;
+        $this->documents = $documents;
+        $this->numUnsuccessfulDocuments = $numUnsuccessfulDocuments;
     }
 
     public function broadcastOn()

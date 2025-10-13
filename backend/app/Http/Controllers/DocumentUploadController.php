@@ -105,7 +105,7 @@ class DocumentUploadController extends Controller
         }
         DocumentAdder::dispatch(
             $this->siiService, $this->groupValidationService, $documents, $group
-        )->onQueue($queueName);
+        )->onQueue('docAnalysis');
     }
 
     public function show(Request $request, $id)

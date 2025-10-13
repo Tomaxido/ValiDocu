@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { configureEcho, useEchoPublic } from '@laravel/echo-react';
 
 import { AuthProvider } from './contexts/AuthContext';
@@ -23,11 +23,14 @@ configureEcho({
 });
 
 export default function App() {
+  const location = useLocation();
+
   const [open, setOpen] = useState(false);
   const [currentEvent, setCurrentEvent] = useState<ProcessedDocumentEvent | null>(null);
   
   // TODO: usar useEcho y averiguar cómo usar canales privados
   useEchoPublic<ProcessedDocumentEvent>('documents', 'DocumentsProcessed', event => {
+    console.log(event);
     setOpen(true);
     setCurrentEvent(event);
   });
@@ -39,14 +42,17 @@ export default function App() {
           <Snackbar
             open={open}
             anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-            autoHideDuration={10000}
             onClose={() => setOpen(false)}
           >
             <Alert
-              severity="info"
+              severity={currentEvent !== null && currentEvent.numUnsuccessfulDocuments > 0 ? "warning" : "success"}
               variant="filled"
             >
-              Documentos analizados en el grupo {currentEvent?.groupId}.
+              Documentos analizados en el grupo '{currentEvent?.group.name}'.
+              {
+                currentEvent !== null && currentEvent.numUnsuccessfulDocuments > 0
+                  && ` Hubo ${currentEvent.numUnsuccessfulDocuments} documento${currentEvent.numUnsuccessfulDocuments > 1 ? 's' : ''} con errores.`
+              }
             </Alert>
           </Snackbar>
 
