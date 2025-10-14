@@ -195,9 +195,9 @@ class DocumentUploadController extends Controller
 
         // 2. Log del query generado
         $data = DB::table('semantic_index')
-            ->join('documents_versions', 'semantic_index.document_version_id', '=', 'documents_versions.id')
-            ->whereIn('documents_versions.id', $ids)
-            ->select('documents_versions.filename', 'semantic_index.json_layout')
+            ->join('document_versions', 'semantic_index.document_version_id', '=', 'document_versions.id')
+            ->whereIn('document_versions.id', $ids)
+            ->select('document_versions.filename', 'semantic_index.json_layout')
             ->get();
 
         Log::info('📤 Resultados de la consulta:', $data->toArray());
