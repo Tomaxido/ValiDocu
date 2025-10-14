@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   TextField, Button, Typography, Box, MenuItem, FormControl, InputLabel, Select,
-  Paper, List, ListItem, ListItemText, ListItemButton, Popper, ClickAwayListener
+  Paper, List, ListItem, ListItemText, ListItemButton, Popper, ClickAwayListener,
+  Snackbar
 } from "@mui/material";
 import { requestGroupAccess, searchUsers } from "../../utils/api";
 import { getPermissionTypeLabel, requestValidations, PERMISSION_TYPES } from "../../utils/permissions";
@@ -14,13 +15,13 @@ interface Props {
   groupName: string;
   onRequestSent?: () => void;
 }
-
 export default function RequestAccessModal({ isOpen, onClose, groupId, groupName, onRequestSent }: Props) {
   const [userEmail, setUserEmail] = useState("");
   const [permissionType, setPermissionType] = useState<number>(PERMISSION_TYPES.READ_ONLY);
   const [requestReason, setRequestReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+  const [success, setSuccess] = useState<string | null>(null);
+
   // Estados para autocompletado
   const [suggestions, setSuggestions] = useState<{ id: string; email: string; name?: string }[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -105,9 +106,9 @@ export default function RequestAccessModal({ isOpen, onClose, groupId, groupName
     setIsSubmitting(true);
     try {
       await requestGroupAccess(groupId, userEmail, permissionType, requestReason);
-      
-      alert("Solicitud de acceso enviada correctamente");
-      
+
+      setSuccess("Solicitud de acceso enviada correctamente");
+
       // Limpiar formulario
       setUserEmail("");
       setPermissionType(PERMISSION_TYPES.READ_ONLY);
@@ -215,7 +216,12 @@ export default function RequestAccessModal({ isOpen, onClose, groupId, groupName
           />
         </Box>
       </DialogContent>
-
+      <Snackbar
+        open={!!success}
+        autoHideDuration={3000}
+        onClose={() => setSuccess(null)}
+        message={success}
+      />              
       <DialogActions>
         <Button onClick={handleClose} disabled={isSubmitting}>
           Cancelar

@@ -195,9 +195,9 @@ class DocumentUploadController extends Controller
 
         // 2. Log del query generado
         $data = DB::table('semantic_index')
-            ->join('documents', 'semantic_index.document_id', '=', 'documents.id')
-            ->whereIn('documents.id', $ids)
-            ->select('documents.filename', 'semantic_index.json_layout')
+            ->join('documents_versions', 'semantic_index.document_version_id', '=', 'documents_versions.id')
+            ->whereIn('documents_versions.id', $ids)
+            ->select('documents_versions.filename', 'semantic_index.json_layout')
             ->get();
 
         Log::info('📤 Resultados de la consulta:', $data->toArray());
@@ -211,7 +211,7 @@ class DocumentUploadController extends Controller
     public function getDocumentSummary(int $document_id): JsonResponse
     {
         $data = DB::table('semantic_doc_index')
-            ->where('document_id', $document_id)
+            ->where('document_version_id', $document_id)
             ->select('resumen')
             ->first();
         if (!$data) {

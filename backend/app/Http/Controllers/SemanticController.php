@@ -79,7 +79,7 @@ class SemanticController extends Controller
     {
         try {
             $resultado = DB::table('semantic_index')
-                ->where('document_id', $id_documento)
+                ->where('document_version_id', $id_documento)
                 ->value('json_layout');
 
             if (is_null($resultado)) {
