@@ -50,7 +50,7 @@ class DocumentUploadController extends Controller
             'can_edit' => 1 // el creador siempre puede editar
         ]);
 
-        $this->makeJob($request, $group, 'storeNewGroup');
+        $this->makeJob($request, $group);
 
         // Inicializar configuración por defecto si no existe
         if (!$this->groupValidationService->hasGroupConfiguration($group->id)) {
@@ -84,19 +84,19 @@ class DocumentUploadController extends Controller
             return response()->json(['message' => 'No tienes permisos de edición en este grupo'], 403);
         }
 
-        $this->makeJob($request, $group, 'addToGroup');
+        $this->makeJob($request, $group);
 
         return response()->json([
             'message' => 'Documentos añadidos al grupo ' . $group->name
         ]);
     }
 
-    private function makeJob(Request $request, DocumentGroup &$group, string $queueName): void
+    private function makeJob(Request $request, DocumentGroup &$group): void
     {
-        $documents = [];
+        $serializedFiles = [];
         foreach ($request->file('documents') as $file) {
             $path = $file->store('documents', 'public');
-            $documents[] = [
+            $serializedFiles[] = [
                 'filename' => $file->getClientOriginalName(),
                 'filepath' => $path,
                 'mime_type' => $file->getClientMimeType(),
@@ -104,7 +104,7 @@ class DocumentUploadController extends Controller
             ];
         }
         DocumentAdder::dispatch(
-            $this->siiService, $this->groupValidationService, $documents, $group
+            $this->siiService, $this->groupValidationService, $serializedFiles, $group
         )->onQueue('docAnalysis');
     }
 
@@ -403,7 +403,7 @@ class DocumentUploadController extends Controller
         try {
             // Verificar que el grupo existe
             $group = DocumentGroup::findOrFail($groupId);
-            
+
             // Disparar el evento DocumentsProcessed
             event(new \App\Events\DocumentsProcessed($groupId, $userId));
 

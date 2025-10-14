@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import { Folder, Plus, Search as SearchIcon, Settings2, Lock, Users, Shield, Info } from "lucide-react";
 import { createGroup, getDocumentGroups, buscarDocumentosPorTexto, obtenerDocumentosVencidos, marcarDocumentosVencidos, buscarSemanticaConFiltros } from "../../utils/api";
-import type { DocumentGroup, ExpiredDocumentResponse } from "../../utils/interfaces";
+import type { DocumentGroup, ExpiredDocumentResponse, ProcessedDocumentEvent } from "../../utils/interfaces";
 import NewGroupModal from "./NewGroupModal";
 import GroupConfigurationModal from "../../components/group/GroupConfigurationModal";
 import RequestAccessModal from "../../components/group/RequestAccessModal";
@@ -23,7 +23,7 @@ import SnackbarDocsVencidos from "../../components/SnackbarDocsVencidos";
 import { getDocumentFilters, type Filters } from "../../utils/api";
 
 
-export default function Home() {
+export default function Home({ currentEvent }: { currentEvent: ProcessedDocumentEvent | null }) {
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -89,6 +89,13 @@ export default function Home() {
       }
     })();
   }, [filtersOpen]);
+
+  // Al recibir nuevo evento
+  useEffect(() => {
+    if (currentEvent === null) return;
+    // Recargar grupos para reflejar cambios
+    getDocumentGroups().then(groups => setDocumentGroups(groups));
+  }, [currentEvent]);
 
   // Aplicar filtros (aquí puedes enganchar tu búsqueda semántica/textual)
   const applyFilters = async () => {

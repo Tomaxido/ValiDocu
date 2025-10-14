@@ -149,6 +149,5 @@ export interface ConfigurationHistoryResponse {
 
 export interface ProcessedDocumentEvent {
   group: DocumentGroup;
-  documents: Document[];
-  numUnsuccessfulDocuments: number;
+  document: Document;
 }

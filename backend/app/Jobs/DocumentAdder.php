@@ -20,10 +20,8 @@ class DocumentAdder implements ShouldQueue
 
     protected SiiService $siiService;
     protected GroupValidationService $groupValidationService;
-    protected array $documents;
+    protected array $serializedFiles;
     protected DocumentGroup $group;
-
-    protected int $numUnsuccessfulDocuments = 0;
 
     public function __construct(
         SiiService $siiService,
@@ -34,14 +32,13 @@ class DocumentAdder implements ShouldQueue
     {
         $this->siiService = $siiService;
         $this->groupValidationService = $groupValidationService;
-        $this->documents = $documents;
+        $this->serializedFiles = $documents;
         $this->group = $group;
     }
 
     public function handle(): void
     {
         $this->addDocumentsToGroup();
-        event(new DocumentsProcessed($this->group, $this->documents, $this->numUnsuccessfulDocuments));
     }
 
     private function addDocumentsToGroup(): void {
@@ -83,11 +80,12 @@ class DocumentAdder implements ShouldQueue
                 $this->groupValidationService->initializeGroupConfiguration($this->group->id);
             }
 
-            foreach ($this->documents as $file) {
+            foreach ($this->serializedFiles as $i => $file) {
                 // ...existing code...
                 $document = $this->group->documents()->create($file);
                 // Obtener ID del documento maestro
                 $document_master_id = $document->id;
+                $this->serializedFiles[$i]['id'] = $document_master_id;
 
                 // Primero determinar el tipo y si debe ser analizado
                 $filename = (string)$document->filename;
@@ -117,12 +115,14 @@ class DocumentAdder implements ShouldQueue
                 // Ahora convertir y procesar imágenes con el valor de analizar conocido
                 $originalBaseName = pathinfo($file['filename'], PATHINFO_FILENAME);
                 $images = $this->convertPdfToImages($file['filepath']);
+                // TODO: este $rechazado no parece ser el verdadero indicador de si hay un error al procesar
                 $rechazado = $this->saveImages($images, $originalBaseName, $document_master_id, $analizar);
                 if ($rechazado) {
-                    $this->numUnsuccessfulDocuments++;
+                    $this->serializedFiles[$i]['status'] = 2;
                     $document->status = 2;
                     $document->save();
                 } else {
+                    $this->serializedFiles[$i]['status'] = 1;
                     $document->status = 1;
                     $document->save();
                 }
@@ -142,6 +142,16 @@ class DocumentAdder implements ShouldQueue
                         'updated_at' => now(),
                     ]);
                 }
+
+                event(new DocumentsProcessed($this->group, $document));
+                DB::table('notification_history')->insert([
+                    'user_id' => $this->group->created_by,
+                    'type' => 'doc_analysis',
+                    'message' => json_encode([
+                        'group' => $this->group,
+                        'document' => $document,
+                    ]),
+                ]);
             }
         } catch (\Exception $e) {
             Log::error("Error en DocAdder: " . $e->getMessage());
