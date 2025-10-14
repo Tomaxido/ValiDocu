@@ -76,7 +76,7 @@ class DocumentVersion extends Model
      */
     public function semanticDocIndex()
     {
-        return $this->hasOne(SemanticDocIndex::class);
+        return $this->hasOne(SemanticDocIndex::class, 'document_version_id');
     }
 
     /**
@@ -84,7 +84,7 @@ class DocumentVersion extends Model
      */
     public function semanticIndexEntries(): HasMany
     {
-        return $this->hasMany(SemanticIndex::class);
+        return $this->hasMany(SemanticIndex::class, 'document_version_id');
     }
 
     /**

@@ -50,19 +50,11 @@ class DocumentPage extends Model
     }
 
     /**
-     * Get semantic index entries for this page
+     * Get semantic index entry for this page
      */
-    public function semanticIndexEntries()
+    public function semanticIndex()
     {
-        return $this->hasMany(SemanticIndex::class);
-    }
-
-    /**
-     * Get semantic doc index for this page
-     */
-    public function semanticDocIndex()
-    {
-        return $this->hasOne(SemanticDocIndex::class);
+        return $this->hasOne(SemanticIndex::class, 'document_page_id');
     }
 
     /**
@@ -74,41 +66,11 @@ class DocumentPage extends Model
     }
 
     /**
-     * Check if page has OCR text
-     */
-    public function hasOcrText(): bool
-    {
-        return !empty($this->ocr_text);
-    }
-
-    /**
      * Check if page has layout data
      */
     public function hasLayout(): bool
     {
-        return !empty($this->layout_json);
-    }
-
-    /**
-     * Get page dimensions as string
-     */
-    public function getDimensionsAttribute(): ?string
-    {
-        if ($this->width_px && $this->height_px) {
-            return "{$this->width_px} x {$this->height_px} px";
-        }
-        return null;
-    }
-
-    /**
-     * Get aspect ratio
-     */
-    public function getAspectRatioAttribute(): ?float
-    {
-        if ($this->width_px && $this->height_px && $this->height_px > 0) {
-            return round($this->width_px / $this->height_px, 2);
-        }
-        return null;
+        return !empty($this->json_layout);
     }
 
     /**
@@ -116,18 +78,18 @@ class DocumentPage extends Model
      */
     public function getLayoutField(string $fieldKey)
     {
-        return $this->layout_json[$fieldKey] ?? null;
+        return $this->json_layout[$fieldKey] ?? null;
     }
 
     /**
-     * Get all text content (OCR + layout)
+     * Get all text content from layout
      */
     public function getAllTextAttribute(): string
     {
-        $text = $this->ocr_text ?? '';
+        $text = '';
         
-        if ($this->layout_json) {
-            foreach ($this->layout_json as $field) {
+        if ($this->json_layout) {
+            foreach ($this->json_layout as $field) {
                 if (isset($field['text'])) {
                     $text .= ' ' . $field['text'];
                 }
@@ -138,18 +100,10 @@ class DocumentPage extends Model
     }
 
     /**
-     * Scope to get pages with OCR text
-     */
-    public function scopeWithOcr($query)
-    {
-        return $query->whereNotNull('ocr_text');
-    }
-
-    /**
      * Scope to get pages with layout data
      */
     public function scopeWithLayout($query)
     {
-        return $query->whereNotNull('layout_json');
+        return $query->whereNotNull('json_layout');
     }
 }
