@@ -80,12 +80,36 @@ class DocumentAdder implements ShouldQueue
                 $this->groupValidationService->initializeGroupConfiguration($this->group->id);
             }
 
-            foreach ($this->serializedFiles as $i => $file) {
+            $documents = [];
+            $notificationIds = [];
+
+            foreach ($this->serializedFiles as $file) {
                 // ...existing code...
                 $document = $this->group->documents()->create($file);
+                $documents[] = $document;
+
+                // Insertar aviso de que se está analizando el documento
+                // TODO: el nombre 'notification_history' podría ser algo engañoso en este caso, porque este preciso registro no es una notificación.
+                $notificationIds[] = DB::table('notification_history')->insertGetId([
+                    'user_id' => $this->group->created_by,
+                    'type' => 'doc_analysis',
+                    'message' => json_encode([
+                        'group' => $this->group,
+                        'document' => $document,
+                        'status' => 'started',
+                    ]),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                    'read' => true,  // uno ya sabe cuando envía un documento a analizar
+                ]);
+            }
+
+            foreach ($documents as $i => $document) {
                 // Obtener ID del documento maestro
                 $document_master_id = $document->id;
                 $this->serializedFiles[$i]['id'] = $document_master_id;
+                $notificationId = $notificationIds[$i];
+                $file = $this->serializedFiles[$i];
 
                 // Primero determinar el tipo y si debe ser analizado
                 $filename = (string)$document->filename;
@@ -144,13 +168,16 @@ class DocumentAdder implements ShouldQueue
                 }
 
                 event(new DocumentsProcessed($this->group, $document));
-                DB::table('notification_history')->insert([
-                    'user_id' => $this->group->created_by,
-                    'type' => 'doc_analysis',
+
+                // Actualizar notificación respectiva
+                DB::table('notification_history')->where('id', $notificationId)->update([
                     'message' => json_encode([
                         'group' => $this->group,
                         'document' => $document,
+                        'status' => $rechazado ? 'error' : 'completed',
                     ]),
+                    'read' => false,
+                    'updated_at' => now(),
                 ]);
             }
         } catch (\Exception $e) {

@@ -16,7 +16,8 @@ return new class extends Migration
             $table->uuid('user_id');
             $table->string('type'); // e.g., 'email', 'sms', etc.
             $table->json('message');
-            $table->timestamp('sent_at')->useCurrent();
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrent();
             $table->boolean('read')->default(false);
 
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');

@@ -22,8 +22,12 @@ import GroupDetailModal from "../../components/group/GroupDetailModal";
 import SnackbarDocsVencidos from "../../components/SnackbarDocsVencidos";
 import { getDocumentFilters, type Filters } from "../../utils/api";
 
+interface HomeParams {
+  currentEvent: ProcessedDocumentEvent | null;
+  setIsDocMenuOpen: (open: boolean) => void;
+}
 
-export default function Home({ currentEvent }: { currentEvent: ProcessedDocumentEvent | null }) {
+export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -184,7 +188,7 @@ export default function Home({ currentEvent }: { currentEvent: ProcessedDocument
   const handleFileUpload = async (groupName: string, files: FileList, isPrivate: boolean = false): Promise<{ group_id?: number }> => {
     try {
       const response = await createGroup(groupName, files, isPrivate);
-      
+      setIsDocMenuOpen(true);
       return response;
     } catch (err: any) {
       alert("Error al subir: " + err.message);

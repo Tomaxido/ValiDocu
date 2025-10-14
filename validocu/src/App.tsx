@@ -23,27 +23,26 @@ configureEcho({
 });
 
 export default function App() {
-  const location = useLocation();
-
-  const [open, setOpen] = useState(false);
   const [currentEvent, setCurrentEvent] = useState<ProcessedDocumentEvent | null>(null);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [isDocMenuOpen, setIsDocMenuOpen] = useState(false);
   
   // TODO: usar useEcho y averiguar cómo usar canales privados
   useEchoPublic<ProcessedDocumentEvent>('documents', 'DocumentsProcessed', event => {
     console.log(event);
     if (event === null) return;
-    setOpen(true);
+    setIsNotificationOpen(true);
     setCurrentEvent(event);
   });
 
   return (
     <AuthProvider>
       <ProtectedRoute>
-        <MainLayout>
+        <MainLayout isDocMenuOpen={isDocMenuOpen} setIsDocMenuOpen={setIsDocMenuOpen}>
           <Snackbar
-            open={open}
+            open={isNotificationOpen}
             anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-            onClose={() => setOpen(false)}
+            onClose={() => setIsNotificationOpen(false)}
           >
             {currentEvent === null ? <Alert /> : <Alert
               severity={currentEvent.document.status === 2 ? "error" : "success"}
@@ -59,8 +58,8 @@ export default function App() {
           </Snackbar>
 
           <Routes>
-            <Route path="/" element={<Home currentEvent={currentEvent} />} />
-            <Route path="/grupos/:grupoId" element={<Grupo currentEvent={currentEvent} />} />
+            <Route path="/" element={<Home currentEvent={currentEvent} setIsDocMenuOpen={setIsDocMenuOpen} />} />
+            <Route path="/grupos/:grupoId" element={<Grupo currentEvent={currentEvent} setIsDocMenuOpen={setIsDocMenuOpen} />} />
             <Route 
               path="/admin/access-requests" 
               element={

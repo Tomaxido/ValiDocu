@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { AppBar, Toolbar, Box, Link, IconButton } from '@mui/material';
+import { AppBar, Toolbar, Box, Link, IconButton, Menu } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
 import BrandMark from '../graphics/ValiDocuLogo';
@@ -8,9 +8,13 @@ import AccessRequestsIndicator from '../components/admin/AccessRequestsIndicator
 import { useAuth } from '../contexts/AuthContext';
 import { BellIcon } from 'lucide-react';
 
-interface Props { children: ReactNode; }
+interface Props {
+  children: ReactNode;
+  isDocMenuOpen: boolean;
+  setIsDocMenuOpen: (open: boolean) => void;
+}
 
-export default function MainLayout({ children }: Props) {
+export default function MainLayout({ children, isDocMenuOpen, setIsDocMenuOpen }: Props) {
   const theme = useTheme();
   const { user } = useAuth();
   
@@ -65,9 +69,13 @@ export default function MainLayout({ children }: Props) {
 
           <Box sx={{ flex: 1 }} />
 
-          <IconButton >
+          <IconButton onClick={() => setIsDocMenuOpen(!isDocMenuOpen)} aria-label="Abrir menú de documentos" size="large">
             <BellIcon color="white" />
           </IconButton>
+
+          <Menu open={isDocMenuOpen} onClose={() => setIsDocMenuOpen(false)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'right' }}>
+              <p>AAA</p>
+          </Menu>
 
           <Box sx={{ display: 'flex', gap: 3, alignItems: 'center' }}>
             <Link component={RouterLink} underline="none" color="inherit" to="/">

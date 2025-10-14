@@ -56,7 +56,12 @@ function StatusChip({ status } : { status?: number }) {
   return <Chip label="Sin procesar" variant="outlined" size="small" />;
 }
 
-export default function Grupo({ currentEvent }: { currentEvent: ProcessedDocumentEvent | null }) {
+interface GrupoParams {
+  currentEvent: ProcessedDocumentEvent | null;
+  setIsDocMenuOpen: (open: boolean) => void;
+}
+
+export default function Grupo({ currentEvent, setIsDocMenuOpen }: GrupoParams) {
   const { grupoId } = useParams<{ grupoId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -346,6 +351,7 @@ export default function Grupo({ currentEvent }: { currentEvent: ProcessedDocumen
     if (!grupoId) return;
     try {
       await uploadDocumentsToGroup(grupoId, files);
+      setIsDocMenuOpen(true);
     } catch (err: any) {
       alert("Error al subir: " + err.message);
     }
