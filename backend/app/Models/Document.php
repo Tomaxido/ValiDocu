@@ -32,6 +32,7 @@ class Document extends Model
         'mime_type',
         'due_date',
         'normative_gap',
+        'pages', // Agregar páginas de la versión actual
     ];
 
     /**
@@ -174,14 +175,16 @@ class Document extends Model
         return $query->where('document_type_id', $typeId);
     }
 
-        /**
+    
+    /**
      * Get the filename from current version
      */
     public function getFilenameAttribute(): ?string
     {
         // Si ya se cargó la relación currentVersion, usarla
         if ($this->relationLoaded('currentVersion')) {
-            return $this->currentVersion->first()?->filename;
+            $versions = $this->getRelation('currentVersion');
+            return $versions->first()?->filename;
         }
         $currentVersion = $this->versions()->where('is_current', true)->first();
         return $currentVersion?->filename;
@@ -193,7 +196,8 @@ class Document extends Model
     public function getFilepathAttribute(): ?string
     {
         if ($this->relationLoaded('currentVersion')) {
-            return $this->currentVersion->first()?->filepath;
+            $versions = $this->getRelation('currentVersion');
+            return $versions->first()?->filepath;
         }
         $currentVersion = $this->versions()->where('is_current', true)->first();
         return $currentVersion?->filepath;
@@ -205,7 +209,8 @@ class Document extends Model
     public function getMimeTypeAttribute(): ?string
     {
         if ($this->relationLoaded('currentVersion')) {
-            return $this->currentVersion->first()?->mime_type;
+            $versions = $this->getRelation('currentVersion');
+            return $versions->first()?->mime_type;
         }
         $currentVersion = $this->versions()->where('is_current', true)->first();
         return $currentVersion?->mime_type;
@@ -217,7 +222,8 @@ class Document extends Model
     public function getDueDateAttribute(): ?int
     {
         if ($this->relationLoaded('currentVersion')) {
-            return $this->currentVersion->first()?->due_date;
+            $versions = $this->getRelation('currentVersion');
+            return $versions->first()?->due_date;
         }
         $currentVersion = $this->versions()->where('is_current', true)->first();
         return $currentVersion?->due_date;
@@ -229,9 +235,27 @@ class Document extends Model
     public function getNormativeGapAttribute(): ?int
     {
         if ($this->relationLoaded('currentVersion')) {
-            return $this->currentVersion->first()?->normative_gap;
+            $versions = $this->getRelation('currentVersion');
+            return $versions->first()?->normative_gap;
         }
         $currentVersion = $this->versions()->where('is_current', true)->first();
         return $currentVersion?->normative_gap;
+    }
+
+    /**
+     * Get the pages from current version
+     */
+    public function getPagesAttribute()
+    {
+        if ($this->relationLoaded('currentVersion')) {
+            $versions = $this->getRelation('currentVersion');
+            $currentVersion = $versions->first();
+            if ($currentVersion && $currentVersion->relationLoaded('pages')) {
+                return $currentVersion->pages;
+            }
+            return $currentVersion?->pages()->orderBy('page_number')->get() ?? collect();
+        }
+        $currentVersion = $this->versions()->where('is_current', true)->first();
+        return $currentVersion?->pages()->orderBy('page_number')->get() ?? collect();
     }
 }

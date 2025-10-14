@@ -112,8 +112,8 @@ class DocumentUploadController extends Controller
     {
         $user = $request->user();
         $group = DocumentGroup::with([
-            'documents.currentVersion',  // Cargar la versión actual de cada documento
-            'documents.documentType',     // Cargar el tipo de documento
+            'documents.currentVersion.pages',  // Cargar la versión actual y sus páginas
+            'documents.documentType',           // Cargar el tipo de documento
             'users', 
             'creator'
         ])->findOrFail($id);

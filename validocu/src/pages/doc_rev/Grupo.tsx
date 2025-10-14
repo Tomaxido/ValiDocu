@@ -32,22 +32,41 @@ import EqualizerIcon from "@mui/icons-material/Equalizer";
 import InfoOutlineIcon from "@mui/icons-material/InfoOutline";
 
 function groupDocuments(documents: Document[]): GroupedDocument[] {
-  const pdfs = documents.filter((doc) => doc.filename.toLowerCase().endsWith(".pdf"));
-  const images = documents.filter((doc) => !doc.filename.toLowerCase().endsWith(".pdf"));
-
-  const groups: { [key: string]: Document[] } = {};
-  for (const doc of images) {
-    const match = /^(.+?)_p\d+\.(png|jpg|jpeg)$/i.exec(doc.filename);
-    const key = match ? match[1] : doc.filename;
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(doc);
+  if (!documents || documents.length === 0) {
+    return [];
   }
 
-  return Object.entries(groups).map(([key, imgs]) => {
-    const matchingPdf = pdfs.find((pdf) => pdf.filename.toLowerCase().startsWith(key.toLowerCase()));
-    const nameWithoutExt = matchingPdf ? matchingPdf.filename.replace(/\.pdf$/i, "") : key;
-    return { name: nameWithoutExt, images: imgs, pdf: matchingPdf };
+  // Filtrar documentos válidos
+  const validDocuments = documents.filter(doc => doc.filename);
+  const pdfs = validDocuments.filter((doc) => doc.filename.toLowerCase().endsWith(".pdf"));
+
+  // Crear grupos desde los PDFs y sus páginas
+  const result: GroupedDocument[] = pdfs.map(pdf => {
+    const nameWithoutExt = pdf.filename.replace(/\.pdf$/i, "");
+    
+    // Convertir las páginas a formato Document para compatibilidad con GroupedImageViewer
+    const pageDocuments: Document[] = (pdf.pages || []).map(page => ({
+      id: page.id,
+      document_group_id: pdf.document_group_id,
+      filename: `page_${page.page_number}.png`,
+      filepath: page.image_path,
+      mime_type: 'image/png',
+      status: pdf.status,
+      created_at: page.created_at,
+      updated_at: page.updated_at,
+      normative_gap: pdf.normative_gap,
+      due_date: pdf.due_date,
+      json_layout: page.json_layout, // Anotaciones de IA de cada página
+    }));
+    
+    return { 
+      name: nameWithoutExt, 
+      images: pageDocuments,
+      pdf 
+    };
   });
+
+  return result;
 }
 
 function StatusChip({ status } : { status?: number }) {
@@ -574,7 +593,8 @@ export default function Grupo() {
             <Box sx={{ minWidth: 0 }}>
               <GroupedImageViewer
                 filename={selectedDoc.filename}
-                files={groupedDocs.find(g => g.pdf?.id === selectedDoc.id)?.images || [selectedDoc]}
+                files={groupedDocs.find(g => g.pdf?.id === selectedDoc.id)?.images || []}
+                pdfDoc={selectedDoc}
               />
             </Box>
 

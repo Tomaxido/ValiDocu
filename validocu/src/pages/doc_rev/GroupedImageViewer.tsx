@@ -11,7 +11,7 @@ import TraceabilityModal from "./TraceabilityModal";
 
 type BBox = [number, number, number, number];
 
-export default function GroupedImageViewer({ filename, files }: Readonly<GroupedImageViewerProps>) {
+export default function GroupedImageViewer({ filename, files, pdfDoc }: Readonly<GroupedImageViewerProps>) {
   const [scales, setScales] = useState<{ x: number; y: number }[]>([]);
   const [annotationsByPage, setAnnotationsByPage] = useState<BoxAnnotation[][]>([]);
   const imgRefs = useRef<(HTMLImageElement | null)[]>([]);
@@ -21,7 +21,7 @@ export default function GroupedImageViewer({ filename, files }: Readonly<Grouped
   const [hoverByPage, setHoverByPage] = useState<Record<number, BBox[]>>({}); // nuevo
 
   const wrapperRefs = useRef<(HTMLDivElement | null)[]>([]);
-  
+  console.log("aaaaaa files recibidos:", files);
   // Estado para el modal de trazabilidad
   const [traceabilityModalOpen, setTraceabilityModalOpen] = useState(false);
 
@@ -30,10 +30,14 @@ export default function GroupedImageViewer({ filename, files }: Readonly<Grouped
     let cancelado = false;
     async function fetchLayouts() {
       setAnnotationsByPage([]);
+      
+      // Fallback: cargar desde API (para compatibilidad con sistema antiguo)
+      console.log('📡 Cargando json_layout desde API');
       const layouts: BoxAnnotation[][] = await Promise.all(
         files.map(async (doc) => {
           try {
             const data = await buscarJsonLayoutPorIdDocumento(doc.id);
+            console.log(`📄 Layout para doc ID ${doc.id}:`, data);
             return (data ?? []) as BoxAnnotation[];
           } catch {
             return [];
