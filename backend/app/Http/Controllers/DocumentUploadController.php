@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Services\SiiService;
 use App\Services\GroupValidationService;
 use Illuminate\Http\JsonResponse;
+use App\Events\DocumentsProcessed;
 use Illuminate\Support\Str;
 
 
@@ -417,7 +418,8 @@ class DocumentUploadController extends Controller
             $group = DocumentGroup::findOrFail($groupId);
             
             // Disparar el evento DocumentsProcessed
-            event(new \App\Events\DocumentsProcessed($groupId, $userId));
+            $numUnsuccessfulDocuments = 0; // Ajusta este valor según tu lógica
+            event(new DocumentsProcessed($groupId, $userId, $numUnsuccessfulDocuments));
 
             return response()->json([
                 'success' => true,
