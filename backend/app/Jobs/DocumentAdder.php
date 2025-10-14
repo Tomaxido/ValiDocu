@@ -84,18 +84,23 @@ class DocumentAdder implements ShouldQueue
             }
 
             foreach ($this->documents as $file) {
-                // ...existing code...
-                $document = $this->group->documents()->create($file);
+                // Crear el documento maestro
+                $document = $this->group->documents()->create([
+                    'document_group_id' => $this->group->id,
+                    'status' => 0,
+                ]);
+                
                 // Obtener ID del documento maestro
                 $document_master_id = $document->id;
 
                 // Primero determinar el tipo y si debe ser analizado
-                $filename = (string)$document->filename;
+                $filename = (string)$file['filename'];
                 $normFile = $this->normalizeName($filename);
                 Log::info("Analizando documento: {$filename}, normalizado: {$normFile}");
                 $found = false;
                 $analizar = 0;
-                $tipo = 0;
+                $document_type_id = null;
+                
                 foreach ($obligatorios as $obl) {
                     $nombreDoc = (string)$obl->nombre_doc;
                     $analizar  = (int)$obl->analizar;
@@ -103,21 +108,40 @@ class DocumentAdder implements ShouldQueue
                     Log::info("Nombre Documento Obligatorio: {$nombreDoc}, analizar: {$analizar}");
                     if ($this->matchFilenameToNombreDoc($normFile, $this->normalizeName($nombreDoc))) {
                         $found = true;
-                        $tipo = $idObligatorio;
+                        $document_type_id = $idObligatorio;
                         break;
                     }
                 }
+                
                 if (!$found) {
-                    $tipo = 0;
+                    $document_type_id = null;
                     $analizar = 0;
                 }
-                $document->tipo = $tipo;
+                
+                // Actualizar el document_type_id del documento
+                $document->document_type_id = $document_type_id;
                 $document->save();
+
+                // Crear la primera versión del documento
+                $version = $document->versions()->create([
+                    'version_number' => 1,
+                    'filename' => $file['filename'],
+                    'filepath' => $file['filepath'],
+                    'mime_type' => $file['mime_type'],
+                    'file_size' => null, // Se puede calcular después si es necesario
+                    'page_count' => 1, // Se actualizará después
+                    'due_date' => 0, // Vigente por defecto
+                    'normative_gap' => 0, // Sin gap por defecto
+                    'checksum_sha256' => null,
+                    'uploaded_by' => auth()->id(),
+                    'is_current' => true,
+                ]);
 
                 // Ahora convertir y procesar imágenes con el valor de analizar conocido
                 $originalBaseName = pathinfo($file['filename'], PATHINFO_FILENAME);
                 $images = $this->convertPdfToImages($file['filepath']);
-                $rechazado = $this->saveImages($images, $originalBaseName, $document_master_id, $analizar);
+                $rechazado = $this->saveImages($images, $originalBaseName, $document_master_id, $version->id, $analizar);
+                
                 if ($rechazado) {
                     $this->numUnsuccessfulDocuments++;
                     $document->status = 2;
@@ -126,16 +150,18 @@ class DocumentAdder implements ShouldQueue
                     $document->status = 1;
                     $document->save();
                 }
+                
                 if($analizar == 1){
                     app(\App\Http\Controllers\AnalysisController::class)->createSuggestions($document_master_id);
                 }
 
                 // === CREAR semantic_doc_index SI NO EXISTE ===
-                $exists = DB::table('semantic_doc_index')->where('document_id', $document_master_id)->exists();
+                $exists = DB::table('semantic_doc_index')->where('document_version_id', $version->id)->exists();
                 if (!$exists) {
                     DB::table('semantic_doc_index')->insert([
-                        'document_id' => $document_master_id,
+                        'document_version_id' => $version->id,
                         'document_group_id' => $this->group->id,
+                        'json_layout' => null,
                         'json_global' => null,
                         'resumen' => null,
                         'created_at' => now(),
@@ -198,31 +224,37 @@ class DocumentAdder implements ShouldQueue
         array $images,
         string $originalBaseName,
         int $document_master_id,
+        int $version_id,
         bool $analizar,
     ): bool
     {
         $modificado_global = false;
+        $pageCount = 0;
+        
         foreach ($images as $imgPath) {
             // Detectar número de página desde el nombre generado
             $pageNumber = '';
             if (preg_match('/_p(\d+)\.png$/', $imgPath, $matches)) {
                 $pageNumber = $matches[1]; // ej: "1"
+                $pageCount = max($pageCount, (int)$pageNumber);
             }
 
             // Construir nuevo nombre amigable
             $newFilename = $originalBaseName . '_p' . $pageNumber . '.png';
 
-            $document = $this->group->documents()->create([
-                'filename' => $newFilename,
-                'filepath' => $imgPath,
-                'mime_type' => 'image/png',
-                'status' => 0,
+            // Crear document_page para esta página
+            $page = DB::table('document_pages')->insertGetId([
+                'document_version_id' => $version_id,
+                'page_number' => (int)$pageNumber,
+                'image_path' => $imgPath,
+                'json_layout' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
 
             // === Enviar a API FastAPI solo si analizar = 1 ===
             if ($analizar == 0) {
-                // Si no debe ser analizado, solo marcar con status 1 (procesado sin análisis)
-                $document->update(['status' => 1]);
+                // Si no debe ser analizado, continuar con siguiente página
                 continue;
             }
             try {
@@ -232,21 +264,27 @@ class DocumentAdder implements ShouldQueue
                     'file', fopen($absolutePath, 'r'), $newFilename
                 )->post('http://localhost:5050/procesar/', [
                     'master_id' => $document_master_id,
-                    'doc_id' => $document->id,
+                    'version_id' => $version_id,
+                    'page_id' => $page,
                     'group_id' => $this->group->id,
                     'page' => $pageNumber
                 ]);
+                
                 if (!$response->successful()) {
                     Log::error("Procesamiento falló para $newFilename", ['error' => $response->body()]);
                     continue;
                 }
 
-                // Podís guardar respuesta si querís:
-                // actualizar estado, guardar json path, etc.
+                // Obtener datos del semantic_index para esta página
                 $data = DB::table('semantic_index')
                     ->select('id', 'json_layout')
-                    ->where('document_id', $document->id)
-                    ->first(); // ← obtiene un solo registro
+                    ->where('document_page_id', $page)
+                    ->first();
+
+                if (!$data) {
+                    Log::warning("No se encontró semantic_index para la página {$page}");
+                    continue;
+                }
 
                 $layout = json_decode($data->json_layout, true);
                 $modificado = false;
@@ -275,31 +313,35 @@ class DocumentAdder implements ShouldQueue
                 }
                 unset($campo);
 
-                // Si se modificó, se actualiza el json en la tabla
+                // Si se modificó, actualizar el json en la tabla semantic_index
                 if ($modificado) {
-                    Log::info("🔄 Actualizando json_layout para documento ID: {$document->id}");
+                    Log::info("🔄 Actualizando json_layout para página ID: {$page}");
                     DB::table('semantic_index')
-                        ->where('document_id', $document->id)
+                        ->where('document_page_id', $page)
+                        ->update([
+                            'json_layout' => json_encode($layout)
+                        ]);
+                    
+                    // También actualizar el json_layout en document_pages
+                    DB::table('document_pages')
+                        ->where('id', $page)
                         ->update([
                             'json_layout' => json_encode($layout)
                         ]);
 
-                    $document->update([
-                        'status' => 2, // Estado 2 para indicar que fue rechazado por campos errados.
-                        'metadata' => $response->json(), // solo si tenís columna metadata
-                    ]);
                     $modificado_global = true;
-                } else {
-                    $document->update([
-                        'status' => 1,
-                        'metadata' => $response->json(), // solo si tenís columna metadata
-                    ]);
                 }
 
             } catch (\Exception $e) {
                 Log::error("Error al procesar con IA", ['error' => $e->getMessage()]);
             }
         }
+        
+        // Actualizar el page_count de la versión
+        DB::table('document_versions')
+            ->where('id', $version_id)
+            ->update(['page_count' => $pageCount]);
+        
         return $modificado_global;
     }
 

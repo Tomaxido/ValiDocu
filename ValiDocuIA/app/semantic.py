@@ -555,22 +555,16 @@ def main():
         print(f"\n🔎 Procesando {filename}")
         name_wo_ext = filename[:-5]  # sin .json
 
-        # Formato nuevo con doc_id o antiguo sin doc_id
-        m3 = re.match(r"^documento_([a-f0-9\-]+)_([a-f0-9\-]+)_([a-f0-9\-]+)_p(\d+)$", name_wo_ext)
-        m2 = re.match(r"^documento_([a-f0-9\-]+)_([a-f0-9\-]+)_p(\d+)$", name_wo_ext)
+        # Formato: documento_{master_id}_{version_id}_{page_id}_{group_id}_pNNNN
+        m = re.match(r"^documento_(\d+)_(\d+)_(\d+)_(\d+)_p(\d+)$", name_wo_ext)
 
-        if m3:
-            master_id = m3.group(1)
-            doc_id    = m3.group(2)   # documents.id de la PNG (page-level)
-            group_id  = m3.group(3)
-            page_idx  = int(m3.group(4))
-            print(f" ↳ master={master_id} doc={doc_id} group={group_id} page={page_idx}")
-        elif m2:
-            master_id = m2.group(1)
-            doc_id    = None          # formato antiguo
-            group_id  = m2.group(2)
-            page_idx  = int(m2.group(3))
-            print(f" ↳ master={master_id} group={group_id} page={page_idx} (sin doc_id)")
+        if m:
+            master_id = int(m.group(1))
+            version_id = int(m.group(2))
+            page_id = int(m.group(3))
+            group_id = int(m.group(4))
+            page_idx = int(m.group(5))
+            print(f" ↳ master={master_id} version={version_id} page_id={page_id} group={group_id} page={page_idx}")
         else:
             print(f"⚠️ Nombre inválido: {filename}")
             continue
@@ -597,28 +591,21 @@ def main():
         page_json_layout_sql = json.dumps(page_items, ensure_ascii=False)
         page_archivo = os.path.basename(current_page_json)
 
-        # `doc_id` puede venir como string; castear a int si aplica
-        int_doc_id = None
-        if doc_id is not None:
-            try:
-                int_doc_id = int(doc_id)
-            except Exception:
-                int_doc_id = doc_id  # si no es numérico, úsalo tal cual
-
-        # Escribir page-level si hay conexión y doc_id
-        if cur and doc_id is not None:
+        # Escribir page-level con document_version_id y document_page_id
+        if cur and page_id is not None:
             payload_page = {
-                "document_id": int_doc_id,
+                "document_version_id": version_id,
+                "document_page_id": page_id,
                 "document_group_id": group_id,
                 "resumen": page_resumen,
                 "json_layout": page_json_layout_sql,
                 "embedding": json.dumps(page_embedding),  # por compatibilidad si embedding no es jsonb
                 "archivo": page_archivo,
             }
-            ok = delete_then_insert_dynamic(cur, TABLE_NAME, "document_id", int_doc_id, payload_page, page_cols)
+            ok = delete_then_insert_dynamic(cur, TABLE_NAME, "document_page_id", page_id, payload_page, page_cols)
             DB_WRITE_OK = DB_WRITE_OK and ok
 
-        # ------------- B) Recolectar TODAS las páginas del mismo master_id/group_id -------------
+        # ------------- B) Recolectar TODAS las páginas del mismo master_id/version_id/group_id -------------
         all_items: List[Dict[str, Any]] = []
         try:
             candidates = []
@@ -626,16 +613,16 @@ def main():
                 if not (f.startswith("documento_") and f.endswith(".json")):
                     continue
                 nx = f[:-5]
-                # documento_{master}_[{doc}_]{group}_pNNNN
-                m_any = re.match(r"^documento_([a-f0-9\-]+)_(?:[a-f0-9\-]+_)?([a-f0-9\-]+)_p(\d+)$", nx)
+                # documento_{master_id}_{version_id}_{page_id}_{group_id}_pNNNN
+                m_any = re.match(r"^documento_(\d+)_(\d+)_(\d+)_(\d+)_p(\d+)$", nx)
                 if not m_any:
                     continue
-                if m_any.group(1) != master_id or m_any.group(2) != group_id:
+                if int(m_any.group(1)) != master_id or int(m_any.group(2)) != version_id or int(m_any.group(4)) != group_id:
                     continue
-                candidates.append((f, int(m_any.group(3))))
+                candidates.append((f, int(m_any.group(5))))
 
             candidates.sort(key=lambda x: x[1])
-            print(f" 🧩 Páginas detectadas para master={master_id}, group={group_id}: {len(candidates)}")
+            print(f" 🧩 Páginas detectadas para master={master_id}, version={version_id}, group={group_id}: {len(candidates)}")
 
             for f, pg in candidates:
                 ppath = os.path.join(JSON_FOLDER, f)
@@ -677,7 +664,7 @@ def main():
         # ------------- D) Escribir doc-level en semantic_doc_index -------------
         if cur:
             payload_doc = {
-                "document_id": master_id,
+                "document_version_id": version_id,
                 "document_group_id": group_id,
                 "resumen": resumen,
                 "json_layout": json_layout_global_sql,
@@ -687,10 +674,10 @@ def main():
                 "updated_at": datetime.utcnow().isoformat(),  # si no existe, se ignora
                 "created_at": datetime.utcnow().isoformat(),  # si no existe, se ignora
             }
-            ok = delete_then_insert_dynamic(cur, DOC_TABLE_NAME, "document_id", master_id, payload_doc, doc_cols)
+            ok = delete_then_insert_dynamic(cur, DOC_TABLE_NAME, "document_version_id", version_id, payload_doc, doc_cols)
             DB_WRITE_OK = DB_WRITE_OK and ok
             if ok:
-                print(f"✅ Doc-level actualizado (master={master_id}, group={group_id})")
+                print(f"✅ Doc-level actualizado (master={master_id}, version={version_id}, group={group_id})")
 
     # Commit/cierre
     if cur:

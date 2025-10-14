@@ -111,7 +111,12 @@ class DocumentUploadController extends Controller
     public function show(Request $request, $id)
     {
         $user = $request->user();
-        $group = DocumentGroup::with(['documents', 'users', 'creator'])->findOrFail($id);
+        $group = DocumentGroup::with([
+            'documents.currentVersion',  // Cargar la versión actual de cada documento
+            'documents.documentType',     // Cargar el tipo de documento
+            'users', 
+            'creator'
+        ])->findOrFail($id);
 
         // Verificar que el usuario tiene acceso al grupo
         if (!$group->userHasAccess($user->id)) {
@@ -121,6 +126,13 @@ class DocumentUploadController extends Controller
         // Agregar información adicional sobre permisos del usuario
         $group->user_can_edit = $group->userCanEdit($user->id);
         $group->is_owner = $group->created_by === $user->id;
+
+        // Asegurar que cada documento tiene los atributos de su versión actual
+        $group->documents->each(function($doc) {
+            // Los accessors del modelo Document ya manejan esto
+            // pero aseguramos que la versión actual esté cargada
+            $doc->makeVisible(['filename', 'filepath', 'mime_type', 'due_date', 'normative_gap']);
+        });
 
         return response()->json($group);
     }

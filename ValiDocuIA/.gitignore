@@ -3,6 +3,10 @@ outputs/
 !outputs/.gitkeep  # si querís mantener la carpeta vacía en el repo
 modelo_multiclase/
 
+# Ignorar variables de entorno (credenciales sensibles)
+.env
+.env.local
+
 # Ignorar caché de Python
 __pycache__/
 **/__pycache__/

@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Issue;
 use App\Models\SuggestionStatus;
 use Illuminate\Http\JsonResponse;
+use App\Models\DocumentAnalysis;
 
 class IssueController extends Controller
 {
@@ -46,17 +47,17 @@ class IssueController extends Controller
             ->pluck('id');
 
         if ($relatedIssueIds->isEmpty()) {
-            // Usar Eloquent para obtener el DocumentAnalysis y el Document
-            $analysis = \App\Models\DocumentAnalysis::find($issue->document_analysis_id);
-            if ($analysis && $analysis->document) {
-                $analysis->document->normative_gap = 0;
-                $analysis->document->save();
+            // Usar Eloquent para obtener el DocumentAnalysis y actualizar la versión
+            $analysis = DocumentAnalysis::find($issue->document_analysis_id);
+            if ($analysis && $analysis->version) {
+                $analysis->version->normative_gap = 0;
+                $analysis->version->save();
             }
         }else{
-            $analysis = \App\Models\DocumentAnalysis::find($issue->document_analysis_id);
-            if ($analysis && $analysis->document) {
-                $analysis->document->normative_gap = 1;
-                $analysis->document->save();
+            $analysis = DocumentAnalysis::find($issue->document_analysis_id);
+            if ($analysis && $analysis->version) {
+                $analysis->version->normative_gap = 1;
+                $analysis->version->save();
             }
         }
         // Opcional: incluir el texto del estado en la respuesta

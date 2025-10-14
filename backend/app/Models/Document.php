@@ -24,6 +24,17 @@ class Document extends Model
     ];
 
     /**
+     * Los atributos que se deben anexar a la representación JSON del modelo.
+     */
+    protected $appends = [
+        'filename',
+        'filepath',
+        'mime_type',
+        'due_date',
+        'normative_gap',
+    ];
+
+    /**
      * Get the document group this document belongs to
      */
     public function group(): BelongsTo
@@ -163,20 +174,27 @@ class Document extends Model
         return $query->where('document_type_id', $typeId);
     }
 
-    /**
-     * Get the file name from current version
+        /**
+     * Get the filename from current version
      */
     public function getFilenameAttribute(): ?string
     {
+        // Si ya se cargó la relación currentVersion, usarla
+        if ($this->relationLoaded('currentVersion')) {
+            return $this->currentVersion->first()?->filename;
+        }
         $currentVersion = $this->versions()->where('is_current', true)->first();
         return $currentVersion?->filename;
     }
 
     /**
-     * Get the file path from current version
+     * Get the filepath from current version
      */
     public function getFilepathAttribute(): ?string
     {
+        if ($this->relationLoaded('currentVersion')) {
+            return $this->currentVersion->first()?->filepath;
+        }
         $currentVersion = $this->versions()->where('is_current', true)->first();
         return $currentVersion?->filepath;
     }
@@ -186,6 +204,9 @@ class Document extends Model
      */
     public function getMimeTypeAttribute(): ?string
     {
+        if ($this->relationLoaded('currentVersion')) {
+            return $this->currentVersion->first()?->mime_type;
+        }
         $currentVersion = $this->versions()->where('is_current', true)->first();
         return $currentVersion?->mime_type;
     }
@@ -195,6 +216,9 @@ class Document extends Model
      */
     public function getDueDateAttribute(): ?int
     {
+        if ($this->relationLoaded('currentVersion')) {
+            return $this->currentVersion->first()?->due_date;
+        }
         $currentVersion = $this->versions()->where('is_current', true)->first();
         return $currentVersion?->due_date;
     }
@@ -204,8 +228,10 @@ class Document extends Model
      */
     public function getNormativeGapAttribute(): ?int
     {
+        if ($this->relationLoaded('currentVersion')) {
+            return $this->currentVersion->first()?->normative_gap;
+        }
         $currentVersion = $this->versions()->where('is_current', true)->first();
         return $currentVersion?->normative_gap;
     }
 }
-
