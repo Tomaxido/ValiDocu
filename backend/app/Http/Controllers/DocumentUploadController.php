@@ -156,7 +156,7 @@ class DocumentUploadController extends Controller
         }
 
         // Obtener la versión actual antes del soft delete
-        $currentVersion = $document->currentVersion;
+        $currentVersion = $document->currentVersion->first();
 
         // Soft delete: marcar todas las versiones del documento como no actuales
         DB::table('document_versions')
@@ -172,7 +172,7 @@ class DocumentUploadController extends Controller
 
         Log::info('Documento marcado como eliminado (soft delete)', [
             'document_id' => $document->id,
-            'filename' => $document->id
+            'filename' => $currentVersion?->filename ?? 'documento_eliminado'
         ]);
 
         return response()->json(['message' => 'Documento eliminado correctamente.']);
