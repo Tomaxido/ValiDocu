@@ -24,18 +24,21 @@ class DocumentAdder implements ShouldQueue
     protected DocumentGroup $group;
 
     protected int $numUnsuccessfulDocuments = 0;
+    protected string $userId;
 
     public function __construct(
         SiiService $siiService,
         GroupValidationService $groupValidationService,
         array $documents,
         DocumentGroup $group,
+        string $userId
     )
     {
         $this->siiService = $siiService;
         $this->groupValidationService = $groupValidationService;
         $this->documents = $documents;
         $this->group = $group;
+        $this->userId = $userId;
     }
 
     public function handle(): void
@@ -133,7 +136,7 @@ class DocumentAdder implements ShouldQueue
                     'due_date' => 0, // Vigente por defecto
                     'normative_gap' => 0, // Sin gap por defecto
                     'checksum_sha256' => null,
-                    'uploaded_by' => auth()->id(),
+                    'uploaded_by' => $this->userId,
                     'is_current' => true,
                 ]);
 
