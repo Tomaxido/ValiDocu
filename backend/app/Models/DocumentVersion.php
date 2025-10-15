@@ -26,6 +26,7 @@ class DocumentVersion extends Model
         'checksum_sha256',
         'uploaded_by',
         'is_current',
+        'comment',
     ];
 
     protected $casts = [

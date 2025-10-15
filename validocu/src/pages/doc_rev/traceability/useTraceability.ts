@@ -37,19 +37,14 @@ export function useTraceability(): [UseTraceabilityState, UseTraceabilityActions
 
       // Procesar versiones del documento
       const processedVersions: DocumentVersion[] = versionHistoryResponse.version_history.map(versionData => {
-        // Buscar el log de subida para obtener información del usuario
-        const uploadLog = versionData.logs.find(log => 
-          log.type === 'uploaded' || log.type === 'reuploaded'
-        );
-
         return {
           id: versionData.version.id,
           version: versionData.version.version_number,
-          uploadDate: versionData.version.uploaded_at,
-          uploadedBy: uploadLog?.user ? {
-            id: uploadLog.user.id,
-            name: uploadLog.user.name,
-            email: uploadLog.user.email,
+          uploadDate: new Date(versionData.version.uploaded_at),
+          uploadedBy: versionData.version.uploaded_by ? {
+            id: versionData.version.uploaded_by.email, // Usar email como ID temporal
+            name: versionData.version.uploaded_by.name,
+            email: versionData.version.uploaded_by.email,
             avatar: undefined,
           } : {
             id: 'system',
@@ -57,7 +52,7 @@ export function useTraceability(): [UseTraceabilityState, UseTraceabilityActions
             email: 'sistema@validocu.com',
             avatar: undefined,
           },
-          comments: uploadLog?.comment || 'Sin comentarios',
+          comment: versionData.version.comment || 'Sin comentarios',
           fileSize: versionData.version.file_size,
           fileName: versionData.version.filename,
           isCurrent: versionData.version.is_current,

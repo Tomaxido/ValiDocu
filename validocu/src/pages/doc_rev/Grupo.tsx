@@ -49,6 +49,7 @@ function groupDocuments(documents: Document[]): GroupedDocument[] {
     const pageDocuments: Document[] = (pdf.pages || []).map(page => ({
       id: page.id,
       document_group_id: pdf.document_group_id,
+      document_version_id: page.document_version_id, // Incluir el version_id
       filename: `page_${page.page_number}.png`,
       filepath: page.image_path,
       mime_type: 'image/png',

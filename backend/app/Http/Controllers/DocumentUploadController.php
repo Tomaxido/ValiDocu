@@ -16,6 +16,7 @@ use Illuminate\Http\JsonResponse;
 use App\Events\DocumentsProcessed;
 use Illuminate\Support\Str;
 use App\Traits\CreatesDocumentAuditLogs;
+use App\Jobs\DocumentVersionAdder;
 
 
 class DocumentUploadController extends Controller
@@ -103,6 +104,7 @@ class DocumentUploadController extends Controller
             $documents[] = [
                 'filename' => $file->getClientOriginalName(),
                 'filepath' => $path,
+                'file_size' => $file->getSize(),
                 'mime_type' => $file->getClientMimeType(),
                 'status' => 0,
             ];
@@ -414,6 +416,80 @@ class DocumentUploadController extends Controller
                         });
 
         return response()->json($members);
+    }
+
+    /**
+     * Subir una nueva versión de un documento existente
+     */
+    public function uploadNewVersion(Request $request, int $document_id): JsonResponse
+    {
+        $request->validate([
+            'document' => 'required|file|mimes:pdf|max:51200', // máximo 50MB
+            'comment' => 'required|string|max:1000',
+        ]);
+
+        try {
+            // Buscar el documento sin el scope global
+            $document = Document::withoutGlobalScope('hasCurrentVersion')
+                ->findOrFail($document_id);
+
+            // Verificar permisos del usuario
+            $user = $request->user();
+            $group = $document->group;
+
+            if (!$group->userHasAccess($user->id)) {
+                return response()->json(['message' => 'No tienes acceso a este documento'], 403);
+            }
+
+            if (!$group->userCanEdit($user->id)) {
+                return response()->json(['message' => 'No tienes permisos de edición en este grupo'], 403);
+            }
+
+            // Guardar el archivo
+            $file = $request->file('document');
+            $filename = $file->getClientOriginalName();
+            $filepath = $file->store('documents', 'public');
+
+            $fileData = [
+                'filename' => $filename,
+                'filepath' => $filepath,
+                'mime_type' => $file->getMimeType(),
+                'file_size' => $file->getSize(),
+            ];
+
+            Log::info("Iniciando subida de nueva versión", [
+                'document_id' => $document_id,
+                'filename' => $filename,
+                'user_id' => $user->id,
+            ]);
+
+            // Despachar el job
+            DocumentVersionAdder::dispatch(
+                app(SiiService::class),
+                $fileData,
+                $document,
+                $user->id,
+                $request->input('comment')
+            )->onQueue('docAnalysis');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Nueva versión en procesamiento',
+                'document_id' => $document_id,
+            ], 202); // 202 Accepted (procesamiento asíncrono)
+
+        } catch (\Exception $e) {
+            Log::error('Error al subir nueva versión:', [
+                'document_id' => $document_id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al subir nueva versión: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**

@@ -45,6 +45,7 @@ export default function TraceabilityModal({
   // Cargar datos cuando se abre el modal
   useEffect(() => {
     if (open && documentId) {
+      console.log("Id del documento:", documentId);
       loadTraceabilityData(documentId);
     }
   }, [open, documentId, loadTraceabilityData]);

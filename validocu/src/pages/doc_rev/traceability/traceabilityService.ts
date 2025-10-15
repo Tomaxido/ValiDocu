@@ -88,20 +88,7 @@ export class TraceabilityService {
   /**
    * Obtener el historial de versiones con sus logs
    */
-  static async getDocumentVersionHistory(documentId: string): Promise<{
-    document: DocumentVersionHistoryResponse['document'];
-    version_history: Array<{
-      version: {
-        id: string;
-        version_number: number;
-        filename: string;
-        file_size: number;
-        is_current: boolean;
-        uploaded_at: Date;
-      };
-      logs: ActivityLog[];
-    }>;
-  }> {
+  static async getDocumentVersionHistory(documentId: string): Promise<DocumentVersionHistoryResponse> {
     try {
       const response: ApiResponse<DocumentVersionHistoryResponse> = await authenticatedFetch(
         `/documents/${documentId}/version-history`
@@ -116,9 +103,9 @@ export class TraceabilityService {
         version_history: response.data.version_history.map(versionData => ({
           version: {
             ...versionData.version,
-            uploaded_at: new Date(versionData.version.uploaded_at),
+            // Keep uploaded_at as string to match the expected type
+            uploaded_at: versionData.version.uploaded_at,
           },
-          logs: versionData.logs.map(transformActivityLog),
         })),
       };
     } catch (error) {

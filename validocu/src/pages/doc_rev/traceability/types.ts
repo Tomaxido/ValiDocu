@@ -8,7 +8,7 @@ export interface DocumentVersion {
     email: string;
     avatar?: string;
   };
-  comments: string;
+  comment: string;
   fileSize: number;
   fileName: string;
   isCurrent: boolean;
@@ -75,9 +75,13 @@ export interface DocumentVersionHistoryResponse {
       version_number: number;
       filename: string;
       file_size: number;
+      comment: string;
       is_current: boolean;
       uploaded_at: string;
+      uploaded_by: {
+        name: string;
+        email: string;
+      }
     };
-    logs: ActivityLog[];
   }[];
 }

@@ -17,6 +17,7 @@ import {
   CloudUpload as CloudUploadIcon,
   AttachFile as AttachFileIcon,
 } from '@mui/icons-material';
+import { uploadNewDocumentVersion } from '../../../utils/api';
 
 interface UploadNewVersionModalProps {
   open: boolean;
@@ -74,24 +75,23 @@ export default function UploadNewVersionModal({
     setError(null);
 
     try {
-      // Simular llamada a API
-      await new Promise((resolve, reject) => {
-        setTimeout(() => {
-          // Simular error ocasional
-          if (Math.random() < 0.1) {
-            reject(new Error('Error al subir el archivo'));
-          } else {
-            resolve(null);
-          }
-        }, 2000);
-      });
+      const response = await uploadNewDocumentVersion(
+        documentId,
+        selectedFile,
+        comments
+      );
 
-      // Éxito
-      const newVersion = currentVersion + 1;
-      onUploadSuccess?.(newVersion);
-      handleClose();
+      if (response.success) {
+        // Éxito
+        const newVersion = currentVersion + 1;
+        onUploadSuccess?.(newVersion);
+        handleClose();
+      } else {
+        setError(response.message || 'Error al subir el archivo');
+      }
       
     } catch (error) {
+      console.error('Error uploading new version:', error);
       setError(error instanceof Error ? error.message : 'Error al subir el archivo');
     } finally {
       setUploading(false);

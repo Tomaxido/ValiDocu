@@ -34,6 +34,8 @@ return new class extends Migration
             // File integrity
             $table->string('checksum_sha256', 64)->nullable();
             
+            $table->string('comment', 255)->nullable();
+            
             // Audit trail
             $table->uuid('uploaded_by')->nullable();
             

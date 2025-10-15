@@ -141,6 +141,19 @@ import { authService } from "../api/auth";
     return;
   }
   
+  export async function uploadNewDocumentVersion(
+    documentId: string | number, 
+    file: File, 
+    comment: string
+  ): Promise<{ success: boolean; message: string; document_id: number }> {
+    const formData = new FormData();
+    formData.append("document", file);
+    formData.append("comment", comment);
+    
+    const response = await postFormData(`/api/v1/documents/${documentId}/version`, formData);
+    return response;
+  }
+  
   export async function deleteDocuments(ids: number[]): Promise<void> {
     for (const id of ids) {
       const res = await fetch(`${baseURL}/api/v1/documents/file/${id}`, {
@@ -169,8 +182,8 @@ import { authService } from "../api/auth";
     return await res.json();
   }
   
-  export async function buscarJsonLayoutPorIdDocumento(id: number): Promise<BoxAnnotation[]> {
-    const res = await fetch(`${baseURL}/api/v1/documents/${id}/layout`);
+  export async function buscarJsonLayoutPorIdDocumento(documentId: number, versionId: number): Promise<BoxAnnotation[]> {
+    const res = await fetch(`${baseURL}/api/v1/documents/${documentId}/version/${versionId}/layout`);
     
     if (!res.ok) {
       const errorData = await res.json();

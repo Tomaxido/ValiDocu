@@ -131,7 +131,7 @@ class DocumentAdder implements ShouldQueue
                     'filename' => $file['filename'],
                     'filepath' => $file['filepath'],
                     'mime_type' => $file['mime_type'],
-                    'file_size' => null, // Se puede calcular después si es necesario
+                    'file_size' => $file['file_size'], // Se puede calcular después si es necesario
                     'page_count' => 1, // Se actualizará después
                     'due_date' => 0, // Vigente por defecto
                     'normative_gap' => 0, // Sin gap por defecto

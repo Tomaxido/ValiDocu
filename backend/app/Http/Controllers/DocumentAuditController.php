@@ -7,6 +7,7 @@ use App\Models\DocumentAuditLog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Log;
 
 /**
  * DocumentAuditController
@@ -33,6 +34,9 @@ class DocumentAuditController extends Controller
                 ->withRelations()
                 ->chronological()
                 ->get();
+
+            $versions = $document->versions()->orderBy('version_number', 'desc')->get();
+            Log::info('Fetched versions: ' . json_encode($versions));
 
             // Transformar los datos para la respuesta
             $timelineData = $timeline->map(function ($log) {
@@ -73,6 +77,7 @@ class DocumentAuditController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            Log::error('Error fetching document timeline', ['error' => $e->getMessage(), 'document_id' => $documentId]);
             return response()->json([
                 'success' => false,
                 'message' => 'Error al obtener el timeline del documento',
@@ -96,11 +101,6 @@ class DocumentAuditController extends Controller
 
             // Obtener logs agrupados por versión
             $versionHistory = $document->versions->map(function ($version) {
-                $versionLogs = DocumentAuditLog::where('document_version_id', $version->id)
-                    ->withRelations()
-                    ->chronological()
-                    ->get();
-
                 return [
                     'version' => [
                         'id' => $version->id,
@@ -108,22 +108,14 @@ class DocumentAuditController extends Controller
                         'filename' => $version->filename,
                         'file_size' => $version->file_size,
                         'is_current' => $version->is_current,
+                        'comment' => $version->comment,
                         'uploaded_at' => $version->created_at->toISOString(),
+                        'uploaded_by' => $version->uploader ? [
+                            // 'id' => $version->uploader->id,
+                            'name' => $version->uploader->name,
+                            'email' => $version->uploader->email,
+                        ] : null,
                     ],
-                    'logs' => $versionLogs->map(function ($log) {
-                        return [
-                            'id' => $log->id,
-                            'action' => $log->action,
-                            'action_label' => $log->action_label,
-                            'comment' => $log->comment,
-                            'created_at' => $log->created_at->toISOString(),
-                            'user' => $log->user ? [
-                                'id' => $log->user->id,
-                                'name' => $log->user->name,
-                                'email' => $log->user->email,
-                            ] : null,
-                        ];
-                    }),
                 ];
             });
 
