@@ -14,7 +14,6 @@ import json
 import psycopg2
 import re
 import sys
-import logging
 from datetime import datetime, date
 from collections import defaultdict
 from typing import List, Dict, Any, Tuple, Optional, Set
@@ -24,45 +23,6 @@ try:
     from sentence_transformers import SentenceTransformer
 except Exception:
     SentenceTransformer = None  # permite correr sin el paquete en entornos mínimos
-
-
-# =========================
-# Configuración de Logging
-# =========================
-LOG_DIR = os.getenv("LOG_DIR", "outputs/logs")
-os.makedirs(LOG_DIR, exist_ok=True)
-
-# Configurar logging con archivo y consola
-log_filename = os.path.join(LOG_DIR, f"semantic_{datetime.now().strftime('%Y%m%d')}.log")
-
-# Crear logger
-logger = logging.getLogger('semantic')
-logger.setLevel(logging.DEBUG)
-
-# Formato detallado
-formatter = logging.Formatter(
-    '%(asctime)s - %(levelname)s - [%(funcName)s:%(lineno)d] - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
-
-# Handler para archivo (DEBUG level)
-file_handler = logging.FileHandler(log_filename, encoding='utf-8')
-file_handler.setLevel(logging.DEBUG)
-file_handler.setFormatter(formatter)
-
-# Handler para consola (INFO level)
-console_handler = logging.StreamHandler(sys.stdout)
-console_handler.setLevel(logging.INFO)
-console_handler.setFormatter(formatter)
-
-# Agregar handlers
-logger.addHandler(file_handler)
-logger.addHandler(console_handler)
-
-logger.info("="*80)
-logger.info("🚀 Iniciando semantic.py")
-logger.info(f"📁 Log file: {log_filename}")
-logger.info("="*80)
 
 
 # =========================
@@ -81,15 +41,6 @@ DB_CONFIG = {
     "host": os.getenv("PG_HOST", "host.docker.internal"),
     "port": os.getenv("PG_PORT", "5433"),
 }
-
-logger.info(f"🔧 Configuración:")
-logger.info(f"  - MODEL_NAME: {MODEL_NAME}")
-logger.info(f"  - JSON_FOLDER: {JSON_FOLDER}")
-logger.info(f"  - TABLE_NAME: {TABLE_NAME}")
-logger.info(f"  - DOC_TABLE_NAME: {DOC_TABLE_NAME}")
-logger.info(f"  - DB_HOST: {DB_CONFIG['host']}:{DB_CONFIG['port']}")
-logger.info(f"  - DB_NAME: {DB_CONFIG['dbname']}")
-logger.info(f"  - DB_USER: {DB_CONFIG['user']}")
 
 
 # =========================
@@ -509,14 +460,14 @@ def build_resumen(global_map: Dict[str, str]) -> str:
 # DB helpers
 # =========================
 def connect_db():
-    logger.info(f"🗄️ Conectando a Postgres host={DB_CONFIG.get('host')} port={DB_CONFIG.get('port')} db={DB_CONFIG.get('dbname')} user={DB_CONFIG.get('user')}")
+    print(f"🗄️ Conectando a Postgres host={DB_CONFIG.get('host')} port={DB_CONFIG.get('port')} db={DB_CONFIG.get('dbname')} user={DB_CONFIG.get('user')}")
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         cur = conn.cursor()
-        logger.info("✅ Conexión a BD exitosa")
+        print("✅ Conexión OK")
         return conn, cur
     except Exception as e:
-        logger.error(f"❌ No se pudo conectar a Postgres: {e}")
+        print("❌ No se pudo conectar a Postgres:", e)
         return None, None
 
 
@@ -530,9 +481,9 @@ def get_table_columns(cur, table_name: str) -> Set[str]:
         """, (table_name,))
         for (col,) in cur.fetchall():
             cols.add(col)
-        logger.debug(f"📋 Columnas en {table_name}: {sorted(cols)}")
     except Exception as e:
-        logger.error(f"⚠️ No se pudieron leer columnas de {table_name}: {e}")
+        print(f"⚠️ No se pudieron leer columnas de {table_name}: {e}")
+    print(f"📋 Columnas en {table_name}: {sorted(cols)}")
     return cols
 
 
@@ -541,20 +492,16 @@ def delete_then_insert_dynamic(cur, table: str, key_col: str, key_val, payload: 
     Borra por clave y re-inserta sólo columnas presentes en la tabla.
     Devuelve True si pudo escribir, False si falló.
     """
-    logger.debug(f"🗑️ DELETE FROM {table} WHERE {key_col} = {key_val}")
     try:
         cur.execute(f'DELETE FROM "{table}" WHERE "{key_col}" = %s', (key_val,))
-        logger.debug(f"  Filas eliminadas: {cur.rowcount}")
     except Exception as e:
-        logger.error(f"❌ DELETE en {table} falló: {e}")
+        print(f"❌ DELETE en {table} falló: {e}")
         return False
 
     # Filtra payload por columnas presentes
     cols = [c for c in payload.keys() if c in present_cols]
     if not cols:
-        logger.warning(f"⚠️ Nada para insertar en {table}: ninguna de las columnas existe.")
-        logger.debug(f"  Payload keys: {list(payload.keys())}")
-        logger.debug(f"  Present cols: {list(present_cols)}")
+        print(f"⚠️ Nada para insertar en {table}: ninguna de las columnas existe.")
         return False
 
     placeholders = ", ".join(["%s"] * len(cols))
@@ -562,15 +509,12 @@ def delete_then_insert_dynamic(cur, table: str, key_col: str, key_val, payload: 
     sql = f'INSERT INTO "{table}" ({colnames}) VALUES ({placeholders})'
     vals = [payload[c] for c in cols]
 
-    logger.debug(f"💾 INSERT en {table} con {len(cols)} columnas: {cols}")
     try:
         cur.execute(sql, vals)
-        logger.info(f"✅ INSERT en {table} exitoso")
+        print(f"✅ INSERT en {table} ({len(cols)} cols)")
         return True
     except Exception as e:
-        logger.error(f"❌ INSERT en {table} falló: {e}")
-        logger.debug(f"  SQL: {sql}")
-        logger.debug(f"  Valores (primeros 3): {vals[:3]}")
+        print(f"❌ INSERT en {table} falló: {e}")
         return False
 
 
@@ -578,68 +522,37 @@ def delete_then_insert_dynamic(cur, table: str, key_col: str, key_val, payload: 
 # Main
 # =========================
 def main():
-    logger.info("="*80)
-    logger.info("📋 Iniciando procesamiento de documentos")
-    
     # Modelo (si existe sentence_transformers, si no, usa embedding vacío)
     model = None
     if SentenceTransformer is not None:
         try:
-            logger.info(f"🤖 Cargando modelo: {MODEL_NAME}")
             model = SentenceTransformer(MODEL_NAME)
-            logger.info("✅ Modelo cargado exitosamente")
         except Exception as e:
-            logger.warning(f"⚠️ No se pudo cargar modelo {MODEL_NAME}: {e}")
-    else:
-        logger.warning("⚠️ sentence_transformers no disponible, embeddings estarán vacíos")
+            print(f"⚠️ No se pudo cargar modelo {MODEL_NAME}: {e}")
 
     # Archivos objetivo
     if len(sys.argv) > 1:
         targets = [os.path.basename(sys.argv[1])]
-        logger.info(f"🎯 Procesando archivo específico: {targets[0]}")
     else:
-        try:
-            targets = [f for f in os.listdir(JSON_FOLDER) if f.startswith("documento_") and f.endswith(".json")]
-            logger.info(f"🎯 Buscando archivos en {JSON_FOLDER}")
-            logger.info(f"📄 Encontrados {len(targets)} archivos para procesar")
-        except Exception as e:
-            logger.error(f"❌ Error listando archivos en {JSON_FOLDER}: {e}")
-            sys.exit(2)
-
-    if not targets:
-        logger.warning("⚠️ No se encontraron archivos para procesar")
-        sys.exit(0)
+        targets = [f for f in os.listdir(JSON_FOLDER) if f.startswith("documento_") and f.endswith(".json")]
 
     conn, cur = connect_db()
     DB_OK = cur is not None
     DB_WRITE_OK = True
 
-    if not DB_OK:
-        logger.error("❌ No hay conexión a BD - ABORTANDO")
-        sys.exit(2)
-
     # Pre-carga columnas de tablas (si hay conexión)
     if cur:
-        logger.info("📊 Obteniendo estructura de tablas...")
         page_cols = get_table_columns(cur, TABLE_NAME)
         doc_cols  = get_table_columns(cur, DOC_TABLE_NAME)
-        logger.info(f"  ✓ {TABLE_NAME}: {len(page_cols)} columnas")
-        logger.info(f"  ✓ {DOC_TABLE_NAME}: {len(doc_cols)} columnas")
     else:
         page_cols, doc_cols = set(), set()
 
-    processed_count = 0
-    error_count = 0
-
-    for idx, filename in enumerate(targets, 1):
-        logger.info("="*80)
-        logger.info(f"📄 [{idx}/{len(targets)}] Procesando: {filename}")
-        
+    for filename in targets:
         # Solo aceptamos prefijo documento_
         if not filename.endswith(".json") or not filename.startswith("documento_"):
-            logger.warning(f"⚠️ Archivo ignorado (formato incorrecto): {filename}")
             continue
 
+        print(f"\n🔎 Procesando {filename}")
         name_wo_ext = filename[:-5]  # sin .json
 
         # Formato: documento_{master_id}_{version_id}_{page_id}_{group_id}_pNNNN
@@ -651,29 +564,19 @@ def main():
             page_id = int(m.group(3))
             group_id = int(m.group(4))
             page_idx = int(m.group(5))
-            logger.info(f"  📌 master_id={master_id}")
-            logger.info(f"  📌 version_id={version_id}")
-            logger.info(f"  📌 page_id={page_id}")
-            logger.info(f"  📌 group_id={group_id}")
-            logger.info(f"  📌 page_number={page_idx}")
+            print(f" ↳ master={master_id} version={version_id} page_id={page_id} group={group_id} page={page_idx}")
         else:
-            logger.error(f"❌ Nombre de archivo inválido: {filename}")
-            logger.error(f"  Formato esperado: documento_{{master}}_{{version}}_{{page_id}}_{{group}}_pNNNN.json")
-            error_count += 1
+            print(f"⚠️ Nombre inválido: {filename}")
             continue
 
         current_page_json = os.path.join(JSON_FOLDER, filename)
 
         # ----------------- A) Cargar SOLO la página actual (page-level) -----------------
-        logger.info("📖 Cargando JSON de la página...")
         try:
             with open(current_page_json, "r", encoding="utf-8") as f:
                 page_items = json.load(f)
-            logger.info(f"  ✓ JSON cargado: {len(page_items)} items detectados")
-            logger.debug(f"  Primeros 3 items: {page_items[:3]}")
         except Exception as e:
-            logger.error(f"❌ No se pudo leer {current_page_json}: {e}")
-            error_count += 1
+            print(f"⚠️ No se pudo leer {current_page_json}: {e}")
             continue
 
         # Asegura 'page'
@@ -683,17 +586,12 @@ def main():
 
         # Resumen/embedding por página (muy corto, opcional)
         page_resumen = f"Página {page_idx} del documento {master_id} (grupo {group_id})."
-        logger.debug(f"  Resumen generado: {page_resumen}")
-        
         page_embedding = (model.encode(page_resumen).tolist() if model else [])
-        if model:
-            logger.debug(f"  Embedding generado: {len(page_embedding)} dimensiones")
 
         page_json_layout_sql = json.dumps(page_items, ensure_ascii=False)
         page_archivo = os.path.basename(current_page_json)
 
         # Escribir page-level con document_version_id y document_page_id
-        logger.info(f"💾 Escribiendo en {TABLE_NAME}...")
         if cur and page_id is not None:
             payload_page = {
                 "document_version_id": version_id,
@@ -704,18 +602,10 @@ def main():
                 "embedding": json.dumps(page_embedding),  # por compatibilidad si embedding no es jsonb
                 "archivo": page_archivo,
             }
-            logger.debug(f"  Payload keys: {list(payload_page.keys())}")
             ok = delete_then_insert_dynamic(cur, TABLE_NAME, "document_page_id", page_id, payload_page, page_cols)
             DB_WRITE_OK = DB_WRITE_OK and ok
-            if ok:
-                processed_count += 1
-            else:
-                error_count += 1
-        else:
-            logger.warning("  ⚠️ No se puede escribir: cur o page_id es None")
 
         # ------------- B) Recolectar TODAS las páginas del mismo master_id/version_id/group_id -------------
-        logger.info("🔍 Buscando todas las páginas del mismo documento...")
         all_items: List[Dict[str, Any]] = []
         try:
             candidates = []
@@ -732,60 +622,46 @@ def main():
                 candidates.append((f, int(m_any.group(5))))
 
             candidates.sort(key=lambda x: x[1])
-            logger.info(f"  ✓ Encontradas {len(candidates)} páginas para master={master_id}, version={version_id}, group={group_id}")
-            logger.debug(f"  Páginas: {[pg for _, pg in candidates]}")
+            print(f" 🧩 Páginas detectadas para master={master_id}, version={version_id}, group={group_id}: {len(candidates)}")
 
             for f, pg in candidates:
                 ppath = os.path.join(JSON_FOLDER, f)
                 try:
                     with open(ppath, "r", encoding="utf-8") as fh:
                         itms = json.load(fh)
-                    logger.debug(f"    ✓ Página {pg}: {len(itms)} items")
                     for it in itms:
                         it = dict(it)
                         it.setdefault("page", pg)
                         all_items.append(it)
                 except Exception as e:
-                    logger.error(f"❌ No se pudo leer {ppath}: {e}")
+                    print(f"⚠️ No se pudo leer {ppath}: {e}")
         except Exception as e:
-            logger.error(f"❌ Error listando páginas: {e}")
+            print(f"⚠️ Error listando páginas: {e}")
             # en caso extremo, al menos usa la página actual
             all_items = page_items[:]
 
         if not all_items:
-            logger.warning("⚠️ No hay items para consolidar en doc-level, saltando...")
+            print("⚠️ No hay items para consolidar en doc-level, salto.")
             continue
 
-        logger.info(f"  ✓ Total items consolidados: {len(all_items)}")
-
         # ------------- C) Construir json_global y resumen global (doc-level) -------------
-        logger.info("🏗️ Construyendo json_global y resumen consolidado...")
         json_global = build_json_global(all_items)
-        logger.info(f"  ✓ json_global construido: {len(json_global)} labels únicos")
-        logger.debug(f"  Labels: {list(json_global.keys())}")
-        
         resumen = build_resumen(json_global)
-        logger.info(f"  ✓ Resumen generado: {len(resumen)} caracteres")
-        logger.debug(f"  Resumen preview: {resumen[:200]}...")
-        
         embedding_resumen = (model.encode(resumen).tolist() if model else [])
-        if model:
-            logger.debug(f"  ✓ Embedding del resumen: {len(embedding_resumen)} dimensiones")
         json_layout_global_sql = json.dumps(all_items, ensure_ascii=False)
         json_global_sql = json.dumps(json_global, ensure_ascii=False)
 
         # (opcional) archivo global auxiliar
         if WRITE_GLOBAL_FILE:
-            out_global = os.path.join(JSON_FOLDER, f"documento_{master_id}_{version_id}_{group_id}_global.json")
+            out_global = os.path.join(JSON_FOLDER, f"documento_{master_id}_{group_id}_global.json")
             try:
                 with open(out_global, "w", encoding="utf-8") as g:
                     json.dump(json_global, g, ensure_ascii=False, indent=2)
-                logger.info(f"  ✓ Archivo global escrito: {out_global}")
+                print(f" 💾 Global escrito: {out_global}")
             except Exception as e:
-                logger.error(f"❌ No se pudo escribir {out_global}: {e}")
+                print(f"⚠️ No se pudo escribir {out_global}: {e}")
 
         # ------------- D) Escribir doc-level en semantic_doc_index -------------
-        logger.info(f"💾 Escribiendo en {DOC_TABLE_NAME}...")
         if cur:
             payload_doc = {
                 "document_version_id": version_id,
@@ -798,52 +674,30 @@ def main():
                 "updated_at": datetime.utcnow().isoformat(),  # si no existe, se ignora
                 "created_at": datetime.utcnow().isoformat(),  # si no existe, se ignora
             }
-            logger.debug(f"  Payload doc-level: {list(payload_doc.keys())}")
             ok = delete_then_insert_dynamic(cur, DOC_TABLE_NAME, "document_version_id", version_id, payload_doc, doc_cols)
             DB_WRITE_OK = DB_WRITE_OK and ok
             if ok:
-                logger.info(f"✅ Doc-level actualizado (master={master_id}, version={version_id}, group={group_id})")
-            else:
-                error_count += 1
+                print(f"✅ Doc-level actualizado (master={master_id}, version={version_id}, group={group_id})")
 
     # Commit/cierre
-    logger.info("="*80)
-    logger.info(f"📊 Resumen final:")
-    logger.info(f"  ✓ Archivos procesados exitosamente: {processed_count}")
-    logger.info(f"  ✗ Archivos con errores: {error_count}")
-    logger.info(f"  📝 Total archivos: {len(targets)}")
-    
     if cur:
         try:
             conn.commit()
-            logger.info("✅ COMMIT exitoso - Cambios guardados en BD")
+            print("🧾 COMMIT OK")
         except Exception as e:
-            logger.error(f"❌ Error al hacer commit: {e}")
+            print(f"❌ Error al hacer commit: {e}")
             DB_WRITE_OK = False
         try:
             cur.close()
             conn.close()
-            logger.info("🔌 Conexión a BD cerrada")
         except Exception:
             pass
 
-    logger.info("="*80)
-    logger.info("🏁 Procesamiento finalizado")
-    logger.info(f"� Logs guardados en: {log_filename}")
-    logger.info("="*80)
-    
+    print("🚀 Fin.")
     # Si no hubo BD o falló alguna escritura, devolvemos código != 0 (FastAPI lo mostrará)
-    if not DB_OK:
-        logger.error("❌ Exit code 2: No hubo conexión a BD")
+    if not DB_OK or not DB_WRITE_OK:
         sys.exit(2)
-    if not DB_WRITE_OK:
-        logger.error("❌ Exit code 2: Falló alguna escritura en BD")
-        sys.exit(2)
-    
-    logger.info("✅ Exit code 0: Todo OK")
-    sys.exit(0)
 
 
 if __name__ == "__main__":
     main()
-
