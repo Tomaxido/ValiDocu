@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -8,6 +8,8 @@ import {
   Typography,
   Box,
   IconButton,
+  CircularProgress,
+  Alert,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -18,114 +20,8 @@ import Notification from '../../components/common/Notification';
 import DocumentInfoPanel from './traceability/DocumentInfoPanel';
 import VersionHistory from './traceability/VersionHistory';
 import ActivityLogPanel from './traceability/ActivityLogPanel';
-import type { DocumentVersion, ActivityLog, TraceabilityModalProps } from './traceability/types';
-
-// Datos ficticios para testing
-const mockVersions: DocumentVersion[] = [
-  {
-    id: '1',
-    version: 3,
-    uploadDate: new Date('2024-03-15T10:30:00'),
-    uploadedBy: {
-      id: 'user1',
-      name: 'María García',
-      email: 'maria.garcia@empresa.com',
-      avatar: undefined,
-    },
-    comments: 'Corrección de datos financieros y actualización de tablas',
-    fileSize: 2048576,
-    fileName: 'contrato_v3.pdf',
-    isCurrent: true,
-  },
-  {
-    id: '2',
-    version: 2,
-    uploadDate: new Date('2024-03-10T14:20:00'),
-    uploadedBy: {
-      id: 'user2',
-      name: 'Carlos López',
-      email: 'carlos.lopez@empresa.com',
-      avatar: undefined,
-    },
-    comments: 'Revisión legal y ajustes en cláusulas',
-    fileSize: 1987654,
-    fileName: 'contrato_v2.pdf',
-    isCurrent: false,
-  },
-  {
-    id: '3',
-    version: 1,
-    uploadDate: new Date('2024-03-05T09:15:00'),
-    uploadedBy: {
-      id: 'user1',
-      name: 'María García',
-      email: 'maria.garcia@empresa.com',
-      avatar: undefined,
-    },
-    comments: 'Versión inicial del contrato',
-    fileSize: 1654321,
-    fileName: 'contrato_v1.pdf',
-    isCurrent: false,
-  },
-];
-
-const mockActivityLog: ActivityLog[] = [
-  {
-    id: '1',
-    type: 'upload',
-    timestamp: new Date('2024-03-15T10:30:00'),
-    user: {
-      id: 'user1',
-      name: 'María García',
-      email: 'maria.garcia@empresa.com',
-    },
-    description: 'Subió la versión 3 del documento',
-  },
-  {
-    id: '2',
-    type: 'download',
-    timestamp: new Date('2024-03-14T16:45:00'),
-    user: {
-      id: 'user3',
-      name: 'Ana Martín',
-      email: 'ana.martin@empresa.com',
-    },
-    description: 'Descargó la versión 2 con comentarios',
-  },
-  {
-    id: '3',
-    type: 'new_version',
-    timestamp: new Date('2024-03-10T14:20:00'),
-    user: {
-      id: 'user2',
-      name: 'Carlos López',
-      email: 'carlos.lopez@empresa.com',
-    },
-    description: 'Subió una nueva versión (v2) del documento',
-  },
-  {
-    id: '4',
-    type: 'download',
-    timestamp: new Date('2024-03-08T11:30:00'),
-    user: {
-      id: 'user4',
-      name: 'Luis Torres',
-      email: 'luis.torres@empresa.com',
-    },
-    description: 'Descargó la versión 1',
-  },
-  {
-    id: '5',
-    type: 'upload',
-    timestamp: new Date('2024-03-05T09:15:00'),
-    user: {
-      id: 'user1',
-      name: 'María García',
-      email: 'maria.garcia@empresa.com',
-    },
-    description: 'Subió el documento inicial',
-  },
-];
+import { useTraceability } from './traceability/useTraceability';
+import type { DocumentVersion, TraceabilityModalProps } from './traceability/types';
 
 export default function TraceabilityModal({ 
   open, 
@@ -140,17 +36,63 @@ export default function TraceabilityModal({
     severity: 'success' | 'error' | 'warning' | 'info';
   }>({ open: false, message: '', severity: 'info' });
 
-  const handleDownloadVersion = (version: DocumentVersion) => {
-    // Aquí implementarías la lógica de descarga
-    console.log('Descargando versión:', version);
-    // Simular descarga
-    const link = document.createElement('a');
-    link.href = '#'; // Aquí iría la URL real del archivo
-    link.download = version.fileName;
-    link.click();
+  // Usar el hook personalizado para manejar la trazabilidad
+  const [
+    { loading, error, versions, activityLog, documentInfo },
+    { loadTraceabilityData, clearError }
+  ] = useTraceability();
+
+  // Cargar datos cuando se abre el modal
+  useEffect(() => {
+    if (open && documentId) {
+      loadTraceabilityData(documentId);
+    }
+  }, [open, documentId, loadTraceabilityData]);
+
+  const handleDownloadVersion = async (version: DocumentVersion) => {
+    try {
+      // Simulación de descarga (aquí implementarías la lógica real)
+      console.log('Descargando versión:', version);
+      
+      // Mostrar notificación
+      setNotification({
+        open: true,
+        message: `Descargando ${version.fileName}...`,
+        severity: 'info'
+      });
+
+      // Recargar datos para actualizar el log
+      setTimeout(() => {
+        loadTraceabilityData(documentId);
+      }, 1000);
+
+    } catch (err) {
+      console.error('Error downloading version:', err);
+      setNotification({
+        open: true,
+        message: 'Error al descargar el archivo',
+        severity: 'error'
+      });
+    }
   };
 
-  const currentVersion = mockVersions.find(v => v.isCurrent);
+  const handleUploadSuccess = async (newVersionNumber: number) => {
+    setNotification({
+      open: true,
+      message: `Nueva versión v${newVersionNumber} subida exitosamente`,
+      severity: 'success'
+    });
+    
+    // Recargar datos para mostrar la nueva versión y log
+    await loadTraceabilityData(documentId);
+  };
+
+  const handleRetry = () => {
+    clearError();
+    loadTraceabilityData(documentId);
+  };
+
+  const currentVersion = versions.find(v => v.isCurrent);
 
   return (
     <Dialog
@@ -180,24 +122,43 @@ export default function TraceabilityModal({
       </DialogTitle>
 
       <DialogContent dividers>
-        {/* Información del documento */}
-        <DocumentInfoPanel 
-          documentName={documentName} 
-          versions={mockVersions} 
-        />
+        {loading ? (
+          <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+            <CircularProgress />
+            <Typography variant="body2" sx={{ ml: 2 }}>
+              Cargando datos de trazabilidad...
+            </Typography>
+          </Box>
+        ) : error ? (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+            <Button size="small" onClick={handleRetry} sx={{ ml: 2 }}>
+              Reintentar
+            </Button>
+          </Alert>
+        ) : (
+          <>
+            {/* Información del documento */}
+            <DocumentInfoPanel 
+              documentName={documentName} 
+              versions={versions}
+              documentInfo={documentInfo}
+            />
 
-        {/* Layout de dos columnas */}
-        <Box display="flex" gap={3} sx={{ height: '60vh' }}>
-          {/* Columna izquierda - Historial de Versiones */}
-          <VersionHistory
-            versions={mockVersions}
-            onUploadNewVersion={() => setUploadModalOpen(true)}
-            onDownloadVersion={handleDownloadVersion}
-          />
+            {/* Layout de dos columnas */}
+            <Box display="flex" gap={3} sx={{ height: '60vh' }}>
+              {/* Columna izquierda - Historial de Versiones */}
+              <VersionHistory
+                versions={versions}
+                onUploadNewVersion={() => setUploadModalOpen(true)}
+                onDownloadVersion={handleDownloadVersion}
+              />
 
-          {/* Columna derecha - Registro de Actividades */}
-          <ActivityLogPanel activities={mockActivityLog} />
-        </Box>
+              {/* Columna derecha - Registro de Actividades */}
+              <ActivityLogPanel activities={activityLog} />
+            </Box>
+          </>
+        )}
       </DialogContent>
 
       <DialogActions>
@@ -211,15 +172,7 @@ export default function TraceabilityModal({
         documentId={documentId}
         documentName={documentName}
         currentVersion={currentVersion?.version || 1}
-        onUploadSuccess={(newVersion) => {
-          console.log('Nueva versión subida:', newVersion);
-          setNotification({
-            open: true,
-            message: `Nueva versión v${newVersion} subida exitosamente`,
-            severity: 'success'
-          });
-          // Aquí podrías refrescar los datos
-        }}
+        onUploadSuccess={handleUploadSuccess}
       />
 
       {/* Notificaciones */}

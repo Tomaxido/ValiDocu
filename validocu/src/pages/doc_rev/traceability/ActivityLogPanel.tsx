@@ -8,7 +8,8 @@ import {
 import {
   Upload as UploadIcon,
   Download as DownloadIcon,
-  Edit as EditIcon,
+  Delete as DeleteIcon,
+  CloudUpload as ReuploadIcon,
   Description as FileTextIcon,
   Person as PersonIcon,
 } from '@mui/icons-material';
@@ -20,13 +21,14 @@ interface ActivityLogPanelProps {
 
 const getActivityIcon = (type: ActivityLog['type']) => {
   switch (type) {
-    case 'upload':
-    case 'new_version':
+    case 'uploaded':
       return <UploadIcon />;
-    case 'download':
+    case 'reuploaded':
+      return <ReuploadIcon />;
+    case 'downloaded':
       return <DownloadIcon />;
-    case 'comment':
-      return <EditIcon />;
+    case 'deleted':
+      return <DeleteIcon />;
     default:
       return <FileTextIcon />;
   }
@@ -34,13 +36,13 @@ const getActivityIcon = (type: ActivityLog['type']) => {
 
 const getActivityColor = (type: ActivityLog['type']) => {
   switch (type) {
-    case 'upload':
-    case 'new_version':
+    case 'uploaded':
+    case 'reuploaded':
       return 'success';
-    case 'download':
+    case 'downloaded':
       return 'info';
-    case 'comment':
-      return 'warning';
+    case 'deleted':
+      return 'error';
     default:
       return 'default';
   }
@@ -94,17 +96,34 @@ export default function ActivityLogPanel({ activities }: ActivityLogPanelProps) 
                   <Typography variant="body1" gutterBottom sx={{ color: '#495057', fontWeight: 500 }}>
                     {activity.description}
                   </Typography>
-                  <Box display="flex" alignItems="center" gap={1} mb={1}>
-                    <Avatar sx={{ width: 20, height: 20, bgcolor: '#6c757d' }}>
-                      <PersonIcon fontSize="small" />
-                    </Avatar>
-                    <Typography variant="body2" color="text.secondary" sx={{ color: '#6c757d' }}>
-                      {activity.user.name}
-                    </Typography>
-                  </Box>
+                  {activity.user && (
+                    <Box display="flex" alignItems="center" gap={1} mb={1}>
+                      <Avatar sx={{ width: 20, height: 20, bgcolor: '#6c757d' }}>
+                        <PersonIcon fontSize="small" />
+                      </Avatar>
+                      <Typography variant="body2" color="text.secondary" sx={{ color: '#6c757d' }}>
+                        {activity.user.name}
+                      </Typography>
+                    </Box>
+                  )}
+                  {!activity.user && (
+                    <Box display="flex" alignItems="center" gap={1} mb={1}>
+                      <Avatar sx={{ width: 20, height: 20, bgcolor: '#6c757d' }}>
+                        <PersonIcon fontSize="small" />
+                      </Avatar>
+                      <Typography variant="body2" color="text.secondary" sx={{ color: '#6c757d' }}>
+                        Sistema
+                      </Typography>
+                    </Box>
+                  )}
                   <Typography variant="caption" color="text.secondary" sx={{ color: '#6c757d' }}>
                     {formatRelativeTime(activity.timestamp)}
                   </Typography>
+                  {activity.comment && activity.comment !== activity.description && (
+                    <Typography variant="body2" sx={{ mt: 1, fontStyle: 'italic', color: '#6c757d' }}>
+                      "{activity.comment}"
+                    </Typography>
+                  )}
                 </Box>
               </Box>
             </Paper>

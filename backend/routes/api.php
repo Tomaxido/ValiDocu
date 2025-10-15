@@ -9,6 +9,7 @@ use App\Http\Controllers\DocumentSummaryController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\GroupConfigurationController;
 use App\Http\Controllers\GroupAccessRequestController;
+use App\Http\Controllers\DocumentAuditController;
 
 Route::prefix('v1')->group(function () {
     
@@ -78,6 +79,13 @@ Route::prefix('v1')->group(function () {
     // Información detallada de grupos
     Route::get('/groups/{group_id}/details', [DocumentUploadController::class, 'getGroupDetails'])->middleware(['auth:sanctum']);
     Route::get('/groups/{group_id}/members', [DocumentUploadController::class, 'getGroupMembers'])->middleware(['auth:sanctum']);
+
+    // Rutas para auditoría y trazabilidad de documentos
+    Route::get('/documents/{document_id}/timeline', [DocumentAuditController::class, 'getDocumentTimeline'])->middleware(['auth:sanctum']);
+    Route::get('/documents/{document_id}/version-history', [DocumentAuditController::class, 'getDocumentVersionHistory'])->middleware(['auth:sanctum']);
+    Route::get('/documents/{document_id}/activity-stats', [DocumentAuditController::class, 'getDocumentActivityStats'])->middleware(['auth:sanctum']);
+    Route::get('/audit-logs', [DocumentAuditController::class, 'getAuditLogs'])->middleware(['auth:sanctum']);
+    Route::get('/audit/actions', [DocumentAuditController::class, 'getAvailableActions'])->middleware(['auth:sanctum']);
 
     // Endpoint para testing de eventos WebSocket
     Route::post('/test/documents-processed-event', [DocumentUploadController::class, 'testDocumentsProcessedEvent']);

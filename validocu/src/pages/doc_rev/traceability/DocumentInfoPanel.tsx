@@ -5,9 +5,19 @@ import type { DocumentVersion } from './types';
 interface DocumentInfoPanelProps {
   documentName: string;
   versions: DocumentVersion[];
+  documentInfo?: {
+    id: number;
+    document_group: string | null;
+    document_type: string | null;
+    status: number;
+  };
 }
 
-export default function DocumentInfoPanel({ documentName, versions }: DocumentInfoPanelProps) {
+export default function DocumentInfoPanel({ 
+  documentName, 
+  versions, 
+  documentInfo 
+}: DocumentInfoPanelProps) {
   const currentVersion = versions.find(v => v.isCurrent);
   const originalUploader = versions[versions.length - 1]?.uploadedBy;
 
@@ -19,6 +29,41 @@ export default function DocumentInfoPanel({ documentName, versions }: DocumentIn
       <Typography variant="body1" gutterBottom sx={{ color: '#495057', fontWeight: 500, mb: 2 }}>
         {documentName}
       </Typography>
+      
+      {/* Información adicional del documento desde la API */}
+      {documentInfo && (
+        <Box display="flex" gap={4} mb={2}>
+          <Box>
+            <Typography variant="body2" color="text.secondary" sx={{ color: '#6c757d' }}>
+              ID del documento:
+            </Typography>
+            <Typography variant="body2" sx={{ color: '#495057', fontWeight: 500 }}>
+              {documentInfo.id}
+            </Typography>
+          </Box>
+          {documentInfo.document_group && (
+            <Box>
+              <Typography variant="body2" color="text.secondary" sx={{ color: '#6c757d' }}>
+                Grupo:
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#495057', fontWeight: 500 }}>
+                {documentInfo.document_group}
+              </Typography>
+            </Box>
+          )}
+          {documentInfo.document_type && (
+            <Box>
+              <Typography variant="body2" color="text.secondary" sx={{ color: '#6c757d' }}>
+                Tipo:
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#495057', fontWeight: 500 }}>
+                {documentInfo.document_type}
+              </Typography>
+            </Box>
+          )}
+        </Box>
+      )}
+
       <Box display="flex" gap={4}>
         <Box>
           <Typography variant="body2" color="text.secondary" sx={{ color: '#6c757d' }}>

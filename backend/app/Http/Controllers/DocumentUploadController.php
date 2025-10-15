@@ -15,10 +15,13 @@ use App\Services\GroupValidationService;
 use Illuminate\Http\JsonResponse;
 use App\Events\DocumentsProcessed;
 use Illuminate\Support\Str;
+use App\Traits\CreatesDocumentAuditLogs;
 
 
 class DocumentUploadController extends Controller
 {
+    use CreatesDocumentAuditLogs;
+    
     protected GroupValidationService $groupValidationService;
 
     public function __construct(SiiService $siiService, GroupValidationService $groupValidationService)
@@ -152,10 +155,20 @@ class DocumentUploadController extends Controller
             return response()->json(['message' => 'Documento no encontrado'], 404);
         }
 
+        // Obtener la versión actual antes del soft delete
+        $currentVersion = $document->currentVersion;
+
         // Soft delete: marcar todas las versiones del documento como no actuales
         DB::table('document_versions')
             ->where('document_id', $document->id)
             ->update(['is_current' => false]);
+
+        // Registrar log de auditoría
+        $this->logDocumentDeleted(
+            $document->id,
+            $currentVersion?->id,
+            'Documento eliminado por el usuario'
+        );
 
         Log::info('Documento marcado como eliminado (soft delete)', [
             'document_id' => $document->id,

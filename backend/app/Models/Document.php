@@ -61,9 +61,9 @@ class Document extends Model
     /**
      * Get the current active version of this document
      */
-    public function currentVersion(): HasOne
+    public function currentVersion(): HasMany
     {
-        return $this->hasOne(DocumentVersion::class)->where('is_current', true);
+        return $this->hasMany(DocumentVersion::class)->where('is_current', true)->limit(1);
     }
 
     /**
@@ -93,6 +93,14 @@ class Document extends Model
             'document_id',
             'document_version_id'
         );
+    }
+
+    /**
+     * Get all audit logs for this document
+     */
+    public function auditLogs(): HasMany
+    {
+        return $this->hasMany(DocumentAuditLog::class)->orderBy('created_at', 'desc');
     }
 
     /**
