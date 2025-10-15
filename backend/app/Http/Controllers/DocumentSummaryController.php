@@ -50,6 +50,7 @@ class DocumentSummaryController extends Controller
                 ->join('document_versions as dv', 'dv.id', '=', 'sdi.document_version_id')
                 ->join('documents as d', 'd.id', '=', 'dv.document_id')
                 ->where('sdi.document_group_id', $groupId)
+                ->where('dv.is_current', true)  // Solo versiones actuales (no eliminadas)
                 ->orderBy('dv.document_id')
                 ->get(['dv.filename', 'd.status', 'dv.document_id', 'dv.id as version_id']);
 

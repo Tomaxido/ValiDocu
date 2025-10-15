@@ -25,6 +25,7 @@ class GroupSummaryService
             ->join('document_versions as dv', 'dv.id', '=', 'sdi.document_version_id')
             ->join('documents as d', 'd.id', '=', 'dv.document_id')
             ->where('sdi.document_group_id', $groupId)
+            ->where('dv.is_current', true)  // Solo versiones actuales (no eliminadas)
             ->orderBy('sdi.document_version_id')
             ->get([
                 'dv.filename as filename',
