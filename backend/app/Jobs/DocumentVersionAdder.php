@@ -57,7 +57,8 @@ class DocumentVersionAdder implements ShouldQueue
 
     private function addNewVersion(): void
     {
-        DB::beginTransaction();
+        // Sin transacción - cada paso se guarda inmediatamente
+        // Esto permite que el procesamiento continúe incluso si hay errores parciales
         
         try {
             // 1. Marcar la versión actual como no vigente (is_current = false)
@@ -109,7 +110,9 @@ class DocumentVersionAdder implements ShouldQueue
             $images = $this->convertPdfToImages($this->fileData['filepath']);
             
             if (empty($images)) {
-                throw new \Exception("No se pudieron generar imágenes del PDF");
+                Log::error("No se pudieron generar imágenes del PDF");
+                // No lanzamos excepción - dejamos la versión creada pero sin páginas
+                return;
             }
 
             $hasErrors = $this->saveImages(
@@ -132,48 +135,63 @@ class DocumentVersionAdder implements ShouldQueue
 
             // 7. Crear/actualizar análisis si es necesario
             if ($analizar == 1) {
-                Log::info("Creando sugerencias para documento {$this->document->id}");
-                app(\App\Http\Controllers\AnalysisController::class)->createSuggestions($this->document->id);
+                try {
+                    Log::info("Creando sugerencias para documento {$this->document->id}");
+                    app(\App\Http\Controllers\AnalysisController::class)->createSuggestions($this->document->id);
+                } catch (\Exception $e) {
+                    Log::error("Error creando sugerencias: " . $e->getMessage());
+                    // Continuamos - las sugerencias no son críticas
+                }
             }
 
             // 8. Crear entrada en semantic_doc_index
-            $exists = DB::table('semantic_doc_index')
-                ->where('document_version_id', $version->id)
-                ->exists();
-                
-            if (!$exists) {
-                DB::table('semantic_doc_index')->insert([
-                    'document_version_id' => $version->id,
-                    'document_group_id' => $this->document->document_group_id,
-                    'json_layout' => null,
-                    'json_global' => null,
-                    'resumen' => null,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
+            try {
+                $exists = DB::table('semantic_doc_index')
+                    ->where('document_version_id', $version->id)
+                    ->exists();
+                    
+                if (!$exists) {
+                    DB::table('semantic_doc_index')->insert([
+                        'document_version_id' => $version->id,
+                        'document_group_id' => $this->document->document_group_id,
+                        'json_layout' => null,
+                        'json_global' => null,
+                        'resumen' => null,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                    Log::info("Entrada en semantic_doc_index creada para versión {$version->id}");
+                }
+            } catch (\Exception $e) {
+                Log::error("Error creando semantic_doc_index: " . $e->getMessage());
+                // Continuamos - semantic.py lo creará después
             }
 
             // 9. Crear log de auditoría
-            DB::table('document_audit_logs')->insert([
-                'document_id' => $this->document->id,
-                'document_version_id' => $version->id,
-                'user_id' => $this->userId,
-                'action' => 'reuploaded',
-                'comment' => $this->comment,
-                'metadata' => json_encode([
-                    'version_number' => $nextVersionNumber,
-                    'filename' => $this->fileData['filename'],
-                    'file_size' => $this->fileData['file_size'],
-                ]),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            try {
+                DB::table('document_audit_logs')->insert([
+                    'document_id' => $this->document->id,
+                    'document_version_id' => $version->id,
+                    'user_id' => $this->userId,
+                    'action' => 'reuploaded',
+                    'comment' => $this->comment,
+                    'metadata' => json_encode([
+                        'version_number' => $nextVersionNumber,
+                        'filename' => $this->fileData['filename'],
+                        'file_size' => $this->fileData['file_size'],
+                    ]),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                Log::info("Log de auditoría creado");
+            } catch (\Exception $e) {
+                Log::error("Error creando log de auditoría: " . $e->getMessage());
+                // Continuamos - el log de auditoría no es crítico
+            }
 
-            DB::commit();
             Log::info("Nueva versión agregada exitosamente");
 
         } catch (\Exception $e) {
-            DB::rollBack();
             Log::error("Error en addNewVersion: " . $e->getMessage(), [
                 'trace' => $e->getTraceAsString()
             ]);
@@ -222,16 +240,17 @@ class DocumentVersionAdder implements ShouldQueue
                 $newFilename = $originalBaseName . '_p' . $pageNumber . '.png';
 
                 Log::info("Enviando página {$pageNumber} a FastAPI para análisis");
-
-                $response = Http::attach(
-                    'file', fopen($absolutePath, 'r'), $newFilename
-                )->post('http://localhost:5050/procesar/', [
+                $payload = [
                     'master_id' => $document_master_id,
                     'version_id' => $version_id,
                     'page_id' => $page,
                     'group_id' => $this->document->document_group_id,
                     'page' => $pageNumber
-                ]);
+                ];
+                Log::info("payload: " . json_encode($payload));
+                $response = Http::attach(
+                    'file', fopen($absolutePath, 'r'), $newFilename
+                )->post('http://localhost:5050/procesar/', $payload);
 
                 if (!$response->successful()) {
                     Log::error("Procesamiento FastAPI falló para {$newFilename}", [
