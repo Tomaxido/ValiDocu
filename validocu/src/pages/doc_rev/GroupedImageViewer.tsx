@@ -16,7 +16,6 @@ export default function GroupedImageViewer({ filename, files, pdfDoc }: Readonly
   const [annotationsByPage, setAnnotationsByPage] = useState<BoxAnnotation[][]>([]);
   const imgRefs = useRef<(HTMLImageElement | null)[]>([]);
   const observers = useRef<ResizeObserver[]>([]);
-
   const [focusByPage, setFocusByPage] = useState<Record<number, BBox[]>>({});
   const [hoverByPage, setHoverByPage] = useState<Record<number, BBox[]>>({}); // nuevo
 
@@ -369,7 +368,7 @@ export default function GroupedImageViewer({ filename, files, pdfDoc }: Readonly
       <TraceabilityModal
         open={traceabilityModalOpen}
         onClose={() => setTraceabilityModalOpen(false)}
-        documentId={files[0]?.id?.toString() || ""}
+        documentId={pdfDoc?.id?.toString() || ""}
         documentName={filename}
       />
     </Box>
