@@ -90,7 +90,11 @@ class AnalysisController extends Controller
         // (Opcional) si hay issues, marcar documento como inconforme (status=2)
         if (count($rawIssues) > 0 && Schema::hasColumn($doc->getTable(), 'status')) {
             $doc->update(['status' => 2]);
-            $doc->update(['normative_gap' => 1]);
+            // Actualizar normative_gap en la versión actual
+            DB::table('document_versions')
+                ->where('document_id', $doc->id)
+                ->where('is_current', true)
+                ->update(['normative_gap' => 1]);
         }
 
         return response()->json([
@@ -148,15 +152,19 @@ class AnalysisController extends Controller
                 ->whereIn('document_analysis_id', $analysisIds)
                 ->delete();
 
-            // Eliminar análisis
-            DB::table('document_analyses')
+            // Eliminar análisis (actualizado para usar document_version_id)
+            $versionIds = DB::table('document_versions')
                 ->where('document_id', $documentId)
+                ->pluck('id');
+                
+            DB::table('document_analyses')
+                ->whereIn('document_version_id', $versionIds)
                 ->delete();
         }
 
-        // Resetear normative_gap del documento
-        DB::table('documents')
-            ->where('id', $documentId)
+        // Resetear normative_gap de todas las versiones del documento
+        DB::table('document_versions')
+            ->where('document_id', $documentId)
             ->update(['normative_gap' => 0]);
     }
 
@@ -171,11 +179,17 @@ class AnalysisController extends Controller
             return;
         }
 
-        // 1) Inferir doc_type desde semantic_index.json_layout (fallback: 'acuerdo')
-        $si = DB::table('semantic_doc_index')->where('document_id', $documentId)->first(['json_global']);
+        // 1) Inferir doc_type desde semantic_doc_index.json_global de la versión actual
+        $currentVersion = $doc->currentVersion()->first();
+        if (!$currentVersion) {
+            Log::info("Documento {$documentId} no tiene versión actual, omitiendo sugerencias");
+            return;
+        }
+        
+        $si = DB::table('semantic_doc_index')->where('document_version_id', $currentVersion->id)->first(['json_global']);
         $layout = $si ? json_decode($si->json_global, true) : [];
 
-        $docTypeId = $doc->tipo;
+        $docTypeId = $doc->document_type_id;
 
         if (!$docTypeId) {
             Log::info("No se encontró tipo de documento, omitiendo sugerencias");
@@ -273,8 +287,20 @@ class AnalysisController extends Controller
         // 3) Guardar issues en DB
         // ==========================================================
         Log::info('Issues: ' . json_encode($issues, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+        
+        // Obtener la versión actual del documento
+        $currentVersion = DB::table('document_versions')
+            ->where('document_id', $documentId)
+            ->where('is_current', true)
+            ->first();
+            
+        if (!$currentVersion) {
+            Log::warning("No se encontró versión actual para documento {$documentId}");
+            return;
+        }
+        
         $analysisId = DB::table('document_analyses')->insertGetId([
-            'document_id' => $documentId,
+            'document_version_id' => $currentVersion->id,
             'status' => 'TODO',
             'summary'     => null,
             'meta'        => null,
@@ -292,7 +318,11 @@ class AnalysisController extends Controller
 
         if(!empty($issues)) {
             // Log::warning('Buenasssssss voy a actualizar el normative gap del documento con id ' . $documentId . ' a 1');
-            Document::where('id', $documentId)->update(['normative_gap'=> 1]);
+            // Actualizar normative_gap en la versión actual del documento
+            DB::table('document_versions')
+                ->where('document_id', $documentId)
+                ->where('is_current', true)
+                ->update(['normative_gap' => 1]);
         }
     }
 
@@ -307,8 +337,23 @@ class AnalysisController extends Controller
 
     public function showLastAnalysis(int $documentId): JsonResponse
     {
-        $analysis = DB::table('document_analyses')
+        $doc = DB::table('documents')->where('id', $documentId)->first();
+        if (!$doc) {
+            return response()->json(['issues' => null]);
+        }
+        
+        // Obtener versión actual
+        $currentVersion = DB::table('document_versions')
             ->where('document_id', $documentId)
+            ->where('is_current', true)
+            ->first();
+            
+        if (!$currentVersion) {
+            return response()->json(['issues' => null]);
+        }
+        
+        $analysis = DB::table('document_analyses')
+            ->where('document_version_id', $currentVersion->id)
             ->orderByDesc('created_at')
             ->first();
         if (!$analysis) {
@@ -319,7 +364,7 @@ class AnalysisController extends Controller
         }
 
         // Obtener el layout del documento para extraer los valores actuales
-        $si = DB::table('semantic_doc_index')->where('document_id', $documentId)->first(['json_global']);
+        $si = DB::table('semantic_doc_index')->where('document_version_id', $currentVersion->id)->first(['json_global']);
         $layout = $si ? json_decode($si->json_global, true) : [];
 
         // Traer también los issues relacionados
@@ -364,11 +409,15 @@ class AnalysisController extends Controller
     public function getMissingFields(int $documentId): JsonResponse
     {
         try {
-            // 1. Obtener información del documento y su grupo
+            // 1. Obtener información del documento y su versión actual
             $document = DB::table('documents as d')
-                ->join('semantic_doc_index as sdi', 'd.id', '=', 'sdi.document_id')
+                ->join('document_versions as dv', function($join) {
+                    $join->on('d.id', '=', 'dv.document_id')
+                         ->where('dv.is_current', '=', true);
+                })
+                ->join('semantic_doc_index as sdi', 'dv.id', '=', 'sdi.document_version_id')
                 ->where('d.id', $documentId)
-                ->first(['d.filename', 'sdi.document_group_id', 'sdi.json_global']);
+                ->first(['dv.filename', 'd.document_group_id', 'sdi.json_global']);
 
             if (!$document) {
                 return response()->json(['error' => 'Documento no encontrado'], 404);

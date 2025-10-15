@@ -1,5 +1,6 @@
 export interface Document {
     id: number;
+    document_version_id: number;
     document_group_id: number;
     filename: string;
     filepath: string;
@@ -9,6 +10,19 @@ export interface Document {
     updated_at: string;
     normative_gap: number;
     due_date: number;
+    version_id?: number; // ID de la versión actual
+    pages?: DocumentPage[]; // Páginas de la versión actual
+    json_layout?: BoxAnnotation[]; // Layout cuando viene de una página
+};
+
+export interface DocumentPage {
+    id: number;
+    document_version_id: number;
+    page_number: number;
+    image_path: string;
+    json_layout: any;
+    created_at: string;
+    updated_at: string;
 };
 
 export interface DocumentGroup {
@@ -45,6 +59,7 @@ export interface SemanticGroup {
 export interface GroupedImageViewerProps {
   filename: string;
   files: Document[];
+  pdfDoc?: Document; // PDF original para mostrar cuando no hay imágenes procesadas
 }
 
 export interface SemanticDocIndex {

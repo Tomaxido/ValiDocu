@@ -31,13 +31,14 @@ class SemanticController extends Controller
         $resultados = DB::select("
             SELECT * FROM (
                 SELECT
-                    si.id, si.resumen, si.archivo, si.document_id, si.document_group_id,
-                    d.filename AS document_name, g.name AS group_name,
-                    d.due_date AS due_date,
-                    d.normative_gap AS normative_gap,
+                    sdi.id, sdi.resumen, sdi.archivo, sdi.document_group_id,
+                    dv.document_id, dv.filename AS document_name, 
+                    g.name AS group_name,
+                    dv.due_date AS due_date,
+                    dv.normative_gap AS normative_gap,
                     1 - (sdi.embedding <=> ?::vector) as score
                 FROM semantic_doc_index sdi
-                LEFT JOIN documents d ON d.id = sdi.document_id
+                LEFT JOIN document_versions dv ON dv.id = sdi.document_version_id AND dv.is_current = true
                 LEFT JOIN document_groups g ON g.id = sdi.document_group_id
             ) AS sub
             WHERE score >= 0.4
@@ -47,7 +48,6 @@ class SemanticController extends Controller
 
         return response()->json($resultados);
     }
-
     private function generarEmbedding($texto)
     {
         try {
@@ -75,11 +75,13 @@ class SemanticController extends Controller
         }
     }
 
-    public function buscarJsonLayoutByDocumentId(int $id_documento): JsonResponse
+    public function buscarJsonLayoutByDocumentId(int $documentId, int $versionId, int $pageId): JsonResponse
     {
         try {
             $resultado = DB::table('semantic_index')
-                ->where('document_id', $id_documento)
+                ->where('document_id', $documentId)
+                ->where('document_version_id', $versionId)
+                ->where('document_page_id', $pageId)
                 ->value('json_layout');
 
             if (is_null($resultado)) {
@@ -125,7 +127,13 @@ class SemanticController extends Controller
     public function obtenerDocumentosVencidos(): JsonResponse
     {
         try {
-            $documentos = DB::table('semantic_doc_index')->get();
+            // Obtener documentos con sus versiones actuales y datos de semantic_doc_index
+            $documentos = DB::table('semantic_doc_index as sdi')
+                ->join('document_versions as dv', 'sdi.document_version_id', '=', 'dv.id')
+                ->join('documents as d', 'dv.document_id', '=', 'd.id')
+                ->where('dv.is_current', true)
+                ->select('sdi.*', 'dv.due_date', 'd.id as document_id')
+                ->get();
 
             list($documentosVencidos, $documentosPorVencer) = $this->filtrarDocumentosVencidos($documentos);
 
@@ -142,8 +150,13 @@ class SemanticController extends Controller
     public function obtenerDocumentosVencidosDeGrupo(int $id_grupo): JsonResponse
     {
         try {
-            $documentos = DB::table('semantic_doc_index')
-                ->where('document_group_id', $id_grupo)
+            // Obtener documentos del grupo con sus versiones actuales
+            $documentos = DB::table('semantic_doc_index as sdi')
+                ->join('document_versions as dv', 'sdi.document_version_id', '=', 'dv.id')
+                ->join('documents as d', 'dv.document_id', '=', 'd.id')
+                ->where('dv.is_current', true)
+                ->where('sdi.document_group_id', $id_grupo)
+                ->select('sdi.*', 'dv.due_date', 'd.id as document_id')
                 ->get();
 
             list($documentosVencidos, $documentosPorVencer) = $this->filtrarDocumentosVencidos($documentos);
@@ -161,39 +174,67 @@ class SemanticController extends Controller
     public function marcarDocumentosVencidos(): JsonResponse
     {
         try {
-            $documentos = DB::table('semantic_doc_index')->get();
+            // Obtener documentos con sus versiones actuales
+            $documentos = DB::table('semantic_doc_index as sdi')
+                ->join('document_versions as dv', 'sdi.document_version_id', '=', 'dv.id')
+                ->join('documents as d', 'dv.document_id', '=', 'd.id')
+                ->where('dv.is_current', true)
+                ->select('sdi.*', 'dv.id as version_id', 'd.id as document_id')
+                ->get();
+                
             list($documentosVencidos, $documentosPorVencer) = $this->filtrarDocumentosVencidos($documentos);
-            $idsVencidas = array();
-            $idsPorVencer = array();
+            
+            $idsVersionesVencidas = array();
+            $idsVersionesPorVencer = array();
+            
             foreach ($documentosVencidos as $doc) {
-                array_push($idsVencidas, $doc->document_id);
+                array_push($idsVersionesVencidas, $doc->version_id);
             }
 
-            DB::table('documents')->whereIn('id', $idsVencidas)->update(['due_date' => 1]);
+            // Actualizar due_date en document_versions (no en documents)
+            DB::table('document_versions')->whereIn('id', $idsVersionesVencidas)->update(['due_date' => 1]);
 
             foreach ($documentosPorVencer as $doc) {
-                array_push($idsPorVencer, $doc->document_id);
+                array_push($idsVersionesPorVencer, $doc->version_id);
             }
 
-            DB::table('documents')->whereIn('id', $idsPorVencer)->update(['due_date' => 2]);
-            return response()->json(['documentosVencidos' => $idsVencidas], 200);
+            DB::table('document_versions')->whereIn('id', $idsVersionesPorVencer)->update(['due_date' => 2]);
+            
+            return response()->json([
+                'documentosVencidos' => array_map(fn($doc) => $doc->document_id, $documentosVencidos),
+                'versionesActualizadas' => count($idsVersionesVencidas) + count($idsVersionesPorVencer)
+            ], 200);
         } catch (\Exception $e) {
-            Log::error("❌ Excepción al obtener documentos", ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Error al obtener documentos'], 500);
+            Log::error("❌ Excepción al marcar documentos vencidos", ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Error al marcar documentos vencidos'], 500);
         }
     }
 
     public function obtenerFiltrosUnicos(): JsonResponse
     {
-        $statuses = DB::table('documents')
-            ->whereNotNull('due_date')->distinct()->orderBy('due_date')->pluck('due_date')->all();
+        // Obtener valores únicos de las versiones actuales
+        $statuses = DB::table('document_versions')
+            ->where('is_current', true)
+            ->whereNotNull('due_date')
+            ->distinct()
+            ->orderBy('due_date')
+            ->pluck('due_date')
+            ->all();
 
         $docTypes = DB::table('documents')
-            ->whereNotNull('tipo')->distinct()->orderBy('tipo')->pluck('tipo')->all();
+            ->whereNotNull('document_type_id')
+            ->distinct()
+            ->orderBy('document_type_id')
+            ->pluck('document_type_id')
+            ->all();
 
-
-        $gaps = DB::table('documents')
-            ->whereNotNull('normative_gap')->distinct()->orderBy('normative_gap')->pluck('normative_gap')->all();
+        $gaps = DB::table('document_versions')
+            ->where('is_current', true)
+            ->whereNotNull('normative_gap')
+            ->distinct()
+            ->orderBy('normative_gap')
+            ->pluck('normative_gap')
+            ->all();
 
         // Mapea aquí tus etiquetas oficiales
         $STATUS_LABELS = [
@@ -251,7 +292,7 @@ class SemanticController extends Controller
 
         if (!empty($status)) {
             $placeholders = implode(',', array_fill(0, count($status), '?'));
-            $whereParts[] = "d.due_date IN ($placeholders)";
+            $whereParts[] = "dv.due_date IN ($placeholders)";
             // Opcional: castear a int si tu status es entero
             foreach ($status as $s) {
                 $whereBinds[] = is_numeric($s) ? (int)$s : $s;
@@ -260,7 +301,7 @@ class SemanticController extends Controller
 
         if (!empty($docType)) {
             $placeholders = implode(',', array_fill(0, count($docType), '?'));
-            $whereParts[] = "d.tipo IN ($placeholders)";
+            $whereParts[] = "d.document_type_id IN ($placeholders)";
             // Opcional: castear a int si tu docType es entero
             foreach ($docType as $s) {
                 $whereBinds[] = is_numeric($s) ? (int)$s : $s;
@@ -269,7 +310,7 @@ class SemanticController extends Controller
 
         if (!empty($normGap)) {
             $placeholders = implode(',', array_fill(0, count($normGap), '?'));
-            $whereParts[] = "d.normative_gap IN ($placeholders)";
+            $whereParts[] = "dv.normative_gap IN ($placeholders)";
             foreach ($normGap as $g) {
                 $whereBinds[] = (int)$g;
             }
@@ -293,15 +334,16 @@ class SemanticController extends Controller
                     sdi.id,
                     sdi.resumen,
                     sdi.archivo,
-                    sdi.document_id,
                     sdi.document_group_id,
-                    d.filename AS document_name,
-                    d.due_date AS due_date,
-                    d.tipo AS tipo,
-                    d.normative_gap AS normative_gap,
-                    g.name     AS group_name
+                    dv.document_id,
+                    dv.filename AS document_name,
+                    dv.due_date AS due_date,
+                    d.document_type_id AS tipo,
+                    dv.normative_gap AS normative_gap,
+                    g.name AS group_name
                 FROM semantic_doc_index sdi
-                LEFT JOIN documents d       ON d.id = sdi.document_id
+                LEFT JOIN document_versions dv ON dv.id = sdi.document_version_id AND dv.is_current = true
+                LEFT JOIN documents d ON d.id = dv.document_id
                 LEFT JOIN document_groups g ON g.id = sdi.document_group_id
                 $whereFiltersSql
                 LIMIT ?;
@@ -329,15 +371,17 @@ class SemanticController extends Controller
                         sdi.id,
                         sdi.resumen,
                         sdi.archivo,
-                        sdi.document_id,
                         sdi.document_group_id,
-                        d.filename AS document_name,
-                        d.due_date AS due_date,
-                        d.normative_gap AS normative_gap,
-                        g.name     AS group_name,
+                        dv.document_id,
+                        dv.filename AS document_name,
+                        dv.due_date AS due_date,
+                        dv.normative_gap AS normative_gap,
+                        d.document_type_id AS tipo,
+                        g.name AS group_name,
                         1 - (sdi.embedding <=> ?::vector) AS score
                     FROM semantic_doc_index sdi
-                    LEFT JOIN documents d       ON d.id = sdi.document_id
+                    LEFT JOIN document_versions dv ON dv.id = sdi.document_version_id AND dv.is_current = true
+                    LEFT JOIN documents d ON d.id = dv.document_id
                     LEFT JOIN document_groups g ON g.id = sdi.document_group_id
                     $whereFiltersSql
                 ) AS sub
@@ -364,9 +408,12 @@ class SemanticController extends Controller
     public function buscaDocJsonLayoutByDocumentId(int $documentId): JsonResponse
     {
         try {
-            $result = DB::table('semantic_doc_index')
-                ->where('document_id', $documentId)
-                ->first(['json_layout']);
+            // Buscar el layout de la versión actual del documento
+            $result = DB::table('semantic_doc_index as sdi')
+                ->join('document_versions as dv', 'sdi.document_version_id', '=', 'dv.id')
+                ->where('dv.document_id', $documentId)
+                ->where('dv.is_current', true)
+                ->first(['sdi.json_layout']);
 
             if (!$result || !$result->json_layout) {
                 return response()->json([

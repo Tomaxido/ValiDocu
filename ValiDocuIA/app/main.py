@@ -17,14 +17,15 @@ def _assert_model_dir(path: str):
 @app.post("/procesar/")
 async def procesar_documento(
     file: UploadFile = File(...),
-    master_id: str = Form(...),   # <-- ID del documento completo (estable)
+    master_id: str = Form(...),      # <-- ID del documento master
+    version_id: str = Form(...),     # <-- ID de la versión del documento
+    page_id: str = Form(...),        # <-- ID de document_pages
     group_id: str = Form(...),
-    page: int = Form(...),        # <-- índice de página (0,1,2,...)
-    doc_id: str | None = Form(None)  # <-- opcional, si igual lo quieres guardar en tu BD
+    page: int = Form(...)            # <-- número de página (1,2,3,...)
 ):
     try:
-        suffix = f"_p{page:04d}"  # 0000, 0001, ...
-        base   = f"{master_id}_{doc_id}_{group_id}{suffix}"
+        suffix = f"_p{page:04d}"  # 0001, 0002, ...
+        base   = f"{master_id}_{version_id}_{page_id}_{group_id}{suffix}"
 
         # 1) Guardar imagen temporal
         nombre_img = f"{base}.png"
@@ -47,8 +48,7 @@ async def procesar_documento(
         )
 
         # 3) Agregación semántica
-        # semantic.py ya busca TODAS las páginas por prefijo:
-        #   "documento_{master_id}_{group_id}_p*.json"
+        # semantic.py procesará el JSON y lo insertará en semantic_index
         completed = subprocess.run(
             ["python3", "app/semantic.py", json_output],
             check=False, capture_output=True, text=True
@@ -57,9 +57,10 @@ async def procesar_documento(
         body = {
             "mensaje": "✅ Página procesada",
             "master_id": master_id,
+            "version_id": version_id,
+            "page_id": page_id,
             "group_id": group_id,
             "page": page,
-            "page_doc_id": doc_id,           # por si lo guardas en tu BD
             "json": json_output,
             "imagen_procesada": prediccion.OUTPUT_IMG,
             "semantic_status": "ok" if completed.returncode == 0 else "error",

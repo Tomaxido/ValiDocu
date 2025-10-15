@@ -9,6 +9,7 @@ use App\Http\Controllers\DocumentSummaryController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\GroupConfigurationController;
 use App\Http\Controllers\GroupAccessRequestController;
+use App\Http\Controllers\DocumentAuditController;
 use App\Http\Controllers\NotificationController;
 
 Route::prefix('v1')->group(function () {
@@ -21,7 +22,8 @@ Route::prefix('v1')->group(function () {
 
     Route::get('/documents', [DocumentUploadController::class, 'index'])->middleware(['auth:sanctum']);
     Route::get('/documents/{id}', [DocumentUploadController::class, 'show'])->middleware(['auth:sanctum']);
-    Route::get('/documents/{id}/layout', [SemanticController::class, 'buscarJsonLayoutByDocumentId']);
+    Route::post('/documents/{id}/version', [DocumentUploadController::class, 'uploadNewVersion'])->middleware(['auth:sanctum']);
+    Route::get('/documents/{documentId}/version/{versionId}/page/{pageId}/layout', [SemanticController::class, 'buscarJsonLayoutByDocumentId']);
     Route::get('/documents/{id}/layout-doc', [SemanticController::class, 'buscaDocJsonLayoutByDocumentId']);
     Route::get('/documentos_vencidos', [SemanticController::class, 'obtenerDocumentosVencidos']);
     Route::get('/documents/group/{group_id}/vencidos', [SemanticController::class, 'obtenerDocumentosVencidosDeGrupo']);
@@ -79,6 +81,13 @@ Route::prefix('v1')->group(function () {
     // Información detallada de grupos
     Route::get('/groups/{group_id}/details', [DocumentUploadController::class, 'getGroupDetails'])->middleware(['auth:sanctum']);
     Route::get('/groups/{group_id}/members', [DocumentUploadController::class, 'getGroupMembers'])->middleware(['auth:sanctum']);
+
+    // Rutas para auditoría y trazabilidad de documentos
+    Route::get('/documents/{document_id}/timeline', [DocumentAuditController::class, 'getDocumentTimeline'])->middleware(['auth:sanctum']);
+    Route::get('/documents/{document_id}/version-history', [DocumentAuditController::class, 'getDocumentVersionHistory'])->middleware(['auth:sanctum']);
+    Route::get('/documents/{document_id}/activity-stats', [DocumentAuditController::class, 'getDocumentActivityStats'])->middleware(['auth:sanctum']);
+    Route::get('/audit-logs', [DocumentAuditController::class, 'getAuditLogs'])->middleware(['auth:sanctum']);
+    Route::get('/audit/actions', [DocumentAuditController::class, 'getAvailableActions'])->middleware(['auth:sanctum']);
 
     // Endpoint para testing de eventos WebSocket
     Route::post('/test/documents-processed-event', [DocumentUploadController::class, 'testDocumentsProcessedEvent']);

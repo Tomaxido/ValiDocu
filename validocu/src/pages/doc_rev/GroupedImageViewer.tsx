@@ -5,30 +5,37 @@ import type { BoxAnnotation, GroupedImageViewerProps } from "../../utils/interfa
 import labelColors from "../../utils/labelColors.ts";
 import { Box, Button, Stack } from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
+import HistoryIcon from "@mui/icons-material/History";
 import jsPDF from "jspdf";
+import TraceabilityModal from "./TraceabilityModal";
 
 type BBox = [number, number, number, number];
 
-export default function GroupedImageViewer({ filename, files }: Readonly<GroupedImageViewerProps>) {
+export default function GroupedImageViewer({ filename, files, pdfDoc }: Readonly<GroupedImageViewerProps>) {
   const [scales, setScales] = useState<{ x: number; y: number }[]>([]);
   const [annotationsByPage, setAnnotationsByPage] = useState<BoxAnnotation[][]>([]);
   const imgRefs = useRef<(HTMLImageElement | null)[]>([]);
   const observers = useRef<ResizeObserver[]>([]);
-
   const [focusByPage, setFocusByPage] = useState<Record<number, BBox[]>>({});
   const [hoverByPage, setHoverByPage] = useState<Record<number, BBox[]>>({}); // nuevo
-
+  console.log("pdfDoc", pdfDoc);
   const wrapperRefs = useRef<(HTMLDivElement | null)[]>([]);
+  
+  // Estado para el modal de trazabilidad
+  const [traceabilityModalOpen, setTraceabilityModalOpen] = useState(false);
 
   // Cargar layouts desde API
   useEffect(() => {
     let cancelado = false;
     async function fetchLayouts() {
       setAnnotationsByPage([]);
+      
+      // Fallback: cargar desde API (para compatibilidad con sistema antiguo)
       const layouts: BoxAnnotation[][] = await Promise.all(
         files.map(async (doc) => {
           try {
-            const data = await buscarJsonLayoutPorIdDocumento(doc.id);
+            console.log("aaaaaa", doc);
+            const data = await buscarJsonLayoutPorIdDocumento(pdfDoc?.id!, doc.document_version_id, doc.id);
             return (data ?? []) as BoxAnnotation[];
           } catch {
             return [];
@@ -230,10 +237,19 @@ export default function GroupedImageViewer({ filename, files }: Readonly<Grouped
   if (files.length === 0) return <Box>No hay imágenes para mostrar.</Box>;
 
   return (
-    <Box>
-      <Button onClick={exportToPdf} sx={{ mb: 2 }} startIcon={<DownloadIcon />}>
-        Descargar como PDF
-      </Button>
+    <Box sx={{ position: 'relative' }}>
+      <Stack direction="row" spacing={1} sx={{ mb: 2, justifyContent: 'space-between', alignItems: 'center' }}>
+        <Button onClick={exportToPdf} startIcon={<DownloadIcon />}>
+          Descargar como PDF
+        </Button>
+        
+        <Button 
+          onClick={() => setTraceabilityModalOpen(true)} 
+          startIcon={<HistoryIcon />}
+        >
+          Ver Trazabilidad
+        </Button>
+      </Stack>
 
       <Stack
         sx={{
@@ -348,6 +364,14 @@ export default function GroupedImageViewer({ filename, files }: Readonly<Grouped
           </Box>
         ))}
       </Stack>
+
+      {/* Modal de Trazabilidad */}
+      <TraceabilityModal
+        open={traceabilityModalOpen}
+        onClose={() => setTraceabilityModalOpen(false)}
+        documentId={pdfDoc?.id?.toString() || ""}
+        documentName={filename}
+      />
     </Box>
   );
 }

@@ -47,10 +47,12 @@ class DocumentSummaryController extends Controller
 
             // 1) Documentos del grupo
             $docs = DB::table('semantic_doc_index as sdi')
-                ->join('documents as d', 'd.id', '=', 'sdi.document_id')
+                ->join('document_versions as dv', 'dv.id', '=', 'sdi.document_version_id')
+                ->join('documents as d', 'd.id', '=', 'dv.document_id')
                 ->where('sdi.document_group_id', $groupId)
-                ->orderBy('sdi.document_id')
-                ->get(['d.filename', 'd.status', 'sdi.document_id']);
+                ->where('dv.is_current', true)  // Solo versiones actuales (no eliminadas)
+                ->orderBy('dv.document_id')
+                ->get(['dv.filename', 'd.status', 'dv.document_id', 'dv.id as version_id']);
 
             if ($docs->isEmpty()) {
                 Log::info('No hay documentos para el grupo', ['group_id' => $groupId]);
@@ -160,8 +162,9 @@ class DocumentSummaryController extends Controller
 
             foreach ($matchedAnalyze as $doc) {
                 $documentId = (int)$doc->document_id;
+                $versionId = (int)$doc->version_id;
                 $si = DB::table('semantic_doc_index')
-                    ->where('document_id', $documentId)
+                    ->where('document_version_id', $versionId)
                     ->first(['json_global']);
 
                 if (!$si) {

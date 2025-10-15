@@ -13,11 +13,16 @@ use Illuminate\Support\Facades\Storage;
 use App\Services\SiiService;
 use App\Services\GroupValidationService;
 use Illuminate\Http\JsonResponse;
+use App\Events\DocumentsProcessed;
 use Illuminate\Support\Str;
+use App\Traits\CreatesDocumentAuditLogs;
+use App\Jobs\DocumentVersionAdder;
 
 
 class DocumentUploadController extends Controller
 {
+    use CreatesDocumentAuditLogs;
+
     protected GroupValidationService $groupValidationService;
 
     public function __construct(SiiService $siiService, GroupValidationService $groupValidationService)
@@ -50,7 +55,7 @@ class DocumentUploadController extends Controller
             'can_edit' => 1 // el creador siempre puede editar
         ]);
 
-        $this->makeJob($request, $group);
+        $this->makeJob($request, $group, $user->id);
 
         // Inicializar configuración por defecto si no existe
         if (!$this->groupValidationService->hasGroupConfiguration($group->id)) {
@@ -84,14 +89,14 @@ class DocumentUploadController extends Controller
             return response()->json(['message' => 'No tienes permisos de edición en este grupo'], 403);
         }
 
-        $this->makeJob($request, $group);
+        $this->makeJob($request, $group, $user->id);
 
         return response()->json([
             'message' => 'Documentos añadidos al grupo ' . $group->name
         ]);
     }
 
-    private function makeJob(Request $request, DocumentGroup &$group): void
+    private function makeJob(Request $request, DocumentGroup &$group, string $userId): void
     {
         $serializedFiles = [];
         $documents = [];
@@ -101,6 +106,7 @@ class DocumentUploadController extends Controller
             $serializedFile = [
                 'filename' => $file->getClientOriginalName(),
                 'filepath' => $path,
+                'file_size' => $file->getSize(),
                 'mime_type' => $file->getClientMimeType(),
                 'status' => 0,
             ];
@@ -125,14 +131,19 @@ class DocumentUploadController extends Controller
             ]);
         }
         DocumentAdder::dispatch(
-            $this->siiService, $this->groupValidationService, $group, $documents, $serializedFiles, $notificationIds
+            $this->siiService, $this->groupValidationService, $group, $documents, $serializedFiles, $notificationIds, $userId
         )->onQueue('docAnalysis');
     }
 
     public function show(Request $request, $id)
     {
         $user = $request->user();
-        $group = DocumentGroup::with(['documents', 'users', 'creator'])->findOrFail($id);
+        $group = DocumentGroup::with([
+            'documents.currentVersion.pages',  // Cargar la versión actual y sus páginas
+            'documents.documentType',           // Cargar el tipo de documento
+            'users',
+            'creator'
+        ])->findOrFail($id);
 
         // Verificar que el usuario tiene acceso al grupo
         if (!$group->userHasAccess($user->id)) {
@@ -142,6 +153,13 @@ class DocumentUploadController extends Controller
         // Agregar información adicional sobre permisos del usuario
         $group->user_can_edit = $group->userCanEdit($user->id);
         $group->is_owner = $group->created_by === $user->id;
+
+        // Asegurar que cada documento tiene los atributos de su versión actual
+        $group->documents->each(function($doc) {
+            // Los accessors del modelo Document ya manejan esto
+            // pero aseguramos que la versión actual esté cargada
+            $doc->makeVisible(['filename', 'filepath', 'mime_type', 'due_date', 'normative_gap']);
+        });
 
         return response()->json($group);
     }
@@ -160,12 +178,25 @@ class DocumentUploadController extends Controller
             return response()->json(['message' => 'Documento no encontrado'], 404);
         }
 
-        // Borra el archivo físico si existe
-        if (Storage::disk('public')->exists($document->filepath)) {
-            Storage::disk('public')->delete($document->filepath);
-        }
+        // Obtener la versión actual antes del soft delete
+        $currentVersion = $document->currentVersion->first();
 
-        $document->delete();
+        // Soft delete: marcar todas las versiones del documento como no actuales
+        DB::table('document_versions')
+            ->where('document_id', $document->id)
+            ->update(['is_current' => false]);
+
+        // Registrar log de auditoría
+        $this->logDocumentDeleted(
+            $document->id,
+            $currentVersion?->id,
+            'Documento eliminado por el usuario'
+        );
+
+        Log::info('Documento marcado como eliminado (soft delete)', [
+            'document_id' => $document->id,
+            'filename' => $currentVersion?->filename ?? 'documento_eliminado'
+        ]);
 
         return response()->json(['message' => 'Documento eliminado correctamente.']);
     }
@@ -203,9 +234,9 @@ class DocumentUploadController extends Controller
 
         // 2. Log del query generado
         $data = DB::table('semantic_index')
-            ->join('documents', 'semantic_index.document_id', '=', 'documents.id')
-            ->whereIn('documents.id', $ids)
-            ->select('documents.filename', 'semantic_index.json_layout')
+            ->join('document_versions', 'semantic_index.document_version_id', '=', 'document_versions.id')
+            ->whereIn('document_versions.id', $ids)
+            ->select('document_versions.filename', 'semantic_index.json_layout')
             ->get();
 
         Log::info('📤 Resultados de la consulta:', $data->toArray());
@@ -219,7 +250,7 @@ class DocumentUploadController extends Controller
     public function getDocumentSummary(int $document_id): JsonResponse
     {
         $data = DB::table('semantic_doc_index')
-            ->where('document_id', $document_id)
+            ->where('document_version_id', $document_id)
             ->select('resumen')
             ->first();
         if (!$data) {
@@ -409,6 +440,80 @@ class DocumentUploadController extends Controller
     }
 
     /**
+     * Subir una nueva versión de un documento existente
+     */
+    public function uploadNewVersion(Request $request, int $document_id): JsonResponse
+    {
+        $request->validate([
+            'document' => 'required|file|mimes:pdf|max:51200', // máximo 50MB
+            'comment' => 'required|string|max:1000',
+        ]);
+
+        try {
+            // Buscar el documento sin el scope global
+            $document = Document::withoutGlobalScope('hasCurrentVersion')
+                ->findOrFail($document_id);
+
+            // Verificar permisos del usuario
+            $user = $request->user();
+            $group = $document->group;
+
+            if (!$group->userHasAccess($user->id)) {
+                return response()->json(['message' => 'No tienes acceso a este documento'], 403);
+            }
+
+            if (!$group->userCanEdit($user->id)) {
+                return response()->json(['message' => 'No tienes permisos de edición en este grupo'], 403);
+            }
+
+            // Guardar el archivo
+            $file = $request->file('document');
+            $filename = $file->getClientOriginalName();
+            $filepath = $file->store('documents', 'public');
+
+            $fileData = [
+                'filename' => $filename,
+                'filepath' => $filepath,
+                'mime_type' => $file->getMimeType(),
+                'file_size' => $file->getSize(),
+            ];
+
+            Log::info("Iniciando subida de nueva versión", [
+                'document_id' => $document_id,
+                'filename' => $filename,
+                'user_id' => $user->id,
+            ]);
+
+            // Despachar el job
+            DocumentVersionAdder::dispatch(
+                app(SiiService::class),
+                $fileData,
+                $document,
+                $user->id,
+                $request->input('comment')
+            )->onQueue('docAnalysis');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Nueva versión en procesamiento',
+                'document_id' => $document_id,
+            ], 202); // 202 Accepted (procesamiento asíncrono)
+
+        } catch (\Exception $e) {
+            Log::error('Error al subir nueva versión:', [
+                'document_id' => $document_id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al subir nueva versión: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Endpoint para probar el evento DocumentsProcessed
      */
     public function testDocumentsProcessedEvent(Request $request): JsonResponse
@@ -426,7 +531,8 @@ class DocumentUploadController extends Controller
             $group = DocumentGroup::findOrFail($groupId);
 
             // Disparar el evento DocumentsProcessed
-            event(new \App\Events\DocumentsProcessed($groupId, $userId));
+            $numUnsuccessfulDocuments = 0; // Ajusta este valor según tu lógica
+            event(new DocumentsProcessed($groupId, $userId, $numUnsuccessfulDocuments));
 
             return response()->json([
                 'success' => true,
