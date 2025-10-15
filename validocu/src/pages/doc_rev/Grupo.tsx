@@ -35,6 +35,7 @@ function groupDocuments(documents: Document[]): GroupedDocument[] {
   if (!documents || documents.length === 0) {
     return [];
   }
+  console.log("Agrupando documentos:", documents);
 
   // Filtrar documentos válidos
   const validDocuments = documents.filter(doc => doc.filename);
@@ -711,7 +712,7 @@ export default function Grupo() {
       <DeleteModal
         isOpen={deleteModalOpen}
         onClose={() => setDeleteModalOpen(false)}
-        documents={group.documents}
+        documents={groupedDocs.map(g => g.pdf).filter(Boolean) as Document[]}
         onDelete={handleDeleteDocuments}
       />
     </Box>

@@ -14,14 +14,16 @@ interface Props {
 }
 
 // Base: "contrato.pdf" -> "contrato"; "contrato_p1.png" -> "contrato"
-function getBaseName(filename: string): string {
+function getBaseName(filename: string | null | undefined): string {
+  if (!filename) return 'unknown'; // Manejar caso null/undefined
+  
   const lower = filename.toLowerCase();
   const imgMatch = /^(.+?)_p\d+\.(png|jpe?g|webp)$/i.exec(lower);
   if (imgMatch) return imgMatch[1];
   const dot = lower.lastIndexOf(".");
   return dot >= 0 ? lower.slice(0, dot) : lower;
 }
-const isPdf = (name: string) => /\.pdf$/i.test(name);
+const isPdf = (name: string | null | undefined) => name ? /\.pdf$/i.test(name) : false;
 
 type Group = {
   key: string;
@@ -34,7 +36,18 @@ export default function DeleteModal({ isOpen, onClose, documents, onDelete }: Re
   const groups = useMemo<Group[]>(() => {
     const byBase = new Map<string, { pdf?: Document; images: Document[] }>();
 
-    for (const doc of documents) {
+    // Filtrar documentos con filename válido
+    const validDocuments = documents.filter(doc => {
+      if (!doc.filename) {
+        console.warn('❌ Document sin filename:', doc);
+        return false;
+      }
+      return true;
+    });
+
+    //console.log('📄 Documentos válidos para eliminar:', validDocuments);
+
+    for (const doc of validDocuments) {
       const base = getBaseName(doc.filename);
       if (!byBase.has(base)) byBase.set(base, { images: [] });
       const bucket = byBase.get(base)!;
