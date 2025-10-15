@@ -20,20 +20,26 @@ class DocumentAdder implements ShouldQueue
 
     protected SiiService $siiService;
     protected GroupValidationService $groupValidationService;
-    protected array $serializedFiles;
     protected DocumentGroup $group;
+    protected array $documents;
+    protected array $serializedFiles;
+    protected array $notificationIds;
 
     public function __construct(
         SiiService $siiService,
         GroupValidationService $groupValidationService,
-        array $documents,
         DocumentGroup $group,
+        array $documents,
+        array $serializedFiles,
+        array $notificationIds
     )
     {
         $this->siiService = $siiService;
         $this->groupValidationService = $groupValidationService;
-        $this->serializedFiles = $documents;
         $this->group = $group;
+        $this->documents = $documents;
+        $this->serializedFiles = $serializedFiles;
+        $this->notificationIds = $notificationIds;
     }
 
     public function handle(): void
@@ -80,35 +86,10 @@ class DocumentAdder implements ShouldQueue
                 $this->groupValidationService->initializeGroupConfiguration($this->group->id);
             }
 
-            $documents = [];
-            $notificationIds = [];
-
-            foreach ($this->serializedFiles as $file) {
-                // ...existing code...
-                $document = $this->group->documents()->create($file);
-                $documents[] = $document;
-
-                // Insertar aviso de que se está analizando el documento
-                // TODO: el nombre 'notification_history' podría ser algo engañoso en este caso, porque este preciso registro no es una notificación.
-                $notificationIds[] = DB::table('notification_history')->insertGetId([
-                    'user_id' => $this->group->created_by,
-                    'type' => 'doc_analysis',
-                    'message' => json_encode([
-                        'group' => $this->group,
-                        'document' => $document,
-                        'status' => 'started',
-                    ]),
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                    'read' => true,  // uno ya sabe cuando envía un documento a analizar
-                ]);
-            }
-
-            foreach ($documents as $i => $document) {
+            foreach ($this->documents as $i => $document) {
                 // Obtener ID del documento maestro
                 $document_master_id = $document->id;
-                $this->serializedFiles[$i]['id'] = $document_master_id;
-                $notificationId = $notificationIds[$i];
+                $notificationId = $this->notificationIds[$i];
                 $file = $this->serializedFiles[$i];
 
                 // Primero determinar el tipo y si debe ser analizado
@@ -142,11 +123,9 @@ class DocumentAdder implements ShouldQueue
                 // TODO: este $rechazado no parece ser el verdadero indicador de si hay un error al procesar
                 $rechazado = $this->saveImages($images, $originalBaseName, $document_master_id, $analizar);
                 if ($rechazado) {
-                    $this->serializedFiles[$i]['status'] = 2;
                     $document->status = 2;
                     $document->save();
                 } else {
-                    $this->serializedFiles[$i]['status'] = 1;
                     $document->status = 1;
                     $document->save();
                 }
@@ -174,9 +153,9 @@ class DocumentAdder implements ShouldQueue
                     'message' => json_encode([
                         'group' => $this->group,
                         'document' => $document,
-                        'status' => $rechazado ? 'error' : 'completed',
+                        'status' => $rechazado ? 'failed' : 'completed',
                     ]),
-                    'read' => false,
+                    'is_read' => false,
                     'updated_at' => now(),
                 ]);
             }

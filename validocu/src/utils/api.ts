@@ -1,4 +1,4 @@
-import type { BoxAnnotation, Document, DocumentGroup, ExpiredDocumentResponse, SemanticGroup, GroupConfigurationResponse, DocumentTypeWithFields } from "./interfaces";
+import type { BoxAnnotation, Document, DocumentGroup, ExpiredDocumentResponse, SemanticGroup, GroupConfigurationResponse, DocumentTypeWithFields, DocAnalysisNotification } from "./interfaces";
 import { authService } from "../api/auth";
 
 // let baseURL = "";
@@ -374,6 +374,24 @@ export async function checkGroupAccess(groupId: string): Promise<{ hasAccess: bo
     if (error.status === 404) {
       return { hasAccess: false, reason: 'group_not_found' };
     }
+    throw error;
+  }
+}
+
+export async function getUserNotifications(): Promise<DocAnalysisNotification[]> {
+  try {
+    return await getJSON('/api/v1/notifications');
+  } catch (error) {
+    console.error("Error fetching user notifications:", error);
+    throw error;
+  }
+}
+
+export async function markNotificationsAsRead(notifications: DocAnalysisNotification[]): Promise<void> {
+  try {
+    await postJSON('/api/v1/notifications/mark-as-read', { notifications });
+  } catch (error) {
+    console.error("Error marking notifications as read:", error);
     throw error;
   }
 }

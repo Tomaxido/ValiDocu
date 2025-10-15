@@ -29,7 +29,6 @@ export default function App() {
   
   // TODO: usar useEcho y averiguar cómo usar canales privados
   useEchoPublic<ProcessedDocumentEvent>('documents', 'DocumentsProcessed', event => {
-    console.log(event);
     if (event === null) return;
     setIsNotificationOpen(true);
     setCurrentEvent(event);
@@ -38,7 +37,7 @@ export default function App() {
   return (
     <AuthProvider>
       <ProtectedRoute>
-        <MainLayout isDocMenuOpen={isDocMenuOpen} setIsDocMenuOpen={setIsDocMenuOpen}>
+        <MainLayout currentEvent={currentEvent} isDocMenuOpen={isDocMenuOpen} setIsDocMenuOpen={setIsDocMenuOpen}>
           <Snackbar
             open={isNotificationOpen}
             anchorOrigin={{ vertical: "bottom", horizontal: "center" }}

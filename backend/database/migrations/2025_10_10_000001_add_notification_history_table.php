@@ -18,7 +18,7 @@ return new class extends Migration
             $table->json('message');
             $table->timestamp('created_at')->useCurrent();
             $table->timestamp('updated_at')->useCurrent();
-            $table->boolean('read')->default(false);
+            $table->boolean('is_read')->default(false);
 
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
         });
