@@ -228,8 +228,12 @@ class DocumentUploadController extends Controller
         // Nuevo endpoint para obtener el resumen de un documento
     public function getDocumentSummary(int $document_id): JsonResponse
     {
+        $document_version = DB::table('document_versions')
+            ->where('document_id', $document_id)
+            ->where('is_current', true)
+            ->first();
         $data = DB::table('semantic_doc_index')
-            ->where('document_version_id', $document_id)
+            ->where('document_version_id', $document_version->id)
             ->select('resumen')
             ->first();
         if (!$data) {
