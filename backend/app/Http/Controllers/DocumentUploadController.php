@@ -152,12 +152,15 @@ class DocumentUploadController extends Controller
             return response()->json(['message' => 'Documento no encontrado'], 404);
         }
 
-        // Borra el archivo físico si existe
-        if (Storage::disk('public')->exists($document->filepath)) {
-            Storage::disk('public')->delete($document->filepath);
-        }
+        // Soft delete: marcar todas las versiones del documento como no actuales
+        DB::table('document_versions')
+            ->where('document_id', $document->id)
+            ->update(['is_current' => false]);
 
-        $document->delete();
+        Log::info('Documento marcado como eliminado (soft delete)', [
+            'document_id' => $document->id,
+            'filename' => $document->id
+        ]);
 
         return response()->json(['message' => 'Documento eliminado correctamente.']);
     }

@@ -5,11 +5,26 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Builder;
 
 class Document extends Model
 {
     use HasFactory;
+
+    /**
+     * The "booted" method of the model.
+     * Agrega un scope global para filtrar solo documentos con versiones actuales
+     */
+    protected static function booted()
+    {
+        static::addGlobalScope('hasCurrentVersion', function (Builder $builder) {
+            $builder->whereHas('versions', function ($query) {
+                $query->where('is_current', true);
+            });
+        });
+    }
 
     protected $fillable = [
         'document_group_id',
@@ -46,9 +61,9 @@ class Document extends Model
     /**
      * Get the current active version of this document
      */
-    public function currentVersion(): HasMany
+    public function currentVersion(): HasOne
     {
-        return $this->hasMany(DocumentVersion::class)->where('is_current', true)->limit(1);
+        return $this->hasOne(DocumentVersion::class)->where('is_current', true);
     }
 
     /**
