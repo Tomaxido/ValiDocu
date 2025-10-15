@@ -75,11 +75,13 @@ class SemanticController extends Controller
         }
     }
 
-    public function buscarJsonLayoutByDocumentId(int $id_documento): JsonResponse
+    public function buscarJsonLayoutByDocumentId(int $documentId, int $versionId, int $pageId): JsonResponse
     {
         try {
             $resultado = DB::table('semantic_index')
-                ->where('document_page_id', $id_documento)
+                ->where('document_id', $documentId)
+                ->where('document_version_id', $versionId)
+                ->where('document_page_id', $pageId)
                 ->value('json_layout');
 
             if (is_null($resultado)) {

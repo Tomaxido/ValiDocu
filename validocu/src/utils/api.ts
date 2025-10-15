@@ -1,5 +1,6 @@
 import type { BoxAnnotation, Document, DocumentGroup, ExpiredDocumentResponse, SemanticGroup, GroupConfigurationResponse, DocumentTypeWithFields } from "./interfaces";
 import { authService } from "../api/auth";
+import { version } from "os";
 
 // let baseURL = "";
 // if (process.env.NODE_ENV === "development") {
@@ -181,9 +182,10 @@ import { authService } from "../api/auth";
     
     return await res.json();
   }
-  
-  export async function buscarJsonLayoutPorIdDocumento(documentId: number, versionId: number): Promise<BoxAnnotation[]> {
-    const res = await fetch(`${baseURL}/api/v1/documents/${documentId}/version/${versionId}/layout`);
+
+  export async function buscarJsonLayoutPorIdDocumento(id: number, versionId: number, pageId: number): Promise<BoxAnnotation[]> {
+    console.log("bucando layout con parametros docId:", id, " versionId:", versionId, " pageId: ", pageId);
+    const res = await fetch(`${baseURL}/api/v1/documents/${id}/version/${versionId}/page/${pageId}/layout`);
     
     if (!res.ok) {
       const errorData = await res.json();

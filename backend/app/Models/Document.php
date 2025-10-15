@@ -48,6 +48,7 @@ class Document extends Model
         'due_date',
         'normative_gap',
         'pages', // Agregar páginas de la versión actual
+        'version_id', // ID de la versión actual
     ];
 
     /**
@@ -280,5 +281,18 @@ class Document extends Model
         }
         $currentVersion = $this->versions()->where('is_current', true)->first();
         return $currentVersion?->pages()->orderBy('page_number')->get() ?? collect();
+    }
+
+    /**
+     * Get the version_id from current version
+     */
+    public function getVersionIdAttribute(): ?int
+    {
+        if ($this->relationLoaded('currentVersion')) {
+            $versions = $this->getRelation('currentVersion');
+            return $versions->first()?->id;
+        }
+        $currentVersion = $this->versions()->where('is_current', true)->first();
+        return $currentVersion?->id;
     }
 }

@@ -289,6 +289,11 @@ class DocumentAdder implements ShouldQueue
                     continue;
                 }
 
+                // Actualizar document_id en semantic_index (siempre, después de que FastAPI procesa)
+                DB::table('semantic_index')
+                    ->where('document_page_id', $page)
+                    ->update(['document_id' => $document_master_id]);
+
                 $layout = json_decode($data->json_layout, true);
                 $modificado = false;
                 $labelsRut = ['RUT_DEUDOR','RUT_CORREDOR','EMPRESA_DEUDOR_RUT','EMPRESA_CORREDOR_RUT'];

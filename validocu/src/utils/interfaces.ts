@@ -1,5 +1,6 @@
 export interface Document {
     id: number;
+    document_version_id: number;
     document_group_id: number;
     filename: string;
     filepath: string;
@@ -9,6 +10,7 @@ export interface Document {
     updated_at: string;
     normative_gap: number;
     due_date: number;
+    version_id?: number; // ID de la versión actual
     pages?: DocumentPage[]; // Páginas de la versión actual
     json_layout?: BoxAnnotation[]; // Layout cuando viene de una página
 };
