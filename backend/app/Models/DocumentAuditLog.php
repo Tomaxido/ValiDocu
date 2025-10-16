@@ -74,7 +74,7 @@ class DocumentAuditLog extends Model
             self::ACTION_UPLOADED => 'Documento subido',
             self::ACTION_DOWNLOADED => 'Documento descargado',
             self::ACTION_DELETED => 'Documento eliminado',
-            self::ACTION_REUPLOADED => 'Documento re-subido',
+            self::ACTION_REUPLOADED => 'Nueva versión subida',
         ];
     }
 
