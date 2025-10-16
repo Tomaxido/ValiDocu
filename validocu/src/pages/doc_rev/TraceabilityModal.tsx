@@ -21,6 +21,7 @@ import DocumentInfoPanel from './traceability/DocumentInfoPanel';
 import VersionHistory from './traceability/VersionHistory';
 import ActivityLogPanel from './traceability/ActivityLogPanel';
 import { useTraceability } from './traceability/useTraceability';
+import { TraceabilityService } from './traceability/traceabilityService';
 import type { DocumentVersion, TraceabilityModalProps } from './traceability/types';
 
 export default function TraceabilityModal({ 
@@ -52,17 +53,34 @@ export default function TraceabilityModal({
 
   const handleDownloadVersion = async (version: DocumentVersion) => {
     try {
-      // Simulación de descarga (aquí implementarías la lógica real)
-      console.log('Descargando versión:', version);
-      
-      // Mostrar notificación
       setNotification({
         open: true,
-        message: `Descargando ${version.fileName}...`,
+        message: `Preparando descarga de ${version.fileName}...`,
         severity: 'info'
       });
 
-      // Recargar datos para actualizar el log
+      // Obtener la URL de descarga desde el backend
+      const downloadData = await TraceabilityService.downloadDocumentVersion(
+        documentId, 
+        version.id
+      );
+
+      // Crear un enlace temporal para descargar el archivo
+      const link = document.createElement('a');
+      link.href = downloadData.download_url;
+      link.download = downloadData.filename;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setNotification({
+        open: true,
+        message: `Descargando ${downloadData.filename}...`,
+        severity: 'success'
+      });
+
+      // Recargar datos para actualizar el log de actividad
       setTimeout(() => {
         loadTraceabilityData(documentId);
       }, 1000);

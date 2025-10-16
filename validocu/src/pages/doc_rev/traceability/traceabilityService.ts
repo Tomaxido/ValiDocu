@@ -205,4 +205,28 @@ export class TraceabilityService {
       throw error;
     }
   }
+
+  /**
+   * Descargar una versión específica de un documento
+   */
+  static async downloadDocumentVersion(documentId: string, versionId: string): Promise<{
+    download_url: string;
+    filename: string;
+    version_number: number;
+  }> {
+    try {
+      const response: ApiResponse<any> = await authenticatedFetch(
+        `/documents/${documentId}/versions/${versionId}/download`
+      );
+
+      if (!response.success) {
+        throw new Error(response.message || 'Error al descargar la versión');
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error('Error downloading document version:', error);
+      throw error;
+    }
+  }
 }

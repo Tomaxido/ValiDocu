@@ -81,13 +81,18 @@ trait CreatesDocumentAuditLogs
     /**
      * Log para descarga de documento
      */
-    protected function logDocumentDownloaded(int $documentId, ?int $documentVersionId = null, ?string $comment = null): DocumentAuditLog
-    {
+    protected function logDocumentDownloaded(
+        int $documentId, 
+        ?int $documentVersionId = null, 
+        ?string $comment = null,
+        ?array $metadata = null
+    ): DocumentAuditLog {
         return $this->createAuditLog(
             $documentId,
             DocumentAuditLog::ACTION_DOWNLOADED,
             $documentVersionId,
-            $comment ?: 'Documento descargado'
+            $comment ?: 'Documento descargado',
+            $metadata
         );
     }
 
