@@ -212,16 +212,9 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
       const updatedGroups = await getDocumentGroups();
       setDocumentGroups(updatedGroups);
       
-      // Encontrar el grupo recién creado
-      const newGroup = updatedGroups.find(g => g.id === groupId);
-      if (newGroup) {
-        // Abrir el modal de configuración inmediatamente
-        setSelectedGroup(newGroup);
-        setConfigModalOpen(true);
-      } else {
-        // Fallback: recargar página
-        window.location.reload();
-      }
+      // El grupo se ha creado exitosamente, solo actualizar la lista
+      console.log(`Grupo ${groupId} creado exitosamente`);
+      
     } catch (error) {
       console.error('Error loading groups after creation:', error);
       // Fallback: recargar página  
