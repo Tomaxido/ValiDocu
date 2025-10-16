@@ -6,7 +6,6 @@ import {
   Box,
   Chip,
   Button,
-  Badge,
   Tooltip,
 } from "@mui/material";
 import type { Document, SemanticGroup } from "../../utils/interfaces";
@@ -197,6 +196,11 @@ export default function DocInfoPanel({
       <Typography variant="h6" fontWeight={700}>
         {getBaseFilename(selectedDoc.filename)}
       </Typography>
+      
+      <Box component="div" sx={{ color: 'text.secondary', fontSize: '0.9rem', mb: 1 }}>
+        <strong>Versión:</strong> {selectedDoc.version_number ?? 1}
+      </Box>
+      
       {/* Estado de la sugerencia 
       <Stack direction="row" spacing={1} alignItems="center">
         <Typography variant="body2" color="text.secondary">

@@ -468,13 +468,14 @@ export default function Grupo() {
             }),
           })}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 1, flexDirection: 'column' }}>
             <Typography variant="h6" fontWeight={700}>Grupo: {group.name}</Typography>
             <Chip 
               label={userCanEdit ? 'Edición' : 'Solo lectura'} 
               size="small" 
               color={userCanEdit ? 'warning' : 'info'}
-              sx={{ ml: 1 }}
+              sx={{ borderWidth: 2, fontWeight: 600 }}
+              variant="outlined"
             />
           </Box>
 
