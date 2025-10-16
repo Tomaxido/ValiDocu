@@ -6,6 +6,7 @@ use App\Events\DocumentsProcessed;
 use App\Models\DocumentGroup;
 use App\Services\GroupValidationService;
 use App\Services\SiiService;
+use App\Traits\CreatesDocumentAuditLogs;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Http\JsonResponse;
@@ -16,7 +17,7 @@ use Illuminate\Support\Str;
 
 class DocumentAdder implements ShouldQueue
 {
-    use Queueable;
+    use Queueable, CreatesDocumentAuditLogs;
 
     protected SiiService $siiService;
     protected GroupValidationService $groupValidationService;
@@ -139,6 +140,18 @@ class DocumentAdder implements ShouldQueue
                     'uploaded_by' => $this->userId,
                     'is_current' => true,
                 ]);
+
+                // Registrar el log de auditoría para la subida del documento
+                try {
+                    $this->logDocumentUploaded(
+                        documentId: $document_master_id,
+                        documentVersionId: $version->id,
+                        comment: "Documento subido por primera vez: {$file['filename']}"
+                    );
+                } catch (\Exception $e) {
+                    Log::error("Error creando log de auditoría para documento {$document_master_id}: " . $e->getMessage());
+                    // No detener el proceso si falla el log
+                }
 
                 // Ahora convertir y procesar imágenes con el valor de analizar conocido
                 $originalBaseName = pathinfo($file['filename'], PATHINFO_FILENAME);
