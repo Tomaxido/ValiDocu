@@ -115,25 +115,10 @@ class DocumentUploadController extends Controller
             $document = $group->documents()->create($serializedFile);
             $documents[] = $document;
 
-            // Crear la primera versión del documento y rellenar campos "appends" de Document
-            $document->versions()->create([
-                'version_number' => 1,
-                'filename' => $serializedFile['filename'],
-                'filepath' => $serializedFile['filepath'],
-                'mime_type' => $serializedFile['mime_type'],
-                'file_size' => $serializedFile['file_size'], // Se puede calcular después si es necesario
-                'page_count' => 1, // Se actualizará después
-                'due_date' => 0, // Vigente por defecto
-                'normative_gap' => 0, // Sin gap por defecto
-                'checksum_sha256' => null,
-                'uploaded_by' => $group->created_by,
-                'is_current' => true,
-            ]);
-
             // Insertar aviso de que se está analizando el documento
             // TODO: el nombre 'notification_history' podría ser algo engañoso en este caso, porque este preciso registro no es una notificación.
             $notificationIds[] = DB::table('notification_history')->insertGetId([
-                'user_id' => $group->created_by,
+                'user_id' => $userId,
                 'type' => 'doc_analysis',
                 'message' => json_encode([
                     'group' => $group,
