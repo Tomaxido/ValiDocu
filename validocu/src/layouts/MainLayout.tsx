@@ -180,16 +180,6 @@ export default function MainLayout({ children, currentEvent, isDocMenuOpen, setI
           </Menu>
 
           <Box sx={{ display: 'flex', gap: 3, alignItems: 'center' }}>
-            <Link component={RouterLink} underline="none" color="inherit" to="/">
-              Inicio
-            </Link>
-            <Link component={RouterLink} underline="none" color="inherit" to="/documentos">
-              Documentos
-            </Link>
-            <Link component={RouterLink} underline="none" color="inherit" to="/perfil">
-              Perfil
-            </Link>
-            
             {/* Indicador de solicitudes pendientes para administradores */}
             <AccessRequestsIndicator isAdmin={isAdmin} />
             
