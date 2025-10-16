@@ -20,31 +20,36 @@ class DocumentAdder implements ShouldQueue
 
     protected SiiService $siiService;
     protected GroupValidationService $groupValidationService;
-    protected array $documents;
     protected DocumentGroup $group;
-
-    protected int $numUnsuccessfulDocuments = 0;
-    protected string $userId;
+    protected array $documents;
+    protected array $serializedFiles;
+    protected array $notificationIds;
 
     public function __construct(
         SiiService $siiService,
         GroupValidationService $groupValidationService,
-        array $documents,
         DocumentGroup $group,
-        string $userId
+        array $documents,
+        array $serializedFiles,
+        array $notificationIds
     )
     {
         $this->siiService = $siiService;
         $this->groupValidationService = $groupValidationService;
-        $this->documents = $documents;
         $this->group = $group;
-        $this->userId = $userId;
+        $this->documents = $documents;
+        $this->serializedFiles = $serializedFiles;
+        $this->notificationIds = $notificationIds;
     }
 
     public function handle(): void
     {
         $this->addDocumentsToGroup();
-        event(new DocumentsProcessed($this->group, $this->documents, $this->numUnsuccessfulDocuments));
+        
+        // Disparar evento para cada documento procesado
+        foreach ($this->documents as $document) {
+            event(new DocumentsProcessed($this->group, $document));
+        }
     }
 
     private function addDocumentsToGroup(): void {
@@ -86,15 +91,11 @@ class DocumentAdder implements ShouldQueue
                 $this->groupValidationService->initializeGroupConfiguration($this->group->id);
             }
 
-            foreach ($this->documents as $file) {
-                // Crear el documento maestro
-                $document = $this->group->documents()->create([
-                    'document_group_id' => $this->group->id,
-                    'status' => 0,
-                ]);
-                
+            foreach ($this->documents as $i => $document) {
                 // Obtener ID del documento maestro
                 $document_master_id = $document->id;
+                $notificationId = $this->notificationIds[$i];
+                $file = $this->serializedFiles[$i];
 
                 // Primero determinar el tipo y si debe ser analizado
                 $filename = (string)$file['filename'];
@@ -136,17 +137,16 @@ class DocumentAdder implements ShouldQueue
                     'due_date' => 0, // Vigente por defecto
                     'normative_gap' => 0, // Sin gap por defecto
                     'checksum_sha256' => null,
-                    'uploaded_by' => $this->userId,
+                    'uploaded_by' => $this->group->created_by,
                     'is_current' => true,
                 ]);
 
                 // Ahora convertir y procesar imágenes con el valor de analizar conocido
                 $originalBaseName = pathinfo($file['filename'], PATHINFO_FILENAME);
                 $images = $this->convertPdfToImages($file['filepath']);
+                // TODO: este $rechazado no parece ser el verdadero indicador de si hay un error al procesar
                 $rechazado = $this->saveImages($images, $originalBaseName, $document_master_id, $version->id, $analizar);
-                
                 if ($rechazado) {
-                    $this->numUnsuccessfulDocuments++;
                     $document->status = 2;
                     $document->save();
                 } else {
@@ -171,6 +171,17 @@ class DocumentAdder implements ShouldQueue
                         'updated_at' => now(),
                     ]);
                 }
+
+                // Actualizar notificación respectiva
+                DB::table('notification_history')->where('id', $notificationId)->update([
+                    'message' => json_encode([
+                        'group' => $this->group,
+                        'document' => $document,
+                        'status' => $rechazado ? 'failed' : 'completed',
+                    ]),
+                    'is_read' => false,
+                    'updated_at' => now(),
+                ]);
             }
         } catch (\Exception $e) {
             Log::error("Error en DocAdder: " . $e->getMessage());

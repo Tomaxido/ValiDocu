@@ -23,42 +23,42 @@ configureEcho({
 });
 
 export default function App() {
-  const location = useLocation();
-
-  const [open, setOpen] = useState(false);
   const [currentEvent, setCurrentEvent] = useState<ProcessedDocumentEvent | null>(null);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [isDocMenuOpen, setIsDocMenuOpen] = useState(false);
   
   // TODO: usar useEcho y averiguar cómo usar canales privados
   useEchoPublic<ProcessedDocumentEvent>('documents', 'DocumentsProcessed', event => {
-    console.log(event);
-    setOpen(true);
+    if (event === null) return;
+    setIsNotificationOpen(true);
     setCurrentEvent(event);
   });
 
   return (
     <AuthProvider>
       <ProtectedRoute>
-        <MainLayout>
+        <MainLayout currentEvent={currentEvent} isDocMenuOpen={isDocMenuOpen} setIsDocMenuOpen={setIsDocMenuOpen}>
           <Snackbar
-            open={open}
+            open={isNotificationOpen}
             anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-            onClose={() => setOpen(false)}
+            onClose={() => setIsNotificationOpen(false)}
           >
-            <Alert
-              severity={currentEvent !== null && currentEvent.numUnsuccessfulDocuments > 0 ? "warning" : "success"}
+            {currentEvent === null ? <Alert /> : <Alert
+              severity={currentEvent.document.status === 2 ? "error" : "success"}
               variant="filled"
             >
-              Documentos analizados en el grupo '{currentEvent?.group.name}'.
-              {
-                currentEvent !== null && currentEvent.numUnsuccessfulDocuments > 0
-                  && ` Hubo ${currentEvent.numUnsuccessfulDocuments} documento${currentEvent.numUnsuccessfulDocuments > 1 ? 's' : ''} con errores.`
+              {currentEvent.document.status === 2
+              ? `Error al analizar documento '${currentEvent.document.filename}' en grupo '${currentEvent.group.name}'.`
+              : `Documento '${currentEvent.document.filename}' analizado exitosamente en grupo '${currentEvent.group.name}'.`
               }
             </Alert>
+            }
+            
           </Snackbar>
 
           <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/grupos/:grupoId" element={<Grupo />} />
+            <Route path="/" element={<Home currentEvent={currentEvent} setIsDocMenuOpen={setIsDocMenuOpen} />} />
+            <Route path="/grupos/:grupoId" element={<Grupo currentEvent={currentEvent} setIsDocMenuOpen={setIsDocMenuOpen} />} />
             <Route 
               path="/admin/access-requests" 
               element={
