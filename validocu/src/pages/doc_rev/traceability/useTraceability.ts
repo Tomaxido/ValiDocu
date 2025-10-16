@@ -57,7 +57,7 @@ export function useTraceability(): [UseTraceabilityState, UseTraceabilityActions
           fileName: versionData.version.filename,
           isCurrent: versionData.version.is_current,
         };
-      });
+      }).sort((a, b) => b.version - a.version); // Ordenar de más reciente (mayor versión) a más antigua
 
       setState(prev => ({
         ...prev,

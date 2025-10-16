@@ -85,7 +85,7 @@ export default function VersionHistory({
       </Box>
       
       <Box sx={{ overflowY: 'auto', flex: 1 }}>
-        <Stack spacing={2}>
+        <Stack spacing={0}>
           {versions.map((version) => (
             <Accordion
               key={version.id}
@@ -96,7 +96,7 @@ export default function VersionHistory({
                 border: '1px solid #e9ecef',
                 '&:before': { display: 'none' },
                 boxShadow: 'none',
-                mb: 1
+                mb: 0
               }}
             >
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
@@ -162,7 +162,7 @@ export default function VersionHistory({
                     </Box>
                   </Box>
                   
-                  {version.comments && (
+                  {version.comment && (
                     <>
                       <Divider />
                       <Box>
@@ -170,7 +170,7 @@ export default function VersionHistory({
                           Comentarios:
                         </Typography>
                         <Typography variant="body2" sx={{ color: '#495057', fontWeight: 400 }}>
-                          {version.comments}
+                          {version.comment}
                         </Typography>
                       </Box>
                     </>
