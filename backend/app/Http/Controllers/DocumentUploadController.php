@@ -55,7 +55,7 @@ class DocumentUploadController extends Controller
             'can_edit' => 1 // el creador siempre puede editar
         ]);
 
-        $this->makeJob($request, $group, $user->id, 'docAnalysis');
+        $this->makeJob($request, $group);
 
         // Inicializar configuración por defecto si no existe
         if (!$this->groupValidationService->hasGroupConfiguration($group->id)) {
@@ -89,29 +89,50 @@ class DocumentUploadController extends Controller
             return response()->json(['message' => 'No tienes permisos de edición en este grupo'], 403);
         }
 
-        $this->makeJob($request, $group, $user->id, 'docAnalysis');
+        $this->makeJob($request, $group);
 
         return response()->json([
             'message' => 'Documentos añadidos al grupo ' . $group->name
         ]);
     }
 
-    private function makeJob(Request $request, DocumentGroup &$group, string $userId, string $queueName): void
+    private function makeJob(Request $request, DocumentGroup &$group): void
     {
+        $serializedFiles = [];
         $documents = [];
+        $notificationIds = [];
         foreach ($request->file('documents') as $file) {
             $path = $file->store('documents', 'public');
-            $documents[] = [
+            $serializedFile = [
                 'filename' => $file->getClientOriginalName(),
                 'filepath' => $path,
                 'file_size' => $file->getSize(),
                 'mime_type' => $file->getClientMimeType(),
                 'status' => 0,
             ];
+            $serializedFiles[] = $serializedFile;
+
+            $document = $group->documents()->create($serializedFile);
+            $documents[] = $document;
+
+            // Insertar aviso de que se está analizando el documento
+            // TODO: el nombre 'notification_history' podría ser algo engañoso en este caso, porque este preciso registro no es una notificación.
+            $notificationIds[] = DB::table('notification_history')->insertGetId([
+                'user_id' => $group->created_by,
+                'type' => 'doc_analysis',
+                'message' => json_encode([
+                    'group' => $group,
+                    'document' => $document,
+                    'status' => 'started',
+                ]),
+                'created_at' => now(),
+                'updated_at' => now(),
+                'is_read' => true,  // uno ya sabe cuando envía un documento a analizar
+            ]);
         }
         DocumentAdder::dispatch(
-            $this->siiService, $this->groupValidationService, $documents, $group, $userId
-        )->onQueue($queueName);
+            $this->siiService, $this->groupValidationService, $group, $documents, $serializedFiles, $notificationIds
+        )->onQueue('docAnalysis');
     }
 
     public function show(Request $request, $id)
@@ -512,7 +533,7 @@ class DocumentUploadController extends Controller
         try {
             // Verificar que el grupo existe
             $group = DocumentGroup::findOrFail($groupId);
-            
+
             // Disparar el evento DocumentsProcessed
             $numUnsuccessfulDocuments = 0; // Ajusta este valor según tu lógica
             event(new DocumentsProcessed($groupId, $userId, $numUnsuccessfulDocuments));

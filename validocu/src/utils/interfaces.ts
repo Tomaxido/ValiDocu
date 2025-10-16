@@ -164,6 +164,18 @@ export interface ConfigurationHistoryResponse {
 
 export interface ProcessedDocumentEvent {
   group: DocumentGroup;
-  documents: Document[];
-  numUnsuccessfulDocuments: number;
+  document: Document;
+}
+
+export interface DocAnalysisNotification {
+  id: number;
+  user_id: string; // UUID como string
+  message: {
+    group: DocumentGroup;
+    document: Document;
+    status: 'started' | 'completed' | 'failed'; 
+  };
+  is_read: boolean;
+  created_at: string;
+  updated_at: string;
 }
