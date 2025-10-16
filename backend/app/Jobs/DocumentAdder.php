@@ -18,6 +18,10 @@ class DocumentAdder implements ShouldQueue
 {
     use Queueable;
 
+    // TODO: en vez de permitir un timeout tan grande, debería quizás ser un
+    // job por cada documento, no un solo job para un batch grande de documentos
+    public $timeout = 300;
+
     protected SiiService $siiService;
     protected GroupValidationService $groupValidationService;
     protected DocumentGroup $group;
@@ -45,11 +49,6 @@ class DocumentAdder implements ShouldQueue
     public function handle(): void
     {
         $this->addDocumentsToGroup();
-        
-        // Disparar evento para cada documento procesado
-        foreach ($this->documents as $document) {
-            event(new DocumentsProcessed($this->group, $document));
-        }
     }
 
     private function addDocumentsToGroup(): void {
@@ -104,7 +103,7 @@ class DocumentAdder implements ShouldQueue
                 $found = false;
                 $analizar = 0;
                 $document_type_id = null;
-                
+
                 foreach ($obligatorios as $obl) {
                     $nombreDoc = (string)$obl->nombre_doc;
                     $analizar  = (int)$obl->analizar;
@@ -116,36 +115,21 @@ class DocumentAdder implements ShouldQueue
                         break;
                     }
                 }
-                
+
                 if (!$found) {
                     $document_type_id = null;
                     $analizar = 0;
                 }
-                
+
                 // Actualizar el document_type_id del documento
                 $document->document_type_id = $document_type_id;
                 $document->save();
-
-                // Crear la primera versión del documento
-                $version = $document->versions()->create([
-                    'version_number' => 1,
-                    'filename' => $file['filename'],
-                    'filepath' => $file['filepath'],
-                    'mime_type' => $file['mime_type'],
-                    'file_size' => $file['file_size'], // Se puede calcular después si es necesario
-                    'page_count' => 1, // Se actualizará después
-                    'due_date' => 0, // Vigente por defecto
-                    'normative_gap' => 0, // Sin gap por defecto
-                    'checksum_sha256' => null,
-                    'uploaded_by' => $this->group->created_by,
-                    'is_current' => true,
-                ]);
 
                 // Ahora convertir y procesar imágenes con el valor de analizar conocido
                 $originalBaseName = pathinfo($file['filename'], PATHINFO_FILENAME);
                 $images = $this->convertPdfToImages($file['filepath']);
                 // TODO: este $rechazado no parece ser el verdadero indicador de si hay un error al procesar
-                $rechazado = $this->saveImages($images, $originalBaseName, $document_master_id, $version->id, $analizar);
+                $rechazado = $this->saveImages($images, $originalBaseName, $document_master_id, $document->versionId, $analizar);
                 if ($rechazado) {
                     $document->status = 2;
                     $document->save();
@@ -153,16 +137,16 @@ class DocumentAdder implements ShouldQueue
                     $document->status = 1;
                     $document->save();
                 }
-                
+
                 if($analizar == 1){
                     app(\App\Http\Controllers\AnalysisController::class)->createSuggestions($document_master_id);
                 }
 
                 // === CREAR semantic_doc_index SI NO EXISTE ===
-                $exists = DB::table('semantic_doc_index')->where('document_version_id', $version->id)->exists();
+                $exists = DB::table('semantic_doc_index')->where('document_version_id', $document->versionId)->exists();
                 if (!$exists) {
                     DB::table('semantic_doc_index')->insert([
-                        'document_version_id' => $version->id,
+                        'document_version_id' => $document->versionId,
                         'document_group_id' => $this->group->id,
                         'json_layout' => null,
                         'json_global' => null,
@@ -182,6 +166,8 @@ class DocumentAdder implements ShouldQueue
                     'is_read' => false,
                     'updated_at' => now(),
                 ]);
+
+                event(new DocumentsProcessed($this->group, $document));
             }
         } catch (\Exception $e) {
             Log::error("Error en DocAdder: " . $e->getMessage());
@@ -244,7 +230,7 @@ class DocumentAdder implements ShouldQueue
     {
         $modificado_global = false;
         $pageCount = 0;
-        
+
         foreach ($images as $imgPath) {
             // Detectar número de página desde el nombre generado
             $pageNumber = '';
@@ -283,7 +269,7 @@ class DocumentAdder implements ShouldQueue
                     'group_id' => $this->group->id,
                     'page' => $pageNumber
                 ]);
-                
+
                 if (!$response->successful()) {
                     Log::error("Procesamiento falló para $newFilename", ['error' => $response->body()]);
                     continue;
@@ -340,7 +326,7 @@ class DocumentAdder implements ShouldQueue
                         ->update([
                             'json_layout' => json_encode($layout)
                         ]);
-                    
+
                     // También actualizar el json_layout en document_pages
                     DB::table('document_pages')
                         ->where('id', $page)
@@ -355,12 +341,12 @@ class DocumentAdder implements ShouldQueue
                 Log::error("Error al procesar con IA", ['error' => $e->getMessage()]);
             }
         }
-        
+
         // Actualizar el page_count de la versión
         DB::table('document_versions')
             ->where('id', $version_id)
             ->update(['page_count' => $pageCount]);
-        
+
         return $modificado_global;
     }
 
