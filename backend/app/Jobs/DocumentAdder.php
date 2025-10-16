@@ -45,7 +45,11 @@ class DocumentAdder implements ShouldQueue
     public function handle(): void
     {
         $this->addDocumentsToGroup();
-        event(new DocumentsProcessed($this->group, $this->documents, 0)); // TODO: calcular numUnsuccessfulDocuments
+        
+        // Disparar evento para cada documento procesado
+        foreach ($this->documents as $document) {
+            event(new DocumentsProcessed($this->group, $document));
+        }
     }
 
     private function addDocumentsToGroup(): void {
