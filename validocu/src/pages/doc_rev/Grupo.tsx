@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
+import { useEchoPublic } from "@laravel/echo-react";
 import {
   getDocumentGroupById,
   getDocumentGroups,
@@ -10,7 +11,7 @@ import {
   obtenerDocumentosVencidosDeGrupo as obtenerDocumentosVencidosDeGrupo,
   buscaDocJsonLayoutPorIdDocumento
 } from "../../utils/api";
-import { type DocumentGroup, type Document, type GroupedDocument, type SemanticGroup, type ExpiredDocumentResponse, type ProcessedDocumentEvent } from "../../utils/interfaces";
+import { type DocumentGroup, type Document, type GroupedDocument, type SemanticGroup, type ExpiredDocumentResponse, type ProcessedDocumentEvent, type DocumentVersionProcessedEvent } from "../../utils/interfaces";
 import { canUserEdit } from "../../utils/permissions";
 import { useAuth } from "../../contexts/AuthContext";
 import UploadModal from "./UploadModal";
@@ -226,6 +227,24 @@ export default function Grupo({ currentEvent, setIsDocMenuOpen }: GrupoParams) {
       getSemanticGroupData(grouped[0].images).then(setSemanticGroupData);
     }
   }
+
+  // Listen for document version processed events
+  useEchoPublic<DocumentVersionProcessedEvent>(
+    'documents',
+    '.document.version.processed',
+    (e) => {
+      console.log('📢 Version processed event received:', e);
+      console.log('Event group_id:', e.group_id);
+      console.log('Current grupoId:', grupoId);
+      // Only reload if the event is for the current group
+      if (grupoId && e.group_id.toString() === grupoId) {
+        console.log('🔄 Reloading group data for version update...');
+        getGroupRoutine(grupoId);
+      } else {
+        console.log('❌ Event is for a different group, skipping reload');
+      }
+    }
+  );
 
   useEffect(() => {
     if (currentEvent !== null && grupoId !== undefined && currentEvent.group.id.toString() === grupoId)

@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Events\DocumentVersionUploaded;
+use App\Events\DocumentVersionProcessed;
 use App\Models\Document;
 use App\Models\DocumentVersion;
 use App\Services\SiiService;
@@ -193,6 +194,16 @@ class DocumentVersionAdder implements ShouldQueue
             }
 
             Log::info("Nueva versión agregada exitosamente");
+
+            // Dispatch event to notify frontend
+            event(new DocumentVersionProcessed(
+                documentId: $this->document->id,
+                versionId: $version->id,
+                versionNumber: $nextVersionNumber,
+                groupId: $this->document->document_group_id,
+                filename: $this->fileData['filename'],
+                success: true
+            ));
 
         } catch (\Exception $e) {
             Log::error("Error en addNewVersion: " . $e->getMessage(), [

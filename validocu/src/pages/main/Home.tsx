@@ -522,7 +522,7 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                         <Stack direction="row" spacing={1} alignItems="center">
                           {/* Estado vencimiento */}
                           {(() => {
-                            const isPdf = d => d.document_name && d.document_name.toLowerCase().endsWith('.pdf');
+                            const isPdf = (d: { document_name: string; }) => d.document_name && d.document_name.toLowerCase().endsWith('.pdf');
                             // Para la búsqueda semántica, solo hay un documento por fila
                             if (isPdf(res)) {
                               if (res.due_date === 1) {
@@ -543,7 +543,7 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                           })()}
                           {/* Estado normativo */}
                           {(() => {
-                            const isPdf = d => d.document_name && d.document_name.toLowerCase().endsWith('.pdf');
+                            const isPdf = (d: { document_name: string; }) => d.document_name && d.document_name.toLowerCase().endsWith('.pdf');
                             if (isPdf(res) && res.normative_gap === 1) {
                               return (
                                 <Tooltip title={"En observación: " + res.document_name}>

@@ -168,6 +168,16 @@ export interface ProcessedDocumentEvent {
   document: Document;
 }
 
+export interface DocumentVersionProcessedEvent {
+  document_id: number;
+  version_id: number;
+  version_number: number;
+  group_id: number;
+  filename: string;
+  success: boolean;
+  message: string;
+}
+
 export interface DocAnalysisNotification {
   id: number;
   user_id: string; // UUID como string

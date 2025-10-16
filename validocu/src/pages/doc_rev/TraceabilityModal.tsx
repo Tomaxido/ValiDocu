@@ -10,13 +10,13 @@ import {
   IconButton,
   CircularProgress,
   Alert,
+  Snackbar,
 } from '@mui/material';
 import {
   Close as CloseIcon,
   History as HistoryIcon,
 } from '@mui/icons-material';
 import UploadNewVersionModal from './traceability/UploadNewVersionModal';
-import Notification from '../../components/common/Notification';
 import DocumentInfoPanel from './traceability/DocumentInfoPanel';
 import VersionHistory from './traceability/VersionHistory';
 import ActivityLogPanel from './traceability/ActivityLogPanel';
@@ -98,8 +98,8 @@ export default function TraceabilityModal({
   const handleUploadSuccess = async (newVersionNumber: number) => {
     setNotification({
       open: true,
-      message: `Nueva versión v${newVersionNumber} subida exitosamente`,
-      severity: 'success'
+      message: `Nueva versión v${newVersionNumber} está siendo procesada`,
+      severity: 'info'
     });
     
     // Recargar datos para mostrar la nueva versión y log
@@ -195,12 +195,20 @@ export default function TraceabilityModal({
       />
 
       {/* Notificaciones */}
-      <Notification
+      <Snackbar
         open={notification.open}
-        message={notification.message}
-        severity={notification.severity}
+        autoHideDuration={6000}
         onClose={() => setNotification(prev => ({ ...prev, open: false }))}
-      />
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={() => setNotification(prev => ({ ...prev, open: false }))} 
+          severity={notification.severity}
+          sx={{ width: '100%' }}
+        >
+          {notification.message}
+        </Alert>
+      </Snackbar>
     </Dialog>
   );
 }
