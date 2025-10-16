@@ -11,6 +11,7 @@ export interface Document {
     normative_gap: number;
     due_date: number;
     version_id?: number; // ID de la versión actual
+    version_number?: number; // Número de versión actual
     pages?: DocumentPage[]; // Páginas de la versión actual
     json_layout?: BoxAnnotation[]; // Layout cuando viene de una página
 };
@@ -165,6 +166,16 @@ export interface ConfigurationHistoryResponse {
 export interface ProcessedDocumentEvent {
   group: DocumentGroup;
   document: Document;
+}
+
+export interface DocumentVersionProcessedEvent {
+  document_id: number;
+  version_id: number;
+  version_number: number;
+  group_id: number;
+  filename: string;
+  success: boolean;
+  message: string;
 }
 
 export interface DocAnalysisNotification {

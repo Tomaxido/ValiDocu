@@ -24,23 +24,20 @@ export default function DocumentInfoPanel({
   return (
     <Paper elevation={1} sx={{ p: 2, mb: 3, bgcolor: '#f8f9fa', border: '1px solid #e9ecef' }}>
       <Typography variant="subtitle1" gutterBottom sx={{ color: '#495057', fontWeight: 600 }}>
-        Información del Documento
-      </Typography>
-      <Typography variant="body1" gutterBottom sx={{ color: '#495057', fontWeight: 500, mb: 2 }}>
-        {documentName}
+        Información del Documento: {documentName}
       </Typography>
       
       {/* Información adicional del documento desde la API */}
       {documentInfo && (
         <Box display="flex" gap={4} mb={2}>
-          <Box>
+          {/* <Box>
             <Typography variant="body2" color="text.secondary" sx={{ color: '#6c757d' }}>
               ID del documento:
             </Typography>
             <Typography variant="body2" sx={{ color: '#495057', fontWeight: 500 }}>
               {documentInfo.id}
             </Typography>
-          </Box>
+          </Box> */}
           {documentInfo.document_group && (
             <Box>
               <Typography variant="body2" color="text.secondary" sx={{ color: '#6c757d' }}>

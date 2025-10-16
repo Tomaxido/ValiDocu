@@ -4,22 +4,24 @@ namespace App\Http\Controllers;
 
 use App\Models\Document;
 use App\Models\DocumentAuditLog;
+use App\Traits\CreatesDocumentAuditLogs;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Log;
+use Illuminate\Support\Facades\Log;
 
 /**
  * DocumentAuditController
- * 
+ *
  * Controlador para gestionar la trazabilidad y auditoría de documentos.
  * Proporciona endpoints para consultar el historial de acciones sobre documentos.
  */
 class DocumentAuditController extends Controller
 {
+    use CreatesDocumentAuditLogs;
     /**
      * Obtener el timeline completo de un documento
-     * 
+     *
      * @param int $documentId
      * @return JsonResponse
      */
@@ -88,7 +90,7 @@ class DocumentAuditController extends Controller
 
     /**
      * Obtener el historial de versiones de un documento con sus logs
-     * 
+     *
      * @param int $documentId
      * @return JsonResponse
      */
@@ -143,7 +145,7 @@ class DocumentAuditController extends Controller
 
     /**
      * Obtener estadísticas de actividad de un documento
-     * 
+     *
      * @param int $documentId
      * @return JsonResponse
      */
@@ -211,7 +213,7 @@ class DocumentAuditController extends Controller
 
     /**
      * Obtener logs de auditoría con filtros
-     * 
+     *
      * @param Request $request
      * @return JsonResponse
      */
@@ -266,7 +268,7 @@ class DocumentAuditController extends Controller
 
     /**
      * Obtener acciones disponibles para filtros
-     * 
+     *
      * @return JsonResponse
      */
     public function getAvailableActions(): JsonResponse
@@ -278,5 +280,54 @@ class DocumentAuditController extends Controller
                 'action_labels' => DocumentAuditLog::getActionLabels(),
             ],
         ]);
+    }
+
+    /**
+     * Descargar una versión específica de un documento
+     * 
+     * @param int $documentId
+     * @param int $versionId
+     * @return JsonResponse
+     */
+    public function downloadDocumentVersion(int $documentId, int $versionId): JsonResponse
+    {
+        try {
+            $document = Document::findOrFail($documentId);
+            $version = $document->versions()->findOrFail($versionId);
+
+            // Registrar la descarga en el audit log usando el trait
+            $this->logDocumentDownloaded(
+                documentId: $documentId,
+                documentVersionId: $versionId,
+                comment: "Versión {$version->version_number} descargada",
+                metadata: [
+                    'version_number' => $version->version_number,
+                    'filename' => $version->filename,
+                    'file_size' => $version->file_size,
+                ]
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'download_url' => url('/secure-pdf/' . basename($version->filepath)),
+                    'filename' => $version->filename,
+                    'version_number' => $version->version_number,
+                ],
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error downloading document version', [
+                'error' => $e->getMessage(),
+                'document_id' => $documentId,
+                'version_id' => $versionId
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al descargar la versión del documento',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 }

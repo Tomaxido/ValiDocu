@@ -3,9 +3,11 @@
 namespace App\Jobs;
 
 use App\Events\DocumentVersionUploaded;
+use App\Events\DocumentVersionProcessed;
 use App\Models\Document;
 use App\Models\DocumentVersion;
 use App\Services\SiiService;
+use App\Traits\CreatesDocumentAuditLogs;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Http\JsonResponse;
@@ -17,6 +19,7 @@ use Illuminate\Support\Str;
 class DocumentVersionAdder implements ShouldQueue
 {
     use Queueable;
+    use CreatesDocumentAuditLogs;
 
     protected SiiService $siiService;
     protected array $fileData;
@@ -167,29 +170,40 @@ class DocumentVersionAdder implements ShouldQueue
                 // Continuamos - semantic.py lo creará después
             }
 
-            // 9. Crear log de auditoría
+            // 9. Crear log de auditoría usando el trait
             try {
-                DB::table('document_audit_logs')->insert([
-                    'document_id' => $this->document->id,
-                    'document_version_id' => $version->id,
-                    'user_id' => $this->userId,
-                    'action' => 'reuploaded',
-                    'comment' => $this->comment,
-                    'metadata' => json_encode([
-                        'version_number' => $nextVersionNumber,
-                        'filename' => $this->fileData['filename'],
-                        'file_size' => $this->fileData['file_size'],
-                    ]),
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-                Log::info("Log de auditoría creado");
+                $metadata = [
+                    'version_number' => $nextVersionNumber,
+                    'filename' => $this->fileData['filename'],
+                    'file_size' => $this->fileData['file_size'],
+                ];
+                
+                $this->logDocumentReuploaded(
+                    documentId: $this->document->id,
+                    documentVersionId: $version->id,
+                    // comment: $this->comment, // Si el usuario puso un comentario, usar ese
+                    versionNumber: $nextVersionNumber, // Si no hay comentario, se usará "Nueva versión subida vN"
+                    metadata: $metadata,
+                    userId: $this->userId
+                );
+                
+                Log::info("Log de auditoría creado: Nueva versión v{$nextVersionNumber}");
             } catch (\Exception $e) {
                 Log::error("Error creando log de auditoría: " . $e->getMessage());
                 // Continuamos - el log de auditoría no es crítico
             }
 
             Log::info("Nueva versión agregada exitosamente");
+
+            // Dispatch event to notify frontend
+            event(new DocumentVersionProcessed(
+                documentId: $this->document->id,
+                versionId: $version->id,
+                versionNumber: $nextVersionNumber,
+                groupId: $this->document->document_group_id,
+                filename: $this->fileData['filename'],
+                success: true
+            ));
 
         } catch (\Exception $e) {
             Log::error("Error en addNewVersion: " . $e->getMessage(), [

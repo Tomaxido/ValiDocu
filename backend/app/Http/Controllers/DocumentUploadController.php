@@ -55,7 +55,7 @@ class DocumentUploadController extends Controller
             'can_edit' => 1 // el creador siempre puede editar
         ]);
 
-        $this->makeJob($request, $group);
+        $this->makeJob($request, $group, $user->id);
 
         // Inicializar configuración por defecto si no existe
         if (!$this->groupValidationService->hasGroupConfiguration($group->id)) {
@@ -89,14 +89,14 @@ class DocumentUploadController extends Controller
             return response()->json(['message' => 'No tienes permisos de edición en este grupo'], 403);
         }
 
-        $this->makeJob($request, $group);
+        $this->makeJob($request, $group, $user->id);
 
         return response()->json([
             'message' => 'Documentos añadidos al grupo ' . $group->name
         ]);
     }
 
-    private function makeJob(Request $request, DocumentGroup &$group): void
+    private function makeJob(Request $request, DocumentGroup &$group, string $userId): void
     {
         $serializedFiles = [];
         $documents = [];
@@ -146,7 +146,7 @@ class DocumentUploadController extends Controller
             ]);
         }
         DocumentAdder::dispatch(
-            $this->siiService, $this->groupValidationService, $group, $documents, $serializedFiles, $notificationIds
+            $this->siiService, $this->groupValidationService, $group, $documents, $serializedFiles, $notificationIds, $userId
         )->onQueue('docAnalysis');
     }
 

@@ -49,6 +49,7 @@ class Document extends Model
         'normative_gap',
         'pages', // Agregar páginas de la versión actual
         'version_id', // ID de la versión actual
+        'version_number', // Número de versión actual
     ];
 
     /**
@@ -294,5 +295,18 @@ class Document extends Model
         }
         $currentVersion = $this->versions()->where('is_current', true)->first();
         return $currentVersion?->id;
+    }
+
+    /**
+     * Get the version_number from current version
+     */
+    public function getVersionNumberAttribute(): ?int
+    {
+        if ($this->relationLoaded('currentVersion')) {
+            $versions = $this->getRelation('currentVersion');
+            return $versions->first()?->version_number;
+        }
+        $currentVersion = $this->versions()->where('is_current', true)->first();
+        return $currentVersion?->version_number;
     }
 }

@@ -86,6 +86,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/documents/{document_id}/timeline', [DocumentAuditController::class, 'getDocumentTimeline'])->middleware(['auth:sanctum']);
     Route::get('/documents/{document_id}/version-history', [DocumentAuditController::class, 'getDocumentVersionHistory'])->middleware(['auth:sanctum']);
     Route::get('/documents/{document_id}/activity-stats', [DocumentAuditController::class, 'getDocumentActivityStats'])->middleware(['auth:sanctum']);
+    Route::get('/documents/{document_id}/versions/{version_id}/download', [DocumentAuditController::class, 'downloadDocumentVersion'])->middleware(['auth:sanctum']);
     Route::get('/audit-logs', [DocumentAuditController::class, 'getAuditLogs'])->middleware(['auth:sanctum']);
     Route::get('/audit/actions', [DocumentAuditController::class, 'getAvailableActions'])->middleware(['auth:sanctum']);
 

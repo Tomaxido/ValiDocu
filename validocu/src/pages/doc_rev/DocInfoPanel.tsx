@@ -6,7 +6,6 @@ import {
   Box,
   Chip,
   Button,
-  Badge,
   Tooltip,
 } from "@mui/material";
 import type { Document, SemanticGroup } from "../../utils/interfaces";
@@ -40,18 +39,36 @@ function StatusVenc({ status }: { status: number }) {
   if (status === 2)
     return (
       <Tooltip title="El documento está próximo a vencer. Se recomienda revisar su vigencia y tomar acciones preventivas.">
-        <Chip size="small" label="Por Vencer" color="warning" />
+        <Chip 
+          size="small" 
+          label="Por Vencer" 
+          color="warning" 
+          variant="outlined"
+          sx={{ borderWidth: 2, fontWeight: 600 }}
+        />
       </Tooltip>
     );
   if (status === 1)
     return (
       <Tooltip title="El documento ha vencido. No es válido para uso normativo.">
-        <Chip size="small" label="Vencido" color="error" />
+        <Chip 
+          size="small" 
+          label="Vencido" 
+          color="error" 
+          variant="outlined"
+          sx={{ borderWidth: 2, fontWeight: 600 }}
+        />
       </Tooltip>
     );
   return (
     <Tooltip title="El documento está vigente y es válido para uso normativo.">
-      <Chip size="small" label="Vigente" color="success" />
+      <Chip 
+        size="small" 
+        label="Vigente" 
+        color="success" 
+        variant="outlined"
+        sx={{ borderWidth: 2, fontWeight: 600 }}
+      />
     </Tooltip>
   );
 }
@@ -60,12 +77,24 @@ function StatusNorm({ status }: { status: number }) {
   if (status === 1)
     return (
       <Tooltip title="El documento presenta observaciones o posibles brechas normativas que requieren atención.">
-        <Chip size="small" label="En observación" color="warning" />
+        <Chip 
+          size="small" 
+          label="En observación" 
+          color="warning" 
+          variant="outlined"
+          sx={{ borderWidth: 2, fontWeight: 600 }}
+        />
       </Tooltip>
     );
   return (
     <Tooltip title="El documento cumple con los requisitos normativos y no presenta brechas.">
-      <Chip size="small" label="Sin brechas normativas" color="success" />
+      <Chip 
+        size="small" 
+        label="Sin brechas normativas" 
+        color="success" 
+        variant="outlined"
+        sx={{ borderWidth: 2, fontWeight: 600 }}
+      />
     </Tooltip>
   );
 }
@@ -167,6 +196,11 @@ export default function DocInfoPanel({
       <Typography variant="h6" fontWeight={700}>
         {getBaseFilename(selectedDoc.filename)}
       </Typography>
+      
+      <Box component="div" sx={{ color: 'text.secondary', fontSize: '0.9rem', mb: 1 }}>
+        <strong>Versión:</strong> {selectedDoc.version_number ?? 1}
+      </Box>
+      
       {/* Estado de la sugerencia 
       <Stack direction="row" spacing={1} alignItems="center">
         <Typography variant="body2" color="text.secondary">
@@ -201,9 +235,21 @@ export default function DocInfoPanel({
           </Button>
           <Box component="div" sx={{ color: 'text.secondary', fontSize: '1rem' }}>
             { !loading && pendingCount > 0 ? 
-              <Chip label={`${pendingCount} sugerencias pendientes`} color="warning" size="small" />
+              <Chip 
+                label={`${pendingCount} sugerencias pendientes`} 
+                color="warning" 
+                size="small" 
+                variant="outlined"
+                sx={{ borderWidth: 2, fontWeight: 600 }}
+              />
               :
-              <Chip label={`${pendingCount} sugerencias pendientes`} color="success" size="small" />
+              <Chip 
+                label={`${pendingCount} sugerencias pendientes`} 
+                color="success" 
+                size="small" 
+                variant="outlined"
+                sx={{ borderWidth: 2, fontWeight: 600 }}
+              />
             }
           </Box>
         </Stack>

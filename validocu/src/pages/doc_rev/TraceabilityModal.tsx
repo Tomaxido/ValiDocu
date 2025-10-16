@@ -10,17 +10,18 @@ import {
   IconButton,
   CircularProgress,
   Alert,
+  Snackbar,
 } from '@mui/material';
 import {
   Close as CloseIcon,
   History as HistoryIcon,
 } from '@mui/icons-material';
 import UploadNewVersionModal from './traceability/UploadNewVersionModal';
-import Notification from '../../components/common/Notification';
 import DocumentInfoPanel from './traceability/DocumentInfoPanel';
 import VersionHistory from './traceability/VersionHistory';
 import ActivityLogPanel from './traceability/ActivityLogPanel';
 import { useTraceability } from './traceability/useTraceability';
+import { TraceabilityService } from './traceability/traceabilityService';
 import type { DocumentVersion, TraceabilityModalProps } from './traceability/types';
 
 export default function TraceabilityModal({ 
@@ -52,17 +53,34 @@ export default function TraceabilityModal({
 
   const handleDownloadVersion = async (version: DocumentVersion) => {
     try {
-      // Simulación de descarga (aquí implementarías la lógica real)
-      console.log('Descargando versión:', version);
-      
-      // Mostrar notificación
       setNotification({
         open: true,
-        message: `Descargando ${version.fileName}...`,
+        message: `Preparando descarga de ${version.fileName}...`,
         severity: 'info'
       });
 
-      // Recargar datos para actualizar el log
+      // Obtener la URL de descarga desde el backend
+      const downloadData = await TraceabilityService.downloadDocumentVersion(
+        documentId, 
+        version.id
+      );
+
+      // Crear un enlace temporal para descargar el archivo
+      const link = document.createElement('a');
+      link.href = downloadData.download_url;
+      link.download = downloadData.filename;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setNotification({
+        open: true,
+        message: `Descargando ${downloadData.filename}...`,
+        severity: 'success'
+      });
+
+      // Recargar datos para actualizar el log de actividad
       setTimeout(() => {
         loadTraceabilityData(documentId);
       }, 1000);
@@ -80,8 +98,8 @@ export default function TraceabilityModal({
   const handleUploadSuccess = async (newVersionNumber: number) => {
     setNotification({
       open: true,
-      message: `Nueva versión v${newVersionNumber} subida exitosamente`,
-      severity: 'success'
+      message: `Nueva versión v${newVersionNumber} está siendo procesada`,
+      severity: 'info'
     });
     
     // Recargar datos para mostrar la nueva versión y log
@@ -177,12 +195,20 @@ export default function TraceabilityModal({
       />
 
       {/* Notificaciones */}
-      <Notification
+      <Snackbar
         open={notification.open}
-        message={notification.message}
-        severity={notification.severity}
+        autoHideDuration={6000}
         onClose={() => setNotification(prev => ({ ...prev, open: false }))}
-      />
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={() => setNotification(prev => ({ ...prev, open: false }))} 
+          severity={notification.severity}
+          sx={{ width: '100%' }}
+        >
+          {notification.message}
+        </Alert>
+      </Snackbar>
     </Dialog>
   );
 }

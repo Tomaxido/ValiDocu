@@ -53,26 +53,46 @@ trait CreatesDocumentAuditLogs
     /**
      * Log para re-subida de documento (nueva versión)
      */
-    protected function logDocumentReuploaded(int $documentId, int $documentVersionId, ?string $comment = null): DocumentAuditLog
-    {
+    protected function logDocumentReuploaded(
+        int $documentId, 
+        int $documentVersionId, 
+        ?string $comment = null,
+        ?int $versionNumber = null,
+        ?array $metadata = null,
+        ?string $userId = null
+    ): DocumentAuditLog {
+        // Si no se proporciona comentario, crear uno con el número de versión si está disponible
+        if (!$comment && $versionNumber) {
+            $comment = "Nueva versión subida v{$versionNumber}";
+        } elseif (!$comment) {
+            $comment = 'Nueva versión del documento subida';
+        }
+        
         return $this->createAuditLog(
             $documentId,
             DocumentAuditLog::ACTION_REUPLOADED,
             $documentVersionId,
-            $comment ?: 'Nueva versión del documento subida'
+            $comment,
+            $metadata,
+            $userId
         );
     }
 
     /**
      * Log para descarga de documento
      */
-    protected function logDocumentDownloaded(int $documentId, ?int $documentVersionId = null, ?string $comment = null): DocumentAuditLog
-    {
+    protected function logDocumentDownloaded(
+        int $documentId, 
+        ?int $documentVersionId = null, 
+        ?string $comment = null,
+        ?array $metadata = null
+    ): DocumentAuditLog {
         return $this->createAuditLog(
             $documentId,
             DocumentAuditLog::ACTION_DOWNLOADED,
             $documentVersionId,
-            $comment ?: 'Documento descargado'
+            $comment ?: 'Documento descargado',
+            $metadata
         );
     }
 

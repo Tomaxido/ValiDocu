@@ -18,7 +18,6 @@ export default function GroupedImageViewer({ filename, files, pdfDoc }: Readonly
   const observers = useRef<ResizeObserver[]>([]);
   const [focusByPage, setFocusByPage] = useState<Record<number, BBox[]>>({});
   const [hoverByPage, setHoverByPage] = useState<Record<number, BBox[]>>({}); // nuevo
-  console.log("pdfDoc", pdfDoc);
   const wrapperRefs = useRef<(HTMLDivElement | null)[]>([]);
   
   // Estado para el modal de trazabilidad
@@ -34,7 +33,6 @@ export default function GroupedImageViewer({ filename, files, pdfDoc }: Readonly
       const layouts: BoxAnnotation[][] = await Promise.all(
         files.map(async (doc) => {
           try {
-            console.log("aaaaaa", doc);
             const data = await buscarJsonLayoutPorIdDocumento(pdfDoc?.id!, doc.document_version_id, doc.id);
             return (data ?? []) as BoxAnnotation[];
           } catch {

@@ -488,9 +488,10 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                           <span>
                             <Button
                               color="warning"
-                              variant="outlined"
+                              // variant="outlined"
                               size="small"
                               onClick={() => navigate(`/grupos/${res.document_group_id}`)}
+                              sx={{ color: 'white' }}
                             >
                               Revisar observaciones
                             </Button>
@@ -514,19 +515,19 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                         <Stack direction="row" spacing={1} alignItems="center">
                           {/* Estado vencimiento */}
                           {(() => {
-                            const isPdf = d => d.document_name && d.document_name.toLowerCase().endsWith('.pdf');
+                            const isPdf = (d: { document_name: string; }) => d.document_name && d.document_name.toLowerCase().endsWith('.pdf');
                             // Para la búsqueda semántica, solo hay un documento por fila
                             if (isPdf(res)) {
                               if (res.due_date === 1) {
                                 return (
                                   <Tooltip title={"Vencido: " + res.document_name}>
-                                    <Chip label={`Vencido`} color="error" size="small" />
+                                    <Chip label={`Vencido`} color="error" size="small" variant="outlined" sx={{ borderWidth: 2, fontWeight: 600 }}/>
                                   </Tooltip>
                                 );
                               } else if (res.due_date === 2) {
                                 return (
                                   <Tooltip title={"Por vencer: " + res.document_name}>
-                                    <Chip label={`Por Vencer`} color="warning" size="small" />
+                                    <Chip label={`Por Vencer`} color="warning" size="small" variant="outlined" sx={{ borderWidth: 2, fontWeight: 600 }} />
                                   </Tooltip>
                                 );
                               }
@@ -535,11 +536,11 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                           })()}
                           {/* Estado normativo */}
                           {(() => {
-                            const isPdf = d => d.document_name && d.document_name.toLowerCase().endsWith('.pdf');
+                            const isPdf = (d: { document_name: string; }) => d.document_name && d.document_name.toLowerCase().endsWith('.pdf');
                             if (isPdf(res) && res.normative_gap === 1) {
                               return (
                                 <Tooltip title={"En observación: " + res.document_name}>
-                                  <Chip label={`En observación`} color="warning" size="small" />
+                                  <Chip label={`En observación`} color="warning" size="small" variant="outlined" sx={{ borderWidth: 2, fontWeight: 600 }} />
                                 </Tooltip>
                               );
                             }
@@ -632,9 +633,10 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                           <span>
                             <Button
                               color="warning"
-                              variant="outlined"
+                              // variant="outlined"
                               size="small"
                               onClick={() => navigate(`/grupos/${g.id}`)}
+                              sx={{ color: 'white' }}
                             >
                               Revisar observaciones
                             </Button>
@@ -700,13 +702,13 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                               if (docsVencidos.length > 0) {
                                 return (
                                   <Tooltip title={"Vencido: " + docsVencidos.map(d => d.filename).join(", ")}>
-                                    <Chip label={`Vencido (${docsVencidos.length})`} color="error" size="small" />
+                                    <Chip label={`Vencido (${docsVencidos.length})`} color="error" size="small" variant="outlined" sx={{ borderWidth: 2, fontWeight: 600 }} />
                                   </Tooltip>
                                 );
                               } else if (docsPorVencer.length > 0) {
                                 return (
                                   <Tooltip title={"Por vencer: " + docsPorVencer.map(d => d.filename).join(", ")}>
-                                    <Chip label={`Por Vencer (${docsPorVencer.length})`} color="warning" size="small" />
+                                    <Chip label={`Por Vencer (${docsPorVencer.length})`} color="warning" size="small" variant="outlined" sx={{ borderWidth: 2, fontWeight: 600 }} />
                                   </Tooltip>
                                 );
                               } else {
@@ -721,7 +723,7 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                               if (docsObs.length > 0) {
                                 return (
                                   <Tooltip title={"En observación: " + docsObs.map(d => d.filename).join(", ")}>
-                                    <Chip label={`En observación (${docsObs.length})`} color="warning" size="small" />
+                                    <Chip label={`En observación (${docsObs.length})`} color="warning" size="small" variant="outlined" sx={{ borderWidth: 2, fontWeight: 600 }} />
                                   </Tooltip>
                                 );
                               } else {
