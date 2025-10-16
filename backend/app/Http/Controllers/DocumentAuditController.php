@@ -8,11 +8,11 @@ use App\Traits\CreatesDocumentAuditLogs;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Log;
+use Illuminate\Support\Facades\Log;
 
 /**
  * DocumentAuditController
- * 
+ *
  * Controlador para gestionar la trazabilidad y auditoría de documentos.
  * Proporciona endpoints para consultar el historial de acciones sobre documentos.
  */
@@ -21,7 +21,7 @@ class DocumentAuditController extends Controller
     use CreatesDocumentAuditLogs;
     /**
      * Obtener el timeline completo de un documento
-     * 
+     *
      * @param int $documentId
      * @return JsonResponse
      */
@@ -90,7 +90,7 @@ class DocumentAuditController extends Controller
 
     /**
      * Obtener el historial de versiones de un documento con sus logs
-     * 
+     *
      * @param int $documentId
      * @return JsonResponse
      */
@@ -145,7 +145,7 @@ class DocumentAuditController extends Controller
 
     /**
      * Obtener estadísticas de actividad de un documento
-     * 
+     *
      * @param int $documentId
      * @return JsonResponse
      */
@@ -213,7 +213,7 @@ class DocumentAuditController extends Controller
 
     /**
      * Obtener logs de auditoría con filtros
-     * 
+     *
      * @param Request $request
      * @return JsonResponse
      */
@@ -268,7 +268,7 @@ class DocumentAuditController extends Controller
 
     /**
      * Obtener acciones disponibles para filtros
-     * 
+     *
      * @return JsonResponse
      */
     public function getAvailableActions(): JsonResponse

@@ -21,31 +21,34 @@ class DocumentAdder implements ShouldQueue
 
     protected SiiService $siiService;
     protected GroupValidationService $groupValidationService;
-    protected array $documents;
     protected DocumentGroup $group;
-
-    protected int $numUnsuccessfulDocuments = 0;
+    protected array $documents;
+    protected array $serializedFiles;
+    protected array $notificationIds;
     protected string $userId;
 
     public function __construct(
         SiiService $siiService,
         GroupValidationService $groupValidationService,
-        array $documents,
         DocumentGroup $group,
+        array $documents,
+        array $serializedFiles,
+        array $notificationIds,
         string $userId
     )
     {
         $this->siiService = $siiService;
         $this->groupValidationService = $groupValidationService;
-        $this->documents = $documents;
         $this->group = $group;
+        $this->documents = $documents;
+        $this->serializedFiles = $serializedFiles;
+        $this->notificationIds = $notificationIds;
         $this->userId = $userId;
     }
 
     public function handle(): void
     {
         $this->addDocumentsToGroup();
-        event(new DocumentsProcessed($this->group, $this->documents, $this->numUnsuccessfulDocuments));
     }
 
     private function addDocumentsToGroup(): void {
@@ -87,15 +90,11 @@ class DocumentAdder implements ShouldQueue
                 $this->groupValidationService->initializeGroupConfiguration($this->group->id);
             }
 
-            foreach ($this->documents as $file) {
-                // Crear el documento maestro
-                $document = $this->group->documents()->create([
-                    'document_group_id' => $this->group->id,
-                    'status' => 0,
-                ]);
-                
+            foreach ($this->documents as $i => $document) {
                 // Obtener ID del documento maestro
                 $document_master_id = $document->id;
+                $notificationId = $this->notificationIds[$i];
+                $file = $this->serializedFiles[$i];
 
                 // Primero determinar el tipo y si debe ser analizado
                 $filename = (string)$file['filename'];
@@ -104,7 +103,7 @@ class DocumentAdder implements ShouldQueue
                 $found = false;
                 $analizar = 0;
                 $document_type_id = null;
-                
+
                 foreach ($obligatorios as $obl) {
                     $nombreDoc = (string)$obl->nombre_doc;
                     $analizar  = (int)$obl->analizar;
@@ -116,12 +115,12 @@ class DocumentAdder implements ShouldQueue
                         break;
                     }
                 }
-                
+
                 if (!$found) {
                     $document_type_id = null;
                     $analizar = 0;
                 }
-                
+
                 // Actualizar el document_type_id del documento
                 $document->document_type_id = $document_type_id;
                 $document->save();
@@ -156,17 +155,17 @@ class DocumentAdder implements ShouldQueue
                 // Ahora convertir y procesar imágenes con el valor de analizar conocido
                 $originalBaseName = pathinfo($file['filename'], PATHINFO_FILENAME);
                 $images = $this->convertPdfToImages($file['filepath']);
+                // TODO: este $rechazado no parece ser el verdadero indicador de si hay un error al procesar
                 $rechazado = $this->saveImages($images, $originalBaseName, $document_master_id, $version->id, $analizar);
-                
+
                 if ($rechazado) {
-                    $this->numUnsuccessfulDocuments++;
                     $document->status = 2;
                     $document->save();
                 } else {
                     $document->status = 1;
                     $document->save();
                 }
-                
+
                 if($analizar == 1){
                     app(\App\Http\Controllers\AnalysisController::class)->createSuggestions($document_master_id);
                 }
@@ -184,6 +183,19 @@ class DocumentAdder implements ShouldQueue
                         'updated_at' => now(),
                     ]);
                 }
+
+                event(new DocumentsProcessed($this->group, $document));
+
+                // Actualizar notificación respectiva
+                DB::table('notification_history')->where('id', $notificationId)->update([
+                    'message' => json_encode([
+                        'group' => $this->group,
+                        'document' => $document,
+                        'status' => $rechazado ? 'failed' : 'completed',
+                    ]),
+                    'is_read' => false,
+                    'updated_at' => now(),
+                ]);
             }
         } catch (\Exception $e) {
             Log::error("Error en DocAdder: " . $e->getMessage());
@@ -246,7 +258,7 @@ class DocumentAdder implements ShouldQueue
     {
         $modificado_global = false;
         $pageCount = 0;
-        
+
         foreach ($images as $imgPath) {
             // Detectar número de página desde el nombre generado
             $pageNumber = '';
@@ -285,7 +297,7 @@ class DocumentAdder implements ShouldQueue
                     'group_id' => $this->group->id,
                     'page' => $pageNumber
                 ]);
-                
+
                 if (!$response->successful()) {
                     Log::error("Procesamiento falló para $newFilename", ['error' => $response->body()]);
                     continue;
@@ -342,7 +354,7 @@ class DocumentAdder implements ShouldQueue
                         ->update([
                             'json_layout' => json_encode($layout)
                         ]);
-                    
+
                     // También actualizar el json_layout en document_pages
                     DB::table('document_pages')
                         ->where('id', $page)
@@ -357,12 +369,12 @@ class DocumentAdder implements ShouldQueue
                 Log::error("Error al procesar con IA", ['error' => $e->getMessage()]);
             }
         }
-        
+
         // Actualizar el page_count de la versión
         DB::table('document_versions')
             ->where('id', $version_id)
             ->update(['page_count' => $pageCount]);
-        
+
         return $modificado_global;
     }
 

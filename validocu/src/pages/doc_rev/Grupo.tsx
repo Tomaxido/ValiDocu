@@ -10,7 +10,7 @@ import {
   obtenerDocumentosVencidosDeGrupo as obtenerDocumentosVencidosDeGrupo,
   buscaDocJsonLayoutPorIdDocumento
 } from "../../utils/api";
-import { type DocumentGroup, type Document, type GroupedDocument, type SemanticGroup, type ExpiredDocumentResponse } from "../../utils/interfaces";
+import { type DocumentGroup, type Document, type GroupedDocument, type SemanticGroup, type ExpiredDocumentResponse, type ProcessedDocumentEvent } from "../../utils/interfaces";
 import { canUserEdit } from "../../utils/permissions";
 import { useAuth } from "../../contexts/AuthContext";
 import UploadModal from "./UploadModal";
@@ -77,7 +77,12 @@ function StatusChip({ status } : { status?: number }) {
   return <Chip label="Sin procesar" variant="outlined" size="small" />;
 }
 
-export default function Grupo() {
+interface GrupoParams {
+  currentEvent: ProcessedDocumentEvent | null;
+  setIsDocMenuOpen: (open: boolean) => void;
+}
+
+export default function Grupo({ currentEvent, setIsDocMenuOpen }: GrupoParams) {
   const { grupoId } = useParams<{ grupoId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -204,16 +209,28 @@ export default function Grupo() {
     }
   };
 
-  const fetchSemanticGroupData = async (groupFiles: Document[]) => {
-    const ids = groupFiles.map(doc => doc.id);
-    const res = await fetch(`http://localhost:8000/api/v1/semantic-data/by-filenames`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids })
-    });
-    const data = await res.json();
-    setSemanticGroupData(data);
-  };
+  const getGroupRoutine = async (grupoId: string) => {
+    // TODO: tal vez, en vez de que el estado sea selectedDoc, debería ser selectedDocId.
+    // Luego, se calcula selectedDoc = groupedDocs.find(gd => gd.id === selectedDocId)?.pdf.
+    // Esto evitaría problemas si se suben/eliminan documentos.
+    const g = await getDocumentGroupById(grupoId);
+    setGroup(g);
+    const grouped = groupDocuments(g.documents);
+    setGroupedDocs(grouped);
+
+    if (grouped.length > 0 && grouped[0].pdf) {
+      if (selectedDoc === null) {
+        setSelectedDoc(grouped[0].pdf);
+        setDocLayout(null);
+      }
+      getSemanticGroupData(grouped[0].images).then(setSemanticGroupData);
+    }
+  }
+
+  useEffect(() => {
+    if (currentEvent !== null && grupoId !== undefined && currentEvent.group.id.toString() === grupoId)
+      getGroupRoutine(grupoId);
+  }, [currentEvent]);
 
   useEffect(() => {
     const checkAccessAndLoadGroup = async () => {
@@ -248,18 +265,7 @@ export default function Grupo() {
         marcarDocumentosVencidos();
         obtenerDocumentosVencidosDeGrupo(grupoId).then(setRespuestaDocsVencidos);
         
-        const g = await getDocumentGroupById(grupoId);
-        setGroup(g);
-        const grouped = groupDocuments(g.documents);
-        setGroupedDocs(grouped);
-        
-        if (grouped.length > 0 && grouped[0].pdf) {
-          setSelectedDoc(grouped[0].pdf);
-          setDocLayout(null);
-          getSemanticGroupData(grouped[0].images).then(
-            data => setSemanticGroupData(data)
-          );
-        }
+        await getGroupRoutine(grupoId);
       } catch (error: any) {
         console.error('Error loading group:', error);
         
@@ -366,19 +372,7 @@ export default function Grupo() {
     if (!grupoId) return;
     try {
       await uploadDocumentsToGroup(grupoId, files);
-
-      // Comentado, porque window.location.reload() anula su propósito, pero
-      // se queda aquí por si acaso:
-
-      // const updatedGroup = await getDocumentGroupById(grupoId);
-      // setGroup(updatedGroup);
-      // const grouped = groupDocuments(updatedGroup.documents);
-      // setGroupedDocs(grouped);
-      // const lastPdf = grouped.at(-1)?.pdf;
-      // setSelectedDoc(lastPdf || null);
-      // Fin del TODO
-
-      window.location.reload();
+      setIsDocMenuOpen(true);
     } catch (err: any) {
       alert("Error al subir: " + err.message);
     }
@@ -389,17 +383,12 @@ export default function Grupo() {
     try {
       await deleteDocuments(ids);
 
-      // Comentado, porque window.location.reload() anula su propósito, pero
-      // se queda aquí por si acaso:
-
-      // const updatedGroup = await getDocumentGroupById(grupoId);
-      // setGroup(updatedGroup);
-      // const grouped = groupDocuments(updatedGroup.documents);
-      // setGroupedDocs(grouped);
-      // const firstPdf = grouped[0]?.pdf;
-      // setSelectedDoc(firstPdf || null);
-
-      window.location.reload();
+      const updatedGroup = await getDocumentGroupById(grupoId);
+      setGroup(updatedGroup);
+      const grouped = groupDocuments(updatedGroup.documents);
+      setGroupedDocs(grouped);
+      const firstPdf = grouped[0]?.pdf;
+      setSelectedDoc(firstPdf || null);
     } catch (err: any) {
       alert("Error al eliminar documentos: " + err.message);
     }

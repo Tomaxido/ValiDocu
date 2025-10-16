@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import { Folder, Plus, Search as SearchIcon, Settings2, Lock, Users, Shield, Info } from "lucide-react";
 import { createGroup, getDocumentGroups, buscarDocumentosPorTexto, obtenerDocumentosVencidos, marcarDocumentosVencidos, buscarSemanticaConFiltros } from "../../utils/api";
-import type { DocumentGroup, ExpiredDocumentResponse } from "../../utils/interfaces";
+import type { DocumentGroup, ExpiredDocumentResponse, ProcessedDocumentEvent } from "../../utils/interfaces";
 import NewGroupModal from "./NewGroupModal";
 import GroupConfigurationModal from "../../components/group/GroupConfigurationModal";
 import RequestAccessModal from "../../components/group/RequestAccessModal";
@@ -22,8 +22,12 @@ import GroupDetailModal from "../../components/group/GroupDetailModal";
 import SnackbarDocsVencidos from "../../components/SnackbarDocsVencidos";
 import { getDocumentFilters, type Filters } from "../../utils/api";
 
+interface HomeParams {
+  currentEvent: ProcessedDocumentEvent | null;
+  setIsDocMenuOpen: (open: boolean) => void;
+}
 
-export default function Home() {
+export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -89,6 +93,13 @@ export default function Home() {
       }
     })();
   }, [filtersOpen]);
+
+  // Al recibir nuevo evento
+  useEffect(() => {
+    if (currentEvent === null) return;
+    // Recargar grupos para reflejar cambios
+    getDocumentGroups().then(groups => setDocumentGroups(groups));
+  }, [currentEvent]);
 
   // Aplicar filtros (aquí puedes enganchar tu búsqueda semántica/textual)
   const applyFilters = async () => {
@@ -177,7 +188,7 @@ export default function Home() {
   const handleFileUpload = async (groupName: string, files: FileList, isPrivate: boolean = false): Promise<{ group_id?: number }> => {
     try {
       const response = await createGroup(groupName, files, isPrivate);
-      
+      setIsDocMenuOpen(true);
       return response;
     } catch (err: any) {
       alert("Error al subir: " + err.message);

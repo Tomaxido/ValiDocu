@@ -10,14 +10,15 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\GroupConfigurationController;
 use App\Http\Controllers\GroupAccessRequestController;
 use App\Http\Controllers\DocumentAuditController;
+use App\Http\Controllers\NotificationController;
 
 Route::prefix('v1')->group(function () {
-    
+
     Route::post('/login', [AuthController::class, 'login']); // ->middleware(['throttle:6,1']); // rate limit básico
     Route::post('/logout', [AuthController::class, 'logout'])->middleware(['auth:sanctum']);
     Route::get('/me', [AuthController::class, 'me'])->middleware(['auth:sanctum']);
     Route::get('/users/search', [AuthController::class, 'searchUsers'])->middleware(['auth:sanctum']);
-    
+
 
     Route::get('/documents', [DocumentUploadController::class, 'index'])->middleware(['auth:sanctum']);
     Route::get('/documents/{id}', [DocumentUploadController::class, 'show'])->middleware(['auth:sanctum']);
@@ -55,7 +56,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/mandatory-docs', [DocumentSummaryController::class, 'mandatoryDocs']);
     Route::get('/document-summary/{document_id}', [App\Http\Controllers\DocumentUploadController::class, 'getDocumentSummary']);
     Route::get('/documents/{documentId}/missing-fields', [AnalysisController::class, 'getMissingFields']);
-    
+
     // Gestión de usuarios en grupos
     Route::post('/groups/{group_id}/users', [DocumentUploadController::class, 'addUserToGroup'])->middleware(['auth:sanctum']);
     Route::put('/groups/{group_id}/users/{user_id}/status', [DocumentUploadController::class, 'updateUserStatus'])->middleware(['auth:sanctum']);
@@ -92,4 +93,7 @@ Route::prefix('v1')->group(function () {
     // Endpoint para testing de eventos WebSocket
     Route::post('/test/documents-processed-event', [DocumentUploadController::class, 'testDocumentsProcessedEvent']);
 
+    // Notificaciones del usuario
+    Route::get('/notifications', [NotificationController::class, 'getUserNotifications'])->middleware(['auth:sanctum']);
+    Route::post('/notifications/mark-as-read', [NotificationController::class, 'markNotificationsAsRead'])->middleware(['auth:sanctum']);
 });
