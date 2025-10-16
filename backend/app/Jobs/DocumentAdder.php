@@ -29,7 +29,6 @@ class DocumentAdder implements ShouldQueue
     protected array $documents;
     protected array $serializedFiles;
     protected array $notificationIds;
-    protected string $userId;
 
     public function __construct(
         SiiService $siiService,
@@ -38,7 +37,6 @@ class DocumentAdder implements ShouldQueue
         array $documents,
         array $serializedFiles,
         array $notificationIds,
-        string $userId
     )
     {
         $this->siiService = $siiService;
@@ -47,7 +45,6 @@ class DocumentAdder implements ShouldQueue
         $this->documents = $documents;
         $this->serializedFiles = $serializedFiles;
         $this->notificationIds = $notificationIds;
-        $this->userId = $userId;
     }
 
     public function handle(): void
@@ -129,26 +126,11 @@ class DocumentAdder implements ShouldQueue
                 $document->document_type_id = $document_type_id;
                 $document->save();
 
-                // Crear la primera versión del documento
-                $version = $document->versions()->create([
-                    'version_number' => 1,
-                    'filename' => $file['filename'],
-                    'filepath' => $file['filepath'],
-                    'mime_type' => $file['mime_type'],
-                    'file_size' => $file['file_size'], // Se puede calcular después si es necesario
-                    'page_count' => 1, // Se actualizará después
-                    'due_date' => 0, // Vigente por defecto
-                    'normative_gap' => 0, // Sin gap por defecto
-                    'checksum_sha256' => null,
-                    'uploaded_by' => $this->userId,
-                    'is_current' => true,
-                ]);
-
                 // Registrar el log de auditoría para la subida del documento
                 try {
                     $this->logDocumentUploaded(
                         documentId: $document_master_id,
-                        documentVersionId: $version->id,
+                        documentVersionId: $document->versionId,
                         comment: "Documento subido por primera vez: {$file['filename']}"
                     );
                 } catch (\Exception $e) {
@@ -160,7 +142,7 @@ class DocumentAdder implements ShouldQueue
                 $originalBaseName = pathinfo($file['filename'], PATHINFO_FILENAME);
                 $images = $this->convertPdfToImages($file['filepath']);
                 // TODO: este $rechazado no parece ser el verdadero indicador de si hay un error al procesar
-                $rechazado = $this->saveImages($images, $originalBaseName, $document_master_id, $version->id, $analizar);
+                $rechazado = $this->saveImages($images, $originalBaseName, $document_master_id, $document->versionId, $analizar);
 
                 if ($rechazado) {
                     $document->status = 2;
@@ -175,10 +157,10 @@ class DocumentAdder implements ShouldQueue
                 }
 
                 // === CREAR semantic_doc_index SI NO EXISTE ===
-                $exists = DB::table('semantic_doc_index')->where('document_version_id', $version->id)->exists();
+                $exists = DB::table('semantic_doc_index')->where('document_version_id', $document->versionId)->exists();
                 if (!$exists) {
                     DB::table('semantic_doc_index')->insert([
-                        'document_version_id' => $version->id,
+                        'document_version_id' => $document->versionId,
                         'document_group_id' => $this->group->id,
                         'json_layout' => null,
                         'json_global' => null,
