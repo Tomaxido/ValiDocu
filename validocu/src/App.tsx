@@ -1,4 +1,4 @@
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import { configureEcho, useEchoPublic } from '@laravel/echo-react';
 
 import { AuthProvider } from './contexts/AuthContext';
