@@ -14,6 +14,7 @@ export interface Document {
     version_number?: number; // Número de versión actual
     pages?: DocumentPage[]; // Páginas de la versión actual
     json_layout?: BoxAnnotation[]; // Layout cuando viene de una página
+    document_type?: DocumentType; // Tipo de documento
 };
 
 export interface DocumentPage {

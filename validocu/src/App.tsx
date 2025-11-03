@@ -7,6 +7,7 @@ import AdminRoute from './components/auth/AdminRoute';
 import MainLayout from './layouts/MainLayout';
 import Home from './pages/main/Home';
 import Grupo from './pages/doc_rev/Grupo';
+import Documento from './pages/doc_rev/Documento';
 import AccessRequestsPage from './pages/admin/AccessRequestsPage';
 import { type ProcessedDocumentEvent } from './utils/interfaces';
 import { useState } from 'react';
@@ -59,6 +60,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home currentEvent={currentEvent} setIsDocMenuOpen={setIsDocMenuOpen} />} />
             <Route path="/grupos/:grupoId" element={<Grupo currentEvent={currentEvent} setIsDocMenuOpen={setIsDocMenuOpen} />} />
+            <Route path="/documentos/:documentoId" element={<Documento />} />
             <Route 
               path="/admin/access-requests" 
               element={

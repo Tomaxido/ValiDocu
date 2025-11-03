@@ -254,6 +254,40 @@ class DocumentUploadController extends Controller
         return response()->json($groups);
     }
 
+    public function getLooseDocuments(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        
+        // Obtener documentos sin grupo del usuario actual
+        $looseDocuments = Document::whereNull('document_group_id')
+            ->with([
+                'currentVersion.pages',  // Cargar la versión actual y sus páginas
+                'documentType',          // Cargar el tipo de documento
+            ])
+            ->get();
+
+        // Asegurar que cada documento tiene los atributos de su versión actual
+        $looseDocuments->each(function($doc) {
+            $doc->makeVisible(['filename', 'filepath', 'mime_type', 'due_date', 'normative_gap']);
+        });
+
+        return response()->json($looseDocuments);
+    }
+
+    public function showDocument(Request $request, int $id): JsonResponse
+    {
+        // Obtener documento individual por ID
+        $document = Document::with([
+            'currentVersion.pages',  // Cargar la versión actual y sus páginas
+            'documentType',          // Cargar el tipo de documento
+        ])->findOrFail($id);
+
+        // Asegurar que el documento tiene los atributos de su versión actual
+        $document->makeVisible(['filename', 'filepath', 'mime_type', 'due_date', 'normative_gap']);
+
+        return response()->json($document);
+    }
+
     public function destroyFile(int $id): JsonResponse
     {
         $document = Document::find($id);

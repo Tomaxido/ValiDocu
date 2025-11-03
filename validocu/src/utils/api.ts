@@ -115,8 +115,16 @@ import { authService } from "../api/auth";
     return await getJSON("/api/v1/documents") as DocumentGroup[];
   }
   
+  export async function getLooseDocuments(): Promise<Document[]> {
+    return await getJSON("/api/v1/documents/loose") as Document[];
+  }
+  
   export async function getDocumentGroupById(idGrupo: string | number): Promise<DocumentGroup> {
     return await getJSON(`/api/v1/documents/${idGrupo}`) as DocumentGroup;
+  }
+  
+  export async function getDocumentById(documentId: string | number): Promise<Document> {
+    return await getJSON(`/api/v1/documents/single/${documentId}`) as Document;
   }
   
   export async function createGroup(grupoNombre: string | null, files: FileList, isPrivate: boolean = false): Promise<{ group_id: number }> {

@@ -235,7 +235,7 @@ export default function GroupedImageViewer({ filename, files, pdfDoc }: Readonly
   if (files.length === 0) return <Box>No hay imágenes para mostrar.</Box>;
 
   return (
-    <Box sx={{ position: 'relative' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <Stack direction="row" spacing={1} sx={{ mb: 2, justifyContent: 'space-between', alignItems: 'center' }}>
         <Button onClick={exportToPdf} startIcon={<DownloadIcon />}>
           Descargar como PDF
@@ -251,10 +251,12 @@ export default function GroupedImageViewer({ filename, files, pdfDoc }: Readonly
 
       <Stack
         sx={{
+          flex: 1,
+          minHeight: 0,
+          maxHeight: "100%",
           alignItems: "center",
           gap: 2,
           p: 2,
-          maxHeight: "90dvh",
           overflowY: "auto",
           bgcolor: "background.paper",
           border: 1,

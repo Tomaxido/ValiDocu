@@ -21,6 +21,8 @@ Route::prefix('v1')->group(function () {
 
 
     Route::get('/documents', [DocumentUploadController::class, 'index'])->middleware(['auth:sanctum']);
+    Route::get('/documents/loose', [DocumentUploadController::class, 'getLooseDocuments'])->middleware(['auth:sanctum']);
+    Route::get('/documents/single/{id}', [DocumentUploadController::class, 'showDocument'])->middleware(['auth:sanctum']);
     Route::get('/documents/{id}', [DocumentUploadController::class, 'show'])->middleware(['auth:sanctum']);
     Route::post('/documents/{id}/version', [DocumentUploadController::class, 'uploadNewVersion'])->middleware(['auth:sanctum']);
     Route::get('/documents/{documentId}/version/{versionId}/page/{pageId}/layout', [SemanticController::class, 'buscarJsonLayoutByDocumentId']);

@@ -16,12 +16,11 @@ import { canUserEdit } from "../../utils/permissions";
 import { useAuth } from "../../contexts/AuthContext";
 import UploadModal from "./UploadModal";
 import DeleteModal from "./DeleteModal";
-import GroupedImageViewer from "./GroupedImageViewer";
-import DocInfoPanel from "./DocInfoPanel";
+import DocumentViewer from "./DocumentViewer";
 import GroupOverviewModal from "../../components/group/GroupOverviewModal";
 import GroupConfigurationInfoModal from "../../components/group/GroupConfigurationInfoModal";
 import { downloadDocumentSummaryExcel } from "../../api/summary_excel";
-import { fetchMandatoryDocs, type MandatoryDocsResponse } from "../../api/summary_excel";
+import { fetchMandatoryDocs } from "../../api/summary_excel";
 
 import {
   Box, Paper, Button, Typography, List, ListItemButton,
@@ -110,12 +109,6 @@ export default function Grupo({ currentEvent, setIsDocMenuOpen }: GrupoParams) {
 
   // Verificar permisos de edición del usuario actual
   const userCanEdit = canUserEdit(group, user?.id?.toString());
-
-  const splitRef = useRef<HTMLDivElement | null>(null);
-  const [ratio, setRatio] = useState(0.66);
-  const MIN_LEFT_PX = 360;
-  const MIN_RIGHT_PX = 280;
-  const HANDLE_PX = 8;
 
   const openInfo = async (e: React.MouseEvent<HTMLElement>) => {
     if (hoverTimerRef.current) window.clearTimeout(hoverTimerRef.current);
@@ -312,47 +305,6 @@ export default function Grupo({ currentEvent, setIsDocMenuOpen }: GrupoParams) {
     checkAccessAndLoadGroup();
   }, [grupoId, user, navigate]);
 
-  const beginDrag = (clientX: number) => {
-    const el = splitRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-
-    const minLeft = MIN_LEFT_PX;
-    const minRight = MIN_RIGHT_PX;
-    const minX = rect.left + minLeft;
-    const maxX = rect.right - minRight;
-
-    const clampedX = Math.min(Math.max(clientX, minX), maxX);
-    const nextRatio = (clampedX - rect.left) / rect.width;
-    setRatio(nextRatio);
-  };
-
-  const onMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault();
-    const move = (ev: MouseEvent) => beginDrag(ev.clientX);
-    const up = () => {
-      window.removeEventListener("mousemove", move);
-      window.removeEventListener("mouseup", up);
-    };
-    window.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", up);
-  };
-
-  const onTouchStart = () => {
-    const move = (ev: TouchEvent) => {
-      const t = ev.touches[0];
-      if (t) beginDrag(t.clientX);
-    };
-    const end = () => {
-      window.removeEventListener("touchmove", move);
-      window.removeEventListener("touchend", end);
-      window.removeEventListener("touchcancel", end);
-    };
-    window.addEventListener("touchmove", move, { passive: false });
-    window.addEventListener("touchend", end);
-    window.addEventListener("touchcancel", end);
-  };
-
   // Estados de carga y acceso
   if (loading) {
     return (
@@ -413,16 +365,14 @@ export default function Grupo({ currentEvent, setIsDocMenuOpen }: GrupoParams) {
     }
   };
 
-  const leftPct = Math.round(ratio * 100);
-  const rightPct = 100 - leftPct;
-
   return (
     <Box
       sx={{
         display: "flex",
-        minHeight: "100dvh",
+        height: "calc(100vh - 72px)",
         bgcolor: "background.default",
         width: "100%",
+        overflow: "hidden",
       }}
     >
       {/* Alerta de documentos vencidos */}
@@ -576,64 +526,15 @@ export default function Grupo({ currentEvent, setIsDocMenuOpen }: GrupoParams) {
         </Box>
       </Paper>
 
-      <Box sx={{ flex: 1, p: 3, minWidth: 0 }}>
+      <Box sx={{ flex: 1, p: 3, minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column" }}>
         {selectedDoc ? (
-            <Box
-              ref={splitRef}
-              sx={(theme) => {
-                const GAP_PX = parseInt(theme.spacing(2));
-                const handle = HANDLE_PX;
-                const SAFE   = 2;
-
-                const left  = `calc(${leftPct}% - ${(handle + GAP_PX) / 2}px)`;
-                const right = `calc(${rightPct}% - ${(handle + GAP_PX) / 2 + SAFE}px)`;
-
-                return {
-                  display: "grid",
-                  gridTemplateColumns: `${left} ${handle}px ${right}`,
-                  columnGap: 2,
-                  alignItems: "stretch",
-                  minHeight: "calc(100dvh - 96px)",
-                  width: "100%",
-                  pr: `${SAFE}px`,
-                  boxSizing: "border-box",
-                };
-              }}
-            >
-
-            <Box sx={{ minWidth: 0 }}>
-              <GroupedImageViewer
-                filename={selectedDoc.filename}
-                files={groupedDocs.find(g => g.pdf?.id === selectedDoc.id)?.images || []}
-                pdfDoc={selectedDoc}
-              />
-            </Box>
-
-            <Box
-              onMouseDown={onMouseDown}
-              onTouchStart={onTouchStart}
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="Redimensionar paneles"
-              tabIndex={0}
-              sx={{
-                cursor: "col-resize",
-                bgcolor: "divider",
-                borderRadius: 1,
-                transition: "background-color .15s",
-                "&:hover, &:focus-visible": { bgcolor: "text.disabled" },
-              }}
-            />
-
-            <Box sx={{ minWidth: MIN_RIGHT_PX, minHeight: 0, display: "flex" }}>
-              <DocInfoPanel
-                selectedDoc={selectedDoc}
-                semanticGroupData={semanticGroupData}
-                onViewInDocument={handleViewInDocument}
-                // imageIds={currentImageIds}
-              />
-            </Box>
-          </Box>
+          <DocumentViewer
+            selectedDoc={selectedDoc}
+            images={groupedDocs.find(g => g.pdf?.id === selectedDoc.id)?.images || []}
+            semanticGroupData={semanticGroupData}
+            onViewInDocument={handleViewInDocument}
+            showInfoPanel={true}
+          />
         ) : (
           <Typography>Selecciona un documento para ver su contenido.</Typography>
         )}

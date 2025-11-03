@@ -11,7 +11,7 @@ import {
   Alert,
 } from "@mui/material";
 import { Folder, Plus, Search as SearchIcon, Settings2, Lock, Users, Info } from "lucide-react";
-import { createGroup, getDocumentGroups, obtenerDocumentosVencidos, marcarDocumentosVencidos, buscarSemanticaConFiltros, type SemanticRow } from "../../utils/api";
+import { createGroup, getDocumentGroups, getLooseDocuments, obtenerDocumentosVencidos, marcarDocumentosVencidos, buscarSemanticaConFiltros, type SemanticRow } from "../../utils/api";
 import type { Document, DocumentGroup, ExpiredDocumentResponse, ProcessedDocumentEvent } from "../../utils/interfaces";
 import NewGroupModal from "./NewGroupModal";
 import GroupConfigurationModal from "../../components/group/GroupConfigurationModal";
@@ -31,6 +31,7 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
   const location = useLocation();
   
   const [documentGroups, setDocumentGroups] = useState<DocumentGroup[] | null>(null);
+  const [looseDocuments, setLooseDocuments] = useState<Document[] | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [resultados, setResultados] = useState<SemanticRow[]>([]);
@@ -96,8 +97,9 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
   useEffect(() => {
     if (currentEvent === null)
       return;
-    // Recargar grupos para reflejar cambios
+    // Recargar grupos y documentos sueltos para reflejar cambios
     getDocumentGroups().then(setDocumentGroups);
+    getLooseDocuments().then(setLooseDocuments);
   }, [currentEvent]);
 
   // Aplicar filtros
@@ -116,6 +118,7 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
 
   useEffect(() => {
     getDocumentGroups().then(setDocumentGroups);
+    getLooseDocuments().then(setLooseDocuments);
     obtenerDocumentosVencidos().then(setRespuestaDocsVencidos);
     marcarDocumentosVencidos();
   }, []);
@@ -207,8 +210,9 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
 
   const handleGroupCreated = (groupId: number) => {
     try {
-      // Recargar la lista de grupos para obtener el grupo recién creado
+      // Recargar la lista de grupos y documentos sueltos para obtener el grupo recién creado
       getDocumentGroups().then(setDocumentGroups);
+      getLooseDocuments().then(setLooseDocuments);
       
       // El grupo se ha creado exitosamente, solo actualizar la lista
       console.log(`Grupo ${groupId} creado exitosamente`);
@@ -240,7 +244,7 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
     setSelectedGroupForInfo(null);
   };
 
-  if (documentGroups === null)
+  if (documentGroups === null || looseDocuments === null)
     return <Typography sx={{ p: 3 }}>Cargando...</Typography>;
 
   return (
@@ -717,6 +721,147 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
               </TableBody>
             </Table>
           </TableContainer>
+
+          {/* Tabla de documentos sueltos */}
+          {looseDocuments.length > 0 && (
+            <Box sx={{ mt: 4 }}>
+              <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                Documentos Sueltos
+              </Typography>
+              <TableContainer component={Paper} variant="outlined">
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Documento</TableCell>
+                      <TableCell>Tipo</TableCell>
+                      <TableCell>Advertencias</TableCell>
+                      <TableCell>Acceso</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {looseDocuments.map(doc => {
+                      const isPdf = doc.filename && doc.filename.toLowerCase().endsWith('.pdf');
+                      
+                      if (!isPdf) return null;
+
+                      let acciones: React.ReactNode[] = [];
+                      let alertas: React.ReactNode[] = [];
+
+                      // Verificar estado de vencimiento
+                      if (doc.due_date === 1) {
+                        acciones.push(
+                          <Button
+                            key="vencido"
+                            color="error"
+                            size="small"
+                            onClick={() => navigate(`/documentos/${doc.id}`)}
+                          >
+                            Actualizar urgente
+                          </Button>
+                        );
+                        alertas.push(
+                          <Chip 
+                            key="vencido-chip"
+                            label="Vencido" 
+                            color="error" 
+                            size="small" 
+                            variant="outlined" 
+                            sx={{ borderWidth: 2, fontWeight: 600 }} 
+                          />
+                        );
+                      } else if (doc.due_date === 2) {
+                        acciones.push(
+                          <Button
+                            key="por-vencer"
+                            color="warning"
+                            size="small"
+                            onClick={() => navigate(`/documentos/${doc.id}`)}
+                          >
+                            Renovar
+                          </Button>
+                        );
+                        alertas.push(
+                          <Chip 
+                            key="por-vencer-chip"
+                            label="Por vencer" 
+                            color="warning" 
+                            size="small" 
+                            variant="outlined" 
+                            sx={{ borderWidth: 2, fontWeight: 600 }} 
+                          />
+                        );
+                      } else {
+                        acciones.push(
+                          <Button
+                            key="ver"
+                            color="secondary"
+                            size="small"
+                            onClick={() => navigate(`/documentos/${doc.id}`)}
+                          >
+                            Ver documento
+                          </Button>
+                        );
+                      }
+
+                      // Verificar observaciones normativas
+                      if (doc.normative_gap === 1) {
+                        acciones.push(
+                          <Tooltip key="observacion" title="El documento presenta observaciones normativas.">
+                            <span>
+                              <Button
+                                color="warning"
+                                size="small"
+                                onClick={() => navigate(`/documentos/${doc.id}`)}
+                                sx={{ color: 'white' }}
+                              >
+                                Revisar observaciones
+                              </Button>
+                            </span>
+                          </Tooltip>
+                        );
+                        alertas.push(
+                          <Tooltip key="obs-chip" title="El documento presenta observaciones normativas">
+                            <Chip 
+                              label="En observación" 
+                              color="warning" 
+                              size="small" 
+                              variant="outlined" 
+                              sx={{ borderWidth: 2, fontWeight: 600 }} 
+                            />
+                          </Tooltip>
+                        );
+                      }
+
+                      return (
+                        <TableRow key={doc.id}>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography variant="body1">{doc.filename}</Typography>
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" color="text.secondary">
+                              {doc.document_type?.nombre_doc || 'Sin clasificar'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Stack direction="row" spacing={1}>
+                              {alertas}
+                            </Stack>
+                          </TableCell>
+                          <TableCell>
+                            <Stack direction="row" spacing={1}>
+                              {acciones}
+                            </Stack>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
+          )}
         </Box>
       )}
 
