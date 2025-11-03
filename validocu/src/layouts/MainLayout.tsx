@@ -157,9 +157,11 @@ export default function MainLayout({ children, currentEvent, isDocMenuOpen, setI
                           minWidth: 1000,}}
                     >
                       <TableCell>
-                        <a href={`/grupos/${group.id}`}>
+                        <a href={group ? `/grupos/${group.id}` : `/documentos/${document.id}`}>
                             <Box sx={{ fontWeight: 'bold', overflowX: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{document.filename}</Box>
-                            <Box sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>{group.name}</Box>
+                            {group && (
+                                <Box sx={{ fontSize: '0.875rem', color: 'text.secondary' }}>{group.name}</Box>
+                            )}
                         </a>
                       </TableCell>
                       <TableCell align="center">

@@ -48,8 +48,8 @@ export default function App() {
               variant="filled"
             >
               {currentEvent.document.status === 2
-              ? `Error al analizar documento '${currentEvent.document.filename}' en grupo '${currentEvent.group.name}'.`
-              : `Documento '${currentEvent.document.filename}' analizado exitosamente en grupo '${currentEvent.group.name}'.`
+              ? `Error al analizar documento '${currentEvent.document.filename}'${currentEvent.group ? ` en grupo '${currentEvent.group.name}'.` : '.'}`
+              : `Documento '${currentEvent.document.filename}' analizado exitosamente${currentEvent.group ? ` en grupo '${currentEvent.group.name}'.` : '.'}`
               }
             </Alert>
             }

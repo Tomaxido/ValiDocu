@@ -17,10 +17,10 @@ class DocumentsProcessed implements ShouldBroadcastNow
 {
     use SerializesModels;
 
-    public DocumentGroup $group;
+    public ?DocumentGroup $group;
     public Document $document;
 
-    public function __construct(DocumentGroup $group, Document $document)
+    public function __construct(?DocumentGroup $group, Document $document)
     {
         $this->group = $group;
         $this->document = $document;

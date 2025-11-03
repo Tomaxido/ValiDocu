@@ -45,6 +45,7 @@ export default function NewGroupModal({ isOpen, onClose, onUpload, onGroupCreate
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [groupName, setGroupName] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
+  const [createGroup, setCreateGroup] = useState(true); // Nuevo: controla si se crea grupo o no
   const [fileList, setFileList] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
   
@@ -213,7 +214,10 @@ export default function NewGroupModal({ isOpen, onClose, onUpload, onGroupCreate
   };
 
   const handleNext = () => {
-    if (step === 0 && groupName && fileList.length > 0) {
+    // Si no se crea grupo, ir directo a paso 1 sin validar nombre
+    if (!createGroup && fileList.length > 0) {
+      setStep(1);
+    } else if (step === 0 && groupName && fileList.length > 0) {
       setStep(1);
     }
   };
@@ -225,13 +229,17 @@ export default function NewGroupModal({ isOpen, onClose, onUpload, onGroupCreate
   };
 
   const handleSubmit = async () => {
-    if (!groupName || fileList.length === 0) return;
+    // Si no se crea grupo, solo validar archivos
+    if (!createGroup && fileList.length === 0) return;
+    // Si se crea grupo, validar nombre y archivos
+    if (createGroup && (!groupName || fileList.length === 0)) return;
+    
     const dt = new DataTransfer();
     fileList.forEach(f => dt.items.add(f));
     
     try {
-      // 1. Crear el grupo con los archivos
-      const response = await onUpload(groupName, dt.files, isPrivate);
+      // 1. Crear el grupo con los archivos (o subir sin grupo si createGroup es false)
+      const response = await onUpload(createGroup ? groupName : "", dt.files, isPrivate);
       
       // 2. Si hay configuración seleccionada, enviarla al backend
       if (response?.group_id && Object.keys(selectedConfiguration).length > 0) {
@@ -246,6 +254,7 @@ export default function NewGroupModal({ isOpen, onClose, onUpload, onGroupCreate
       setFileList([]);
       setGroupName("");
       setIsPrivate(false);
+      setCreateGroup(true); // Reset al valor por defecto
       setStep(0);
       setSelectedConfiguration({});
       onClose();
@@ -263,41 +272,83 @@ export default function NewGroupModal({ isOpen, onClose, onUpload, onGroupCreate
     <Dialog open={isOpen} onClose={onClose} fullWidth maxWidth={step === 1 ? "md" : "sm"}>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
         <FileText size={24} />
-        {step === 0 ? "Nuevo grupo" : "Configurar documentos obligatorios"}
+        {step === 0 ? (createGroup ? "Nuevo grupo" : "Subir documentos sueltos") : "Configurar documentos obligatorios"}
       </DialogTitle>
 
       <DialogContent dividers>
         {step === 0 ? (
           <>
-            <TextField
-              label="Nombre del grupo"
-              fullWidth
-              size="small"
-              value={groupName}
-              onChange={(e) => setGroupName(e.target.value)}
-              sx={{ mt: 1, mb: 2 }}
-            />
-            
             <FormControlLabel
               control={
                 <Switch
-                  checked={isPrivate}
-                  onChange={(e) => setIsPrivate(e.target.checked)}
+                  checked={createGroup}
+                  onChange={(e) => {
+                    setCreateGroup(e.target.checked);
+                    // Si se desactiva, limpiar el nombre del grupo
+                    if (!e.target.checked) {
+                      setGroupName("");
+                      setIsPrivate(false);
+                    }
+                  }}
                   color="primary"
                 />
               }
               label={
                 <Box>
                   <Typography variant="body2" fontWeight="medium">
-                    Grupo privado
+                    Crear grupo de documentos
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Solo tú podrás ver y administrar este grupo. Puedes solicitar que otros usuarios accedan mediante autorización de un administrador.
+                    {createGroup 
+                      ? "Los documentos se agruparán bajo un nombre común"
+                      : "Los documentos se subirán de forma individual sin agrupar"
+                    }
                   </Typography>
                 </Box>
               }
               sx={{ mb: 2, alignItems: 'flex-start' }}
             />
+
+            {createGroup && (
+              <>
+                <TextField
+                  label="Nombre del grupo"
+                  fullWidth
+                  size="small"
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                  sx={{ mt: 1, mb: 2 }}
+                  required
+                />
+                
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={isPrivate}
+                      onChange={(e) => setIsPrivate(e.target.checked)}
+                      color="primary"
+                    />
+                  }
+                  label={
+                    <Box>
+                      <Typography variant="body2" fontWeight="medium">
+                        Grupo privado
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Solo tú podrás ver y administrar este grupo. Puedes solicitar que otros usuarios accedan mediante autorización de un administrador.
+                      </Typography>
+                    </Box>
+                  }
+                  sx={{ mb: 2, alignItems: 'flex-start' }}
+                />
+              </>
+            )}
+            
+            {!createGroup && (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                Los documentos se analizarán individualmente y aparecerán en la sección de "Documentos Sueltos" en el inicio
+              </Alert>
+            )}
           </>
         ) : (
           <Box sx={{ mt: 2 }}>
@@ -401,7 +452,7 @@ export default function NewGroupModal({ isOpen, onClose, onUpload, onGroupCreate
         {step === 0 ? (
           <Button 
             onClick={handleNext} 
-            disabled={fileList.length === 0 || !groupName}
+            disabled={fileList.length === 0 || (createGroup && !groupName)}
             variant="contained"
           >
             Continuar con configuración
@@ -412,7 +463,7 @@ export default function NewGroupModal({ isOpen, onClose, onUpload, onGroupCreate
               Volver
             </Button>
             <Button onClick={handleSubmit}>
-              Crear grupo con configuración
+              {createGroup ? "Crear grupo con configuración" : "Subir documentos"}
             </Button>
           </>
         )}

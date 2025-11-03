@@ -34,12 +34,17 @@ class DocumentUploadController extends Controller
     public function storeNewGroup(Request $request): JsonResponse
     {
         $request->validate([
-            'group_name' => 'required|string|max:255',
+            'group_name' => 'nullable|string|max:255',
             'documents.*' => 'required|file',
             'is_private' => 'nullable|boolean'
         ]);
 
         $user = $request->user();
+
+        // Si no se proporciona group_name, subir documentos sueltos
+        if (!$request->has('group_name') || $request->group_name === null) {
+            return $this->storeLooseDocuments($request, $user->id);
+        }
 
         $group = DocumentGroup::create([
             'name' => $request->group_name,
@@ -66,6 +71,70 @@ class DocumentUploadController extends Controller
             'message' => 'Grupo creado y documentos subidos.',
             'group_id' => $group->id,
             'group' => $group->load('users')
+        ]);
+    }
+
+    private function storeLooseDocuments(Request $request, string $userId): JsonResponse
+    {
+        $serializedFiles = [];
+        $documents = [];
+        $notificationIds = [];
+
+        foreach ($request->file('documents') as $file) {
+            $path = $file->store('documents', 'public');
+            $serializedFile = [
+                'filename' => $file->getClientOriginalName(),
+                'filepath' => $path,
+                'file_size' => $file->getSize(),
+                'mime_type' => $file->getClientMimeType(),
+                'status' => 0,
+                'document_group_id' => null, // Sin grupo
+            ];
+            $serializedFiles[] = $serializedFile;
+
+            // Crear documento sin grupo
+            $document = Document::create($serializedFile);
+            $documents[] = $document;
+
+            // Crear la primera versión del documento
+            $document->versions()->create([
+                'version_number' => 1,
+                'filename' => $serializedFile['filename'],
+                'filepath' => $serializedFile['filepath'],
+                'mime_type' => $serializedFile['mime_type'],
+                'file_size' => $serializedFile['file_size'],
+                'uploaded_by' => $userId,
+                'is_current' => true,
+            ]);
+
+            // Insertar notificación de análisis
+            $notificationIds[] = DB::table('notification_history')->insertGetId([
+                'user_id' => $userId,
+                'type' => 'doc_analysis',
+                'message' => json_encode([
+                    'group' => null,
+                    'document' => $document,
+                    'status' => 'started',
+                ]),
+                'created_at' => now(),
+                'updated_at' => now(),
+                'is_read' => true,
+            ]);
+        }
+
+        // Despachar el job sin grupo (null)
+        DocumentAdder::dispatch(
+            $this->siiService,
+            $this->groupValidationService,
+            null, // Sin grupo
+            $documents,
+            $serializedFiles,
+            $notificationIds
+        )->onQueue('docAnalysis');
+
+        return response()->json([
+            'message' => 'Documentos sueltos subidos correctamente.',
+            'documents_count' => count($documents),
         ]);
     }
 
@@ -96,7 +165,7 @@ class DocumentUploadController extends Controller
         ]);
     }
 
-    private function makeJob(Request $request, DocumentGroup &$group, string $userId): void
+    private function makeJob(Request $request, ?DocumentGroup &$group, string $userId): void
     {
         $serializedFiles = [];
         $documents = [];

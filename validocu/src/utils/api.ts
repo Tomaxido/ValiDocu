@@ -119,9 +119,11 @@ import { authService } from "../api/auth";
     return await getJSON(`/api/v1/documents/${idGrupo}`) as DocumentGroup;
   }
   
-  export async function createGroup(grupoNombre: string, files: FileList, isPrivate: boolean = false): Promise<{ group_id: number }> {
+  export async function createGroup(grupoNombre: string | null, files: FileList, isPrivate: boolean = false): Promise<{ group_id: number }> {
     const formData = new FormData();
-    formData.append("group_name", grupoNombre);
+    if (grupoNombre) {
+      formData.append("group_name", grupoNombre);
+    }
     formData.append("is_private", isPrivate ? "1" : "0");
     for (const file of Array.from(files)) {
       formData.append("documents[]", file);

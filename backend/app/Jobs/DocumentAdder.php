@@ -25,7 +25,7 @@ class DocumentAdder implements ShouldQueue
 
     protected SiiService $siiService;
     protected GroupValidationService $groupValidationService;
-    protected DocumentGroup $group;
+    protected ?DocumentGroup $group;
     protected array $documents;
     protected array $serializedFiles;
     protected array $notificationIds;
@@ -33,7 +33,7 @@ class DocumentAdder implements ShouldQueue
     public function __construct(
         SiiService $siiService,
         GroupValidationService $groupValidationService,
-        DocumentGroup $group,
+        ?DocumentGroup $group,
         array $documents,
         array $serializedFiles,
         array $notificationIds,
@@ -55,40 +55,52 @@ class DocumentAdder implements ShouldQueue
     private function addDocumentsToGroup(): void {
         try
         {
-            // Obtener tipos de documentos configurados para este grupo específico usando group_field_specs
-            $configuredTypes = $this->groupValidationService->getGroupRequiredDocumentTypes($this->group->id);
-
-            // Si no hay configuración específica, usar configuración global como fallback
-            if (empty($configuredTypes)) {
+            // Si no hay grupo, obtener todos los tipos de documentos sin requisitos
+            if ($this->group === null) {
                 $obligatorios = DB::table('document_types')
                     ->get(['id','nombre_doc', 'analizar'])
                     ->map(function($o) {
-                        $o->is_required_in_group = true; // Por defecto requerido
+                        $o->is_required_in_group = false; // Documentos sueltos no tienen requisitos
                         return $o;
                     })
                     ->sortByDesc(function($o) { return mb_strlen((string)$o->nombre_doc, 'UTF-8'); })
                     ->values();
             } else {
-                // Usar la configuración específica del grupo
-                $obligatorios = collect($configuredTypes)
-                    ->map(function($type) {
-                        // Obtener información adicional del tipo de documento
-                        $docType = DB::table('document_types')->where('id', $type->id)->first();
-                        return (object)[
-                            'id' => $type->id,
-                            'nombre_doc' => $type->nombre_doc,
-                            'analizar' => $docType->analizar ?? 0,
-                            'is_required_in_group' => true
-                        ];
-                    })
-                    ->sortByDesc(function($o) { return mb_strlen((string)$o->nombre_doc, 'UTF-8'); })
-                    ->values();
-            }
+                // Obtener tipos de documentos configurados para este grupo específico usando group_field_specs
+                $configuredTypes = $this->groupValidationService->getGroupRequiredDocumentTypes($this->group->id);
 
-            // Inicializar configuración por defecto si no existe
-            if (!$this->groupValidationService->hasGroupConfiguration($this->group->id)) {
-                Log::info("Inicializando configuración por defecto para el grupo {$this->group->id}");
-                $this->groupValidationService->initializeGroupConfiguration($this->group->id);
+                // Si no hay configuración específica, usar configuración global como fallback
+                if (empty($configuredTypes)) {
+                    $obligatorios = DB::table('document_types')
+                        ->get(['id','nombre_doc', 'analizar'])
+                        ->map(function($o) {
+                            $o->is_required_in_group = true; // Por defecto requerido
+                            return $o;
+                        })
+                        ->sortByDesc(function($o) { return mb_strlen((string)$o->nombre_doc, 'UTF-8'); })
+                        ->values();
+                } else {
+                    // Usar la configuración específica del grupo
+                    $obligatorios = collect($configuredTypes)
+                        ->map(function($type) {
+                            // Obtener información adicional del tipo de documento
+                            $docType = DB::table('document_types')->where('id', $type->id)->first();
+                            return (object)[
+                                'id' => $type->id,
+                                'nombre_doc' => $type->nombre_doc,
+                                'analizar' => $docType->analizar ?? 0,
+                                'is_required_in_group' => true
+                            ];
+                        })
+                        ->sortByDesc(function($o) { return mb_strlen((string)$o->nombre_doc, 'UTF-8'); })
+                        ->values();
+                }
+
+                // Inicializar configuración por defecto si no existe
+                if (!$this->groupValidationService->hasGroupConfiguration($this->group->id)) {
+                    Log::info("Inicializando configuración por defecto para el grupo {$this->group->id}");
+                    $this->groupValidationService->initializeGroupConfiguration($this->group->id);
+                }
             }
 
             foreach ($this->documents as $i => $document) {
@@ -161,7 +173,7 @@ class DocumentAdder implements ShouldQueue
                 if (!$exists) {
                     DB::table('semantic_doc_index')->insert([
                         'document_version_id' => $document->versionId,
-                        'document_group_id' => $this->group->id,
+                        'document_group_id' => $this->group ? $this->group->id : null,
                         'json_layout' => null,
                         'json_global' => null,
                         'resumen' => null,
@@ -188,8 +200,10 @@ class DocumentAdder implements ShouldQueue
             throw $e;
         }
 
-        // Al final, validar todos los documentos contra la configuración del grupo
-        $this->validateGroupDocuments();
+        // Al final, validar todos los documentos contra la configuración del grupo solo si hay grupo
+        if ($this->group !== null) {
+            $this->validateGroupDocuments();
+        }
     }
 
     /**
@@ -280,7 +294,7 @@ class DocumentAdder implements ShouldQueue
                     'master_id' => $document_master_id,
                     'version_id' => $version_id,
                     'page_id' => $page,
-                    'group_id' => $this->group->id,
+                    'group_id' => $this->group ? $this->group->id : null,
                     'page' => $pageNumber
                 ]);
 

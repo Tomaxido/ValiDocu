@@ -184,7 +184,7 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
     }
   };
 
-  const handleFileUpload = async (groupName: string, files: FileList, isPrivate: boolean = false): Promise<{ group_id?: number }> => {
+  const handleFileUpload = async (groupName: string | null, files: FileList, isPrivate: boolean = false): Promise<{ group_id?: number }> => {
     try {
       const response = await createGroup(groupName, files, isPrivate);
       setIsDocMenuOpen(true);

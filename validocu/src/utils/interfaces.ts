@@ -182,7 +182,7 @@ export interface DocAnalysisNotification {
   id: number;
   user_id: string; // UUID como string
   message: {
-    group: DocumentGroup;
+    group: DocumentGroup | null;
     document: Document;
     status: 'started' | 'completed' | 'failed'; 
   };
