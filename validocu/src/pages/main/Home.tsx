@@ -19,6 +19,7 @@ import RequestAccessModal from "../../components/group/RequestAccessModal";
 import GroupDetailModal from "../../components/group/GroupDetailModal";
 import SnackbarDocsVencidos from "../../components/SnackbarDocsVencidos";
 import { getDocumentFilters, type Filters } from "../../utils/api";
+import AddToGroupModal from "../../components/AddToGroupModal";
 
 
 interface HomeParams {
@@ -72,6 +73,10 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
   const [selectedDocType, setSelectedDocType] = useState<number[]>([]);
   const [selectedGap, setSelectedGap] = useState<number[]>([]);
   
+  // Estado para los IDs de documentos sueltos seleccionados
+  const [selectedLooseIds, setSelectedLooseIds] = useState<number[]>([]);
+  // Estado para el modal de agregar a grupo
+  const [addToGroupOpen, setAddToGroupOpen] = useState(false);
 
   // Abrir/cerrar menú
   const openFilters = (e: React.MouseEvent<HTMLElement>) => setFiltersAnchor(e.currentTarget);
@@ -242,6 +247,25 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
   const handleCloseGroupDetail = () => {
     setGroupInfoModalOpen(false);
     setSelectedGroupForInfo(null);
+  };
+
+  // toggle checkbox
+  const toggleSelectLoose = (id: number) => {
+    setSelectedLooseIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  // select all visible loose documents
+  const toggleSelectAllLoose = () => {
+    if (!looseDocuments) return;
+    if (selectedLooseIds.length === looseDocuments.length) setSelectedLooseIds([]);
+    else setSelectedLooseIds(looseDocuments.map(d => d.id));
+  };
+
+  // callback after moving docs to group
+  const onDocsMovedToGroup = async () => {
+    setSelectedLooseIds([]);
+    setAddToGroupOpen(false);
+    await Promise.all([getDocumentGroups().then(setDocumentGroups), getLooseDocuments().then(setLooseDocuments)]);
   };
 
   if (documentGroups === null || looseDocuments === null)
@@ -722,6 +746,29 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
             </Table>
           </TableContainer>
 
+          {/* Botón para agregar seleccionados a grupo */}
+          {looseDocuments.length > 0 && (
+            <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
+              <Button
+                variant="outlined"
+                onClick={toggleSelectAllLoose}
+                size="small"
+              >
+                {selectedLooseIds.length === looseDocuments.length ? "Deseleccionar todos" : "Seleccionar todos"}
+              </Button>
+
+              <Button
+                variant="contained"
+                color="primary"
+                disabled={selectedLooseIds.length === 0}
+                onClick={() => setAddToGroupOpen(true)}
+                startIcon={<Folder />}
+              >
+                Agregar seleccionados a grupo ({selectedLooseIds.length})
+              </Button>
+            </Box>
+          )}
+
           {/* Tabla de documentos sueltos */}
           {looseDocuments.length > 0 && (
             <Box sx={{ mt: 4 }}>
@@ -732,6 +779,7 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                 <Table>
                   <TableHead>
                     <TableRow>
+                      <TableCell></TableCell>
                       <TableCell>Documento</TableCell>
                       <TableCell>Tipo</TableCell>
                       <TableCell>Advertencias</TableCell>
@@ -835,6 +883,13 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                       return (
                         <TableRow key={doc.id}>
                           <TableCell>
+                            <Checkbox
+                              checked={selectedLooseIds.includes(doc.id)}
+                              onChange={() => toggleSelectLoose(doc.id)}
+                              onClick={e => e.stopPropagation()}
+                            />
+                          </TableCell>
+                          <TableCell>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                               <Typography variant="body1">{doc.filename}</Typography>
                             </Box>
@@ -902,6 +957,14 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
           onClose={handleCloseGroupDetail}
         />
       )}
+
+      {/* Modal para agregar documentos sueltos a grupo */}
+      <AddToGroupModal
+        open={addToGroupOpen}
+        onClose={() => setAddToGroupOpen(false)}
+        documentIds={selectedLooseIds}
+        onDone={onDocsMovedToGroup}
+      />
     </Box>
   );
 }

@@ -419,3 +419,21 @@ export async function markNotificationsAsRead(notifications: DocAnalysisNotifica
     throw error;
   }
 }
+
+export async function addDocumentsToGroup(groupId: number, documentIds: number[]): Promise<void> {
+  try {
+    await postJSON(`/api/v1/standalone-documents/add-to-group/${groupId}`, { document_ids: documentIds });
+  } catch (error) {
+    console.error("Error adding documents to group:", error);
+    throw error;
+  }
+}
+
+export async function createGroupWithDocuments(name: string, isPrivate: boolean, documentIds: number[]): Promise<any> {
+  try {
+    await postJSON(`/api/v1/standalone-documents/add-to-group`, { name, is_private: isPrivate, document_ids: documentIds });
+  } catch (error) {
+    console.error("Error creating group:", error);
+    throw error;
+  }
+}

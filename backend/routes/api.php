@@ -11,6 +11,7 @@ use App\Http\Controllers\GroupConfigurationController;
 use App\Http\Controllers\GroupAccessRequestController;
 use App\Http\Controllers\DocumentAuditController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\StandaloneDocumentController;
 
 Route::prefix('v1')->group(function () {
 
@@ -98,4 +99,7 @@ Route::prefix('v1')->group(function () {
     // Notificaciones del usuario
     Route::get('/notifications', [NotificationController::class, 'getUserNotifications'])->middleware(['auth:sanctum']);
     Route::post('/notifications/mark-as-read', [NotificationController::class, 'markNotificationsAsRead'])->middleware(['auth:sanctum']);
+
+    Route::post('/standalone-documents/add-to-group/{group_id}', [StandaloneDocumentController::class, 'addToExistingGroup'])->middleware(['auth:sanctum']);
+    Route::post('/standalone-documents/add-to-group', [StandaloneDocumentController::class, 'addToNewGroup'])->middleware(['auth:sanctum']); // ya debería existir; adaptar store para aceptar document_ids
 });
