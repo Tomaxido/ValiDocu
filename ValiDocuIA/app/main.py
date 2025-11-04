@@ -20,12 +20,14 @@ async def procesar_documento(
     master_id: str = Form(...),      # <-- ID del documento master
     version_id: str = Form(...),     # <-- ID de la versión del documento
     page_id: str = Form(...),        # <-- ID de document_pages
-    group_id: str = Form(...),
+    group_id: str = Form(None),      # <-- ID del grupo (opcional para documentos sueltos)
     page: int = Form(...)            # <-- número de página (1,2,3,...)
 ):
     try:
         suffix = f"_p{page:04d}"  # 0001, 0002, ...
-        base   = f"{master_id}_{version_id}_{page_id}_{group_id}{suffix}"
+        # Para documentos sueltos, usar "loose" en vez de group_id
+        group_part = group_id if group_id else "loose"
+        base   = f"{master_id}_{version_id}_{page_id}_{group_part}{suffix}"
 
         # 1) Guardar imagen temporal
         nombre_img = f"{base}.png"

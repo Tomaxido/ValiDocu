@@ -20,7 +20,7 @@ class DocumentVersionProcessed implements ShouldBroadcastNow
     public int $documentId;
     public int $versionId;
     public int $versionNumber;
-    public int $groupId;
+    public ?int $groupId;
     public string $filename;
     public bool $success;
 
@@ -28,7 +28,7 @@ class DocumentVersionProcessed implements ShouldBroadcastNow
         int $documentId,
         int $versionId,
         int $versionNumber,
-        int $groupId,
+        ?int $groupId,
         string $filename,
         bool $success = true
     ) {

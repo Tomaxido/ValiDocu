@@ -10,7 +10,7 @@ import {
   Tooltip,
   Alert,
 } from "@mui/material";
-import { Folder, Plus, Search as SearchIcon, Settings2, Lock, Users, Info } from "lucide-react";
+import { Folder, Plus, Search as SearchIcon, Settings2, Lock, Users, Info, FileText } from "lucide-react";
 import { createGroup, getDocumentGroups, getLooseDocuments, obtenerDocumentosVencidos, marcarDocumentosVencidos, buscarSemanticaConFiltros, type SemanticRow } from "../../utils/api";
 import type { Document, DocumentGroup, ExpiredDocumentResponse, ProcessedDocumentEvent } from "../../utils/interfaces";
 import NewGroupModal from "./NewGroupModal";
@@ -471,6 +471,7 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
               <TableBody>
                 {resultados.map((res, idx) => {
                   const isPdf = (d: SemanticRow) => d.document_name && d.document_name.toLowerCase().endsWith('.pdf');
+                  const isLooseDocument = res.document_group_id === null;
 
                   let accion = null;
                   let alerta = null;  // TODO: ¿eliminar?
@@ -480,7 +481,13 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                         <Button
                           color="error"
                           size="small"
-                          onClick={() => navigate(`/grupos/${res.document_group_id}`)}
+                          onClick={() => {
+                            if (isLooseDocument) {
+                              navigate(`/documentos/${res.document_id}`);
+                            } else {
+                              navigate(`/grupos/${res.document_group_id}`);
+                            }
+                          }}
                         >
                           Actualizar urgente
                         </Button>
@@ -491,7 +498,13 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                         <Button
                           color="warning"
                           size="small"
-                          onClick={() => navigate(`/grupos/${res.document_group_id}`)}
+                          onClick={() => {
+                            if (isLooseDocument) {
+                              navigate(`/documentos/${res.document_id}`);
+                            } else {
+                              navigate(`/grupos/${res.document_group_id}`);
+                            }
+                          }}
                         >
                           Renovar
                         </Button>
@@ -502,7 +515,13 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                         <Button
                           color="secondary"
                           size="small"
-                          onClick={() => navigate(`/grupos/${res.document_group_id}`)}
+                          onClick={() => {
+                            if (isLooseDocument) {
+                              navigate(`/documentos/${res.document_id}`);
+                            } else {
+                              navigate(`/grupos/${res.document_group_id}`);
+                            }
+                          }}
                         >
                           Renovar
                         </Button>
@@ -517,7 +536,13 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                               color="warning"
                               // variant="outlined"
                               size="small"
-                              onClick={() => navigate(`/grupos/${res.document_group_id}`)}
+                              onClick={() => {
+                                if (isLooseDocument) {
+                                  navigate(`/documentos/${res.document_id}`);
+                                } else {
+                                  navigate(`/grupos/${res.document_group_id}`);
+                                }
+                              }}
                               sx={{ color: 'white' }}
                             >
                               Revisar observaciones
@@ -531,23 +556,34 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                     <TableRow key={idx} hover>
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Folder size={22} />
-                          <Typography variant="subtitle1" fontWeight={600}>{res.group_name}</Typography>
+                          {isLooseDocument ? (
+                            <>
+                              <FileText size={22} />
+                              <Typography variant="subtitle1" fontWeight={600} color="text.secondary">
+                                Sin grupo
+                              </Typography>
+                            </>
+                          ) : (
+                            <>
+                              <Folder size={22} />
+                              <Typography variant="subtitle1" fontWeight={600}>{res.group_name}</Typography>
+                            </>
+                          )}
                         </Box>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" color="text.secondary">{res.document_name}</Typography>
+                        <Typography variant="body2" color="text.secondary">{res.document_name || 'Sin nombre'}</Typography>
                       </TableCell>
                       <TableCell>
                         {isPdf(res) && 
                           <Stack direction="row" spacing={1} alignItems="center">
                             {/* Estado vencimiento */}
                             {res.due_date === 1
-                            ? <Tooltip title={"Vencido: " + res.document_name}>
+                            ? <Tooltip title={"Vencido: " + (res.document_name || 'Sin nombre')}>
                                 <Chip label={`Vencido`} color="error" size="small" variant="outlined" sx={{ borderWidth: 2, fontWeight: 600 }}/>
                               </Tooltip>
                             : res.due_date === 2
-                            ? <Tooltip title={"Por vencer: " + res.document_name}>
+                            ? <Tooltip title={"Por vencer: " + (res.document_name || 'Sin nombre')}>
                                 <Chip label={`Por Vencer`} color="warning" size="small" variant="outlined" sx={{ borderWidth: 2, fontWeight: 600 }} />
                               </Tooltip>
                             : null
@@ -555,7 +591,7 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
 
                             {/* Estado normativo */}
                             {res.normative_gap === 1 && 
-                              <Tooltip title={"En observación: " + res.document_name}>
+                              <Tooltip title={"En observación: " + (res.document_name || 'Sin nombre')}>
                                 <Chip label={`En observación`} color="warning" size="small" variant="outlined" sx={{ borderWidth: 2, fontWeight: 600 }} />
                               </Tooltip>
                             }
@@ -566,9 +602,15 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                         {accion}
                       </TableCell>
                       <TableCell>
-                        <Button onClick={() => navigate(`/grupos/${res.document_group_id}`)}>
-                          Ver grupo
-                        </Button>
+                        {isLooseDocument ? (
+                          <Button onClick={() => navigate(`/documentos/${res.document_id}`)}>
+                            Ver documento
+                          </Button>
+                        ) : (
+                          <Button onClick={() => navigate(`/grupos/${res.document_group_id}`)}>
+                            Ver grupo
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   );
@@ -842,7 +884,7 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                         acciones.push(
                           <Button
                             key="ver"
-                            color="secondary"
+                            color="primary"
                             size="small"
                             onClick={() => navigate(`/documentos/${doc.id}`)}
                           >

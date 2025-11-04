@@ -76,65 +76,12 @@ class DocumentUploadController extends Controller
 
     private function storeLooseDocuments(Request $request, string $userId): JsonResponse
     {
-        $serializedFiles = [];
-        $documents = [];
-        $notificationIds = [];
-
-        foreach ($request->file('documents') as $file) {
-            $path = $file->store('documents', 'public');
-            $serializedFile = [
-                'filename' => $file->getClientOriginalName(),
-                'filepath' => $path,
-                'file_size' => $file->getSize(),
-                'mime_type' => $file->getClientMimeType(),
-                'status' => 0,
-                'document_group_id' => null, // Sin grupo
-            ];
-            $serializedFiles[] = $serializedFile;
-
-            // Crear documento sin grupo
-            $document = Document::create($serializedFile);
-            $documents[] = $document;
-
-            // Crear la primera versión del documento
-            $document->versions()->create([
-                'version_number' => 1,
-                'filename' => $serializedFile['filename'],
-                'filepath' => $serializedFile['filepath'],
-                'mime_type' => $serializedFile['mime_type'],
-                'file_size' => $serializedFile['file_size'],
-                'uploaded_by' => $userId,
-                'is_current' => true,
-            ]);
-
-            // Insertar notificación de análisis
-            $notificationIds[] = DB::table('notification_history')->insertGetId([
-                'user_id' => $userId,
-                'type' => 'doc_analysis',
-                'message' => json_encode([
-                    'group' => null,
-                    'document' => $document,
-                    'status' => 'started',
-                ]),
-                'created_at' => now(),
-                'updated_at' => now(),
-                'is_read' => true,
-            ]);
-        }
-
-        // Despachar el job sin grupo (null)
-        DocumentAdder::dispatch(
-            $this->siiService,
-            $this->groupValidationService,
-            null, // Sin grupo
-            $documents,
-            $serializedFiles,
-            $notificationIds
-        )->onQueue('docAnalysis');
+        // Reutilizar makeJob pasando null como grupo
+        $this->makeJob($request, null, $userId);
 
         return response()->json([
             'message' => 'Documentos sueltos subidos correctamente.',
-            'documents_count' => count($documents),
+            'documents_count' => count($request->file('documents')),
         ]);
     }
 
@@ -165,7 +112,7 @@ class DocumentUploadController extends Controller
         ]);
     }
 
-    private function makeJob(Request $request, ?DocumentGroup &$group, string $userId): void
+    private function makeJob(Request $request, ?DocumentGroup $group, string $userId): void
     {
         $serializedFiles = [];
         $documents = [];
@@ -181,7 +128,14 @@ class DocumentUploadController extends Controller
             ];
             $serializedFiles[] = $serializedFile;
 
-            $document = $group->documents()->create($serializedFile);
+            // Crear documento: con grupo o sin grupo (loose document)
+            if ($group) {
+                $document = $group->documents()->create($serializedFile);
+            } else {
+                // Para documentos sueltos, especificar explícitamente document_group_id como null
+                $serializedFile['document_group_id'] = null;
+                $document = Document::create($serializedFile);
+            }
             $documents[] = $document;
 
             // Crear la primera versión del documento
@@ -200,7 +154,6 @@ class DocumentUploadController extends Controller
             ]);
 
             // Insertar aviso de que se está analizando el documento
-            // TODO: el nombre 'notification_history' podría ser algo engañoso en este caso, porque este preciso registro no es una notificación.
             $notificationIds[] = DB::table('notification_history')->insertGetId([
                 'user_id' => $userId,
                 'type' => 'doc_analysis',
@@ -580,13 +533,18 @@ class DocumentUploadController extends Controller
             $user = $request->user();
             $group = $document->group;
 
-            if (!$group->userHasAccess($user->id)) {
-                return response()->json(['message' => 'No tienes acceso a este documento'], 403);
-            }
+            // Si el documento pertenece a un grupo, verificar permisos
+            if ($group) {
+                if (!$group->userHasAccess($user->id)) {
+                    return response()->json(['message' => 'No tienes acceso a este documento'], 403);
+                }
 
-            if (!$group->userCanEdit($user->id)) {
-                return response()->json(['message' => 'No tienes permisos de edición en este grupo'], 403);
+                if (!$group->userCanEdit($user->id)) {
+                    return response()->json(['message' => 'No tienes permisos de edición en este grupo'], 403);
+                }
             }
+            // Si es un documento suelto (sin grupo), el usuario autenticado puede editarlo
+            // ya que todos los documentos sueltos son accesibles por todos los usuarios
 
             // Guardar el archivo
             $file = $request->file('document');

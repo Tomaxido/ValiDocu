@@ -58,9 +58,11 @@ export default function Documento() {
   const [error, setError] = useState<string | null>(null);
   const [groupedDocs, setGroupedDocs] = useState<GroupedDocument[]>([]);
 
-  const getDocumentRoutine = async (docId: string) => {
+  const getDocumentRoutine = async (docId: string, showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
       setError(null);
       
       // Obtener el documento por su ID usando el endpoint específico
@@ -74,11 +76,22 @@ export default function Documento() {
       console.error('Error cargando documento:', err);
       setError(err.message || 'Error al cargar el documento');
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   };
 
-  // Listen for document version processed events
+  // Carga inicial del documento
+  useEffect(() => {
+    if (!documentoId) {
+      navigate('/');
+      return;
+    }
+    getDocumentRoutine(documentoId, true);
+  }, [documentoId, navigate]);
+
+  // Listen for document version processed events (real-time updates)
   useEchoPublic<DocumentVersionProcessedEvent>(
     'documents',
     '.document.version.processed',
@@ -87,18 +100,11 @@ export default function Documento() {
       // Only reload if the event is for the current document
       if (documentoId && e.document_id.toString() === documentoId) {
         console.log('🔄 Reloading document data for version update...');
-        getDocumentRoutine(documentoId);
+        // Recargar sin mostrar el loading para una actualización más fluida
+        getDocumentRoutine(documentoId, false);
       }
     }
   );
-
-  useEffect(() => {
-    if (!documentoId) {
-      navigate('/');
-      return;
-    }
-    getDocumentRoutine(documentoId);
-  }, [documentoId, navigate]);
 
   if (loading) {
     return (

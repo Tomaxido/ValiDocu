@@ -643,22 +643,25 @@ def main():
         name_wo_ext = filename[:-5]  # sin .json
 
         # Formato: documento_{master_id}_{version_id}_{page_id}_{group_id}_pNNNN
-        m = re.match(r"^documento_(\d+)_(\d+)_(\d+)_(\d+)_p(\d+)$", name_wo_ext)
+        # group_id puede ser un número o "loose" para documentos sueltos
+        m = re.match(r"^documento_(\d+)_(\d+)_(\d+)_(\w+)_p(\d+)$", name_wo_ext)
 
         if m:
             master_id = int(m.group(1))
             version_id = int(m.group(2))
             page_id = int(m.group(3))
-            group_id = int(m.group(4))
+            group_id_str = m.group(4)
+            # Convertir group_id a int si es numérico, None si es "loose"
+            group_id = int(group_id_str) if group_id_str.isdigit() else None
             page_idx = int(m.group(5))
             logger.info(f"  📌 master_id={master_id}")
             logger.info(f"  📌 version_id={version_id}")
             logger.info(f"  📌 page_id={page_id}")
-            logger.info(f"  📌 group_id={group_id}")
+            logger.info(f"  📌 group_id={group_id} (original: {group_id_str})")
             logger.info(f"  📌 page_number={page_idx}")
         else:
             logger.error(f"❌ Nombre de archivo inválido: {filename}")
-            logger.error(f"  Formato esperado: documento_{{master}}_{{version}}_{{page_id}}_{{group}}_pNNNN.json")
+            logger.error(f"  Formato esperado: documento_{{master}}_{{version}}_{{page_id}}_{{group|loose}}_pNNNN.json")
             error_count += 1
             continue
 
@@ -724,11 +727,23 @@ def main():
                     continue
                 nx = f[:-5]
                 # documento_{master_id}_{version_id}_{page_id}_{group_id}_pNNNN
-                m_any = re.match(r"^documento_(\d+)_(\d+)_(\d+)_(\d+)_p(\d+)$", nx)
+                # group_id puede ser número o "loose"
+                m_any = re.match(r"^documento_(\d+)_(\d+)_(\d+)_(\w+)_p(\d+)$", nx)
                 if not m_any:
                     continue
-                if int(m_any.group(1)) != master_id or int(m_any.group(2)) != version_id or int(m_any.group(4)) != group_id:
+                
+                # Extraer y comparar master_id, version_id
+                file_master = int(m_any.group(1))
+                file_version = int(m_any.group(2))
+                file_group_str = m_any.group(4)
+                
+                # Convertir file_group_id igual que group_id
+                file_group_id = int(file_group_str) if file_group_str.isdigit() else None
+                
+                # Comparar todos los IDs
+                if file_master != master_id or file_version != version_id or file_group_id != group_id:
                     continue
+                    
                 candidates.append((f, int(m_any.group(5))))
 
             candidates.sort(key=lambda x: x[1])
