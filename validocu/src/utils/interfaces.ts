@@ -191,6 +191,54 @@ export interface DocAnalysisNotification {
   updated_at: string;
 }
 
+// Interfaces para Dashboard Ejecutivo - HDU 13
+export interface DashboardFilters {
+  date_from?: string;
+  date_to?: string;
+  group_ids?: number[];
+  user_ids?: string[];
+  document_type_ids?: number[];
+}
+
+export interface DashboardMetrics {
+  valid_documents: number;
+  expiring_soon: number;
+  expired: number;
+  total_documents: number;
+  avg_time_saved_hours: number;
+  total_time_saved_hours: number;
+  documents_processed: number;
+}
+
+export interface ChartData {
+  labels: string[];
+  data: number[];
+  colors?: string[];
+}
+
+export interface UserPerformance {
+  name: string;
+  documents_processed: number;
+  conformes: number;
+  vencidos: number;
+  por_vencer: number;
+}
+
+export interface GroupPerformance {
+  name: string;
+  total_documents: number;
+  valid: number;
+  expired: number;
+  expiring: number;
+  with_gaps: number;
+}
+
+export interface DashboardFilterOptions {
+  groups: Array<{ id: number; name: string }>;
+  users: Array<{ id: string; name: string; email: string }>;
+  document_types: Array<{ id: number; name: string }>;
+}
+
 export interface AccessRequest {
   id: number;
   group_id: number;

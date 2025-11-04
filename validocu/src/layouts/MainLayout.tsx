@@ -6,7 +6,7 @@ import BrandMark from '../graphics/ValiDocuLogo';
 import UserMenu from '../components/auth/UserMenu';
 import AccessRequestsIndicator from '../components/admin/AccessRequestsIndicator';
 import { useAuth } from '../contexts/AuthContext';
-import { BellIcon, CheckIcon, XIcon } from 'lucide-react';
+import { BellIcon, CheckIcon, XIcon, BarChart3 } from 'lucide-react';
 import type { DocAnalysisNotification, ProcessedDocumentEvent } from '../utils/interfaces';
 import { getUserNotifications, markNotificationsAsRead } from '../utils/api';
 
@@ -110,21 +110,44 @@ export default function MainLayout({ children, currentEvent, isDocMenuOpen, setI
 
           <Box sx={{ flex: 1 }} />
 
-          <div style={{ position: 'relative' }}>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            {/* Botón de Dashboard */}
             <IconButton
-              ref={bellButtonRef}
-              onClick={onDocButtonClick}
-              aria-label="Abrir menú de documentos"
-              size="large"
+              component={RouterLink}
+              to="/dashboard"
+              aria-label="Ir al dashboard"
+              sx={{
+                color: 'white',
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                }
+              }}
             >
-              <BellIcon color="white" />
+              <BarChart3 size={24} />
             </IconButton>
-            {unreadNotifications.length > 0 &&
-              <Box onClick={onDocButtonClick} sx={{ position: 'absolute', top: 0, right: 10 }}>
-                <Badge badgeContent={unreadNotifications.length} color="error" />
-              </Box>
-            }
-          </div>
+
+            {/* Botón de notificaciones */}
+            <div style={{ position: 'relative' }}>
+              <IconButton
+                ref={bellButtonRef}
+                onClick={onDocButtonClick}
+                aria-label="Abrir menú de documentos"
+                sx={{
+                  color: 'white',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  }
+                }}
+              >
+                <BellIcon size={24} />
+              </IconButton>
+              {unreadNotifications.length > 0 &&
+                <Box onClick={onDocButtonClick} sx={{ position: 'absolute', top: 0, right: 10 }}>
+                  <Badge badgeContent={unreadNotifications.length} color="error" />
+                </Box>
+              }
+            </div>
+          </Box>
 
           <Menu
             anchorEl={bellButtonRef.current}

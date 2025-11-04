@@ -1,4 +1,4 @@
-import type { BoxAnnotation, Document, DocumentGroup, ExpiredDocumentResponse, SemanticGroup, DocAnalysisNotification, AccessRequest } from "./interfaces";
+import type { BoxAnnotation, Document, DocumentGroup, ExpiredDocumentResponse, SemanticGroup, DocAnalysisNotification, DashboardFilters, DashboardMetrics, ChartData, UserPerformance, GroupPerformance, DashboardFilterOptions, AccessRequest } from "./interfaces";
 import { authService } from "../api/auth";
 
 // let baseURL = "";
@@ -406,6 +406,126 @@ export async function markNotificationsAsRead(notifications: DocAnalysisNotifica
     await postJSON('/api/v1/notifications/mark-as-read', { notifications });
   } catch (error) {
     console.error("Error marking notifications as read:", error);
+    throw error;
+  }
+}
+
+// ============================================
+// Dashboard Ejecutivo - HDU 13
+// ============================================
+
+/**
+ * Helper para construir query string de filtros con cache-busting
+ */
+function buildFilterQueryString(filters: DashboardFilters): string {
+  const params = new URLSearchParams();
+  
+  if (filters.date_from) params.append('date_from', filters.date_from);
+  if (filters.date_to) params.append('date_to', filters.date_to);
+  if (filters.group_ids?.length) params.append('group_ids', filters.group_ids.join(','));
+  if (filters.user_ids?.length) params.append('user_ids', filters.user_ids.join(','));
+  if (filters.document_type_ids?.length) params.append('document_type_ids', filters.document_type_ids.join(','));
+  
+  // Agregar timestamp para evitar caché del navegador
+  params.append('_t', Date.now().toString());
+  
+  const queryString = params.toString();
+  return queryString ? `?${queryString}` : '';
+}
+
+/**
+ * Obtener métricas principales del dashboard
+ */
+export async function getDashboardMetrics(filters: DashboardFilters = {}): Promise<DashboardMetrics> {
+  try {
+    const queryString = buildFilterQueryString(filters);
+    const response = await getJSON(`/api/v1/dashboard/metrics${queryString}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching dashboard metrics:", error);
+    throw error;
+  }
+}
+
+/**
+ * Obtener distribución de documentos por estado
+ */
+export async function getDocumentsByStatus(filters: DashboardFilters = {}): Promise<ChartData> {
+  try {
+    const queryString = buildFilterQueryString(filters);
+    const response = await getJSON(`/api/v1/dashboard/charts/documents-by-status${queryString}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching documents by status:", error);
+    throw error;
+  }
+}
+
+/**
+ * Obtener distribución de documentos por tipo
+ */
+export async function getDocumentsByType(filters: DashboardFilters = {}): Promise<ChartData> {
+  try {
+    const queryString = buildFilterQueryString(filters);
+    const response = await getJSON(`/api/v1/dashboard/charts/documents-by-type${queryString}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching documents by type:", error);
+    throw error;
+  }
+}
+
+/**
+ * Obtener tendencia de tiempo ahorrado
+ */
+export async function getTimeSavedTrend(filters: DashboardFilters = {}): Promise<ChartData> {
+  try {
+    const queryString = buildFilterQueryString(filters);
+    const response = await getJSON(`/api/v1/dashboard/charts/time-saved-trend${queryString}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching time saved trend:", error);
+    throw error;
+  }
+}
+
+/**
+ * Obtener rendimiento por usuario
+ */
+export async function getUserPerformance(filters: DashboardFilters = {}): Promise<{ users: UserPerformance[] }> {
+  try {
+    const queryString = buildFilterQueryString(filters);
+    const response = await getJSON(`/api/v1/dashboard/charts/user-performance${queryString}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching user performance:", error);
+    throw error;
+  }
+}
+
+/**
+ * Obtener rendimiento por grupo
+ */
+export async function getGroupPerformance(filters: DashboardFilters = {}): Promise<{ groups: GroupPerformance[] }> {
+  try {
+    const queryString = buildFilterQueryString(filters);
+    const response = await getJSON(`/api/v1/dashboard/charts/group-performance${queryString}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching group performance:", error);
+    throw error;
+  }
+}
+
+/**
+ * Obtener opciones disponibles para filtros
+ */
+export async function getDashboardFilterOptions(): Promise<DashboardFilterOptions> {
+  try {
+    const response = await getJSON('/api/v1/dashboard/filters/available');
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching dashboard filter options:", error);
     throw error;
   }
 }
