@@ -12,8 +12,8 @@ import {
   Alert,
 } from "@mui/material";
 import { Folder, Plus, Search as SearchIcon, Settings2, Lock, Users, Shield, Info } from "lucide-react";
-import { createGroup, getDocumentGroups, buscarDocumentosPorTexto, obtenerDocumentosVencidos, marcarDocumentosVencidos, buscarSemanticaConFiltros } from "../../utils/api";
-import type { DocumentGroup, ExpiredDocumentResponse, ProcessedDocumentEvent } from "../../utils/interfaces";
+import { createGroup, getDocumentGroups, buscarDocumentosPorTexto, obtenerDocumentosVencidos, marcarDocumentosVencidos, buscarSemanticaConFiltros, getDashboardMetrics } from "../../utils/api";
+import type { DocumentGroup, ExpiredDocumentResponse, ProcessedDocumentEvent, DashboardMetrics } from "../../utils/interfaces";
 import NewGroupModal from "./NewGroupModal";
 import GroupConfigurationModal from "../../components/group/GroupConfigurationModal";
 import RequestAccessModal from "../../components/group/RequestAccessModal";
@@ -21,6 +21,7 @@ import PendingRequestsModal from "../../components/admin/PendingRequestsModal";
 import GroupDetailModal from "../../components/group/GroupDetailModal";
 import SnackbarDocsVencidos from "../../components/SnackbarDocsVencidos";
 import { getDocumentFilters, type Filters } from "../../utils/api";
+import MetricsCards from "../dashboard/MetricsCards";
 
 interface HomeParams {
   currentEvent: ProcessedDocumentEvent | null;
@@ -38,6 +39,10 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
   const [buscando, setBuscando] = useState(false);
   const [busquedaRealizada, setBusquedaRealizada] = useState(false);
   const [respuestaDocsVencidos, setRespuestaDocsVencidos] = useState<ExpiredDocumentResponse | null>(null);
+  
+  // Estado para métricas del dashboard
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [metricsLoading, setMetricsLoading] = useState(true);
   
   // Estado para mensajes de alerta
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
@@ -99,7 +104,22 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
     if (currentEvent === null) return;
     // Recargar grupos para reflejar cambios
     getDocumentGroups().then(groups => setDocumentGroups(groups));
+    // Recargar métricas
+    loadMetrics();
   }, [currentEvent]);
+
+  // Cargar métricas
+  const loadMetrics = async () => {
+    try {
+      setMetricsLoading(true);
+      const data = await getDashboardMetrics();
+      setMetrics(data);
+    } catch (error) {
+      console.error('Error loading metrics:', error);
+    } finally {
+      setMetricsLoading(false);
+    }
+  };
 
   // Aplicar filtros (aquí puedes enganchar tu búsqueda semántica/textual)
   const applyFilters = async () => {
@@ -119,6 +139,7 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
     getDocumentGroups().then(groups => setDocumentGroups(groups));
     obtenerDocumentosVencidos().then(docs => setRespuestaDocsVencidos(docs));
     marcarDocumentosVencidos();
+    loadMetrics(); // Cargar métricas al montar
   }, []);
 
   // Effect para manejar mensajes de estado de navegación
@@ -265,6 +286,9 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Typography variant="h5" fontWeight={700}>Unidad de Sprint 1</Typography>
       </Stack>
+
+      {/* Métricas del Dashboard */}
+      <MetricsCards metrics={metrics} loading={metricsLoading} />
 
       <Menu
         anchorEl={filtersAnchor}

@@ -501,38 +501,62 @@ export default function Grupo({ currentEvent, setIsDocMenuOpen }: GrupoParams) {
             mt: 1,
             mb: 2,
             display: "grid",
-            gridTemplateColumns: "auto auto", // 2 columnas del mismo ancho
-            gap: 1,                          // mismo espacio que spacing={1}
+            gridTemplateColumns: "1fr auto", // Primera columna flexible, segunda auto
+            gap: 1,
           }}
         >
-          {/* Fila 1: Añadir / Eliminar (mismo tamaño) */}
+          {/* Fila 1: Añadir / Eliminar */}
           <Button 
             onClick={() => setIsModalOpen(true)} 
             fullWidth 
             startIcon={<Plus size={18} />}
             disabled={!userCanEdit}
             title={!userCanEdit ? "No tienes permisos de edición en este grupo" : "Añadir documento"}
+            color="primary"
           >
             Añadir documento
           </Button>
 
           <IconButton 
             onClick={() => setDeleteModalOpen(true)} 
-            sx={{ bgcolor: "white" }}
             disabled={!userCanEdit}
             title={!userCanEdit ? "No tienes permisos de edición en este grupo" : "Eliminar documentos"}
+            sx={{ 
+              bgcolor: "error.main",
+              color: "white",
+              '&:hover': {
+                bgcolor: "error.dark",
+              },
+              '&:disabled': {
+                bgcolor: "action.disabledBackground",
+              }
+            }}
           >
             <Trash2 size={18} />
           </IconButton>
 
           {/* Fila 2: Ver Resumen / Configuración */}
-          <Button fullWidth onClick={() => setOverviewOpen(true)} startIcon={<EqualizerIcon />}>
+          <Button 
+            fullWidth 
+            onClick={() => setOverviewOpen(true)} 
+            startIcon={<EqualizerIcon />}
+            color="secondary"
+          >
             Ver Resumen
           </Button>
 
-            <IconButton onClick={() => setConfigurationOpen(true)} sx={{ bgcolor: "white" }}>
-              <InfoOutlineIcon fontSize="small" />
-            </IconButton>
+          <IconButton 
+            onClick={() => setConfigurationOpen(true)} 
+            sx={{ 
+              bgcolor: "primary.main",
+              color: "white",
+              '&:hover': {
+                bgcolor: "primary.dark",
+              }
+            }}
+          >
+            <InfoOutlineIcon fontSize="small" />
+          </IconButton>
         </Box>
 
           <Divider sx={{ mb: 1 }} />
