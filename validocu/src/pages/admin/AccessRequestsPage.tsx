@@ -11,11 +11,11 @@ import {
   getPermissionTypeColor, 
   formatRequestingUser 
 } from '../../utils/permissions';
-import { usePendingAccessRequests, type PendingRequest } from '../../hooks/usePendingAccessRequests';
+import { usePendingAccessRequests, type MappedAccessRequest } from '../../hooks/usePendingAccessRequests';
 
 interface ReviewDialogProps {
   open: boolean;
-  request: PendingRequest | null;
+  request: MappedAccessRequest | null;
   onClose: () => void;
   onReview: (requestId: number, action: 'approve' | 'reject', comment?: string) => void;
   isSubmitting: boolean;
@@ -173,7 +173,7 @@ function ReviewDialog({ open, request, onClose, onReview, isSubmitting }: Review
 
 export default function AccessRequestsPage() {
   const { requests, loading, error, refresh } = usePendingAccessRequests(true, 0); // No auto-refresh aquí
-  const [selectedRequest, setSelectedRequest] = useState<PendingRequest | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<MappedAccessRequest | null>(null);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -197,7 +197,7 @@ export default function AccessRequestsPage() {
     }
   };
 
-  const handleOpenReview = (request: PendingRequest) => {
+  const handleOpenReview = (request: MappedAccessRequest) => {
     setSelectedRequest(request);
     setReviewDialogOpen(true);
   };

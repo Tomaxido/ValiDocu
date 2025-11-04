@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getPendingAccessRequests } from '../utils/api';
+import type { AccessRequest } from '../utils/interfaces';
 
-export interface PendingRequest {
+export interface MappedAccessRequest {
   id: number;
   user_email: string;
   user_name?: string;
@@ -15,38 +16,8 @@ export interface PendingRequest {
   status: 'pending' | 'approved' | 'rejected';
 }
 
-// Interfaz para los datos tal como vienen del backend
-interface BackendRequest {
-  id: number;
-  group_id: number;
-  requested_user_id: string;
-  requesting_user_id: string;
-  permission_type: number;
-  request_reason?: string;
-  status: number;
-  created_at: string;
-  updated_at: string;
-  reviewed_at: string | null;
-  reviewed_by: string | null;
-  admin_comment: string | null;
-  group: {
-    id: number;
-    name: string;
-  };
-  requested_user: {
-    id: string;
-    name: string;
-    email: string;
-  };
-  requesting_user: {
-    id: string;
-    name: string;
-    email: string;
-  };
-}
-
 export function usePendingAccessRequests(isAdmin: boolean, refreshInterval: number = 30000) {
-  const [requests, setRequests] = useState<PendingRequest[]>([]);
+  const [requests, setRequests] = useState<MappedAccessRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,10 +30,11 @@ export function usePendingAccessRequests(isAdmin: boolean, refreshInterval: numb
     try {
       setLoading(true);
       setError(null);
-      const data: BackendRequest[] = await getPendingAccessRequests();
+      const data: AccessRequest[] = await getPendingAccessRequests();
       
       // Mapear los datos del backend al formato esperado
-      const mappedRequests: PendingRequest[] = data.map(request => ({
+      // TODO: ¿no debería el backend retornar los datos directamente en este formato en vez de hacer que el frontend los mapee?
+      const mappedRequests: MappedAccessRequest[] = data.map(request => ({
         id: request.id,
         user_email: request.requested_user.email,
         user_name: request.requested_user.name,

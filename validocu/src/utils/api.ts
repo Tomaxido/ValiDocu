@@ -1,6 +1,5 @@
-import type { BoxAnnotation, Document, DocumentGroup, ExpiredDocumentResponse, SemanticGroup, GroupConfigurationResponse, DocumentTypeWithFields, DocAnalysisNotification, DashboardFilters, DashboardMetrics, ChartData, UserPerformance, GroupPerformance, DashboardFilterOptions } from "./interfaces";
+import type { BoxAnnotation, Document, DocumentGroup, ExpiredDocumentResponse, SemanticGroup, DocAnalysisNotification, DashboardFilters, DashboardMetrics, ChartData, UserPerformance, GroupPerformance, DashboardFilterOptions, AccessRequest } from "./interfaces";
 import { authService } from "../api/auth";
-import { version } from "os";
 
 // let baseURL = "";
 // if (process.env.NODE_ENV === "development") {
@@ -330,7 +329,7 @@ export async function requestGroupAccess(groupId: string | number, userEmail: st
   return await postJSON(`/api/v1/groups/${groupId}/request-access`, body);
 }
 
-export async function getPendingAccessRequests(): Promise<any[]> {
+export async function getPendingAccessRequests(): Promise<AccessRequest[]> {
   const response = await getJSON('/api/v1/admin/access-requests/pending');
   return response.requests || [];
 }

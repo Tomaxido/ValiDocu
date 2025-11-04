@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
-import { redirect, useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Box, Typography, IconButton, Button, Paper, InputBase, Stack,
-  Card, CardActionArea, CardContent,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Menu, Divider,
   FormControl, InputLabel, Select, OutlinedInput, MenuItem,
@@ -11,17 +10,17 @@ import {
   Tooltip,
   Alert,
 } from "@mui/material";
-import { Folder, Plus, Search as SearchIcon, Settings2, Lock, Users, Shield, Info } from "lucide-react";
-import { createGroup, getDocumentGroups, buscarDocumentosPorTexto, obtenerDocumentosVencidos, marcarDocumentosVencidos, buscarSemanticaConFiltros, getDashboardMetrics } from "../../utils/api";
-import type { DocumentGroup, ExpiredDocumentResponse, ProcessedDocumentEvent, DashboardMetrics } from "../../utils/interfaces";
+import { Folder, Plus, Search as SearchIcon, Settings2, Lock, Users, Info } from "lucide-react";
+import { createGroup, getDocumentGroups, obtenerDocumentosVencidos, marcarDocumentosVencidos, buscarSemanticaConFiltros, getDashboardMetrics, type SemanticRow } from "../../utils/api";
+import type { Document, DocumentGroup, ExpiredDocumentResponse, ProcessedDocumentEvent, DashboardMetrics } from "../../utils/interfaces";
 import NewGroupModal from "./NewGroupModal";
 import GroupConfigurationModal from "../../components/group/GroupConfigurationModal";
 import RequestAccessModal from "../../components/group/RequestAccessModal";
-import PendingRequestsModal from "../../components/admin/PendingRequestsModal";
 import GroupDetailModal from "../../components/group/GroupDetailModal";
 import SnackbarDocsVencidos from "../../components/SnackbarDocsVencidos";
 import { getDocumentFilters, type Filters } from "../../utils/api";
 import MetricsCards from "../dashboard/MetricsCards";
+
 
 interface HomeParams {
   currentEvent: ProcessedDocumentEvent | null;
@@ -35,7 +34,7 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
   const [documentGroups, setDocumentGroups] = useState<DocumentGroup[] | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [resultados, setResultados] = useState<any[]>([]);
+  const [resultados, setResultados] = useState<SemanticRow[]>([]);
   const [buscando, setBuscando] = useState(false);
   const [busquedaRealizada, setBusquedaRealizada] = useState(false);
   const [respuestaDocsVencidos, setRespuestaDocsVencidos] = useState<ExpiredDocumentResponse | null>(null);
@@ -56,8 +55,9 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
   const [requestAccessModalOpen, setRequestAccessModalOpen] = useState(false);
   const [selectedGroupForAccess, setSelectedGroupForAccess] = useState<DocumentGroup | null>(null);
 
-  // Estado para el modal de administración
-  const [pendingRequestsModalOpen, setPendingRequestsModalOpen] = useState(false);
+  // TODO: no se está usando y se podría eliminar
+  // // Estado para el modal de administración
+  // const [pendingRequestsModalOpen, setPendingRequestsModalOpen] = useState(false);
 
   // Estado para el modal de información del grupo
   const [groupInfoModalOpen, setGroupInfoModalOpen] = useState(false);
@@ -78,10 +78,8 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
   
 
   // Abrir/cerrar menú
-  const handleOpenFilters = (e: React.MouseEvent<HTMLElement>) => {
-    setFiltersAnchor(e.currentTarget);
-  };
-  const handleCloseFilters = () => setFiltersAnchor(null);
+  const openFilters = (e: React.MouseEvent<HTMLElement>) => setFiltersAnchor(e.currentTarget);
+  const closeFilters = () => setFiltersAnchor(null);
 
   // al abrir el menú
   useEffect(() => {
@@ -101,9 +99,10 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
 
   // Al recibir nuevo evento
   useEffect(() => {
-    if (currentEvent === null) return;
+    if (currentEvent === null)
+      return;
     // Recargar grupos para reflejar cambios
-    getDocumentGroups().then(groups => setDocumentGroups(groups));
+    getDocumentGroups().then(setDocumentGroups);
     // Recargar métricas
     loadMetrics();
   }, [currentEvent]);
@@ -121,11 +120,10 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
     }
   };
 
-  // Aplicar filtros (aquí puedes enganchar tu búsqueda semántica/textual)
-  const applyFilters = async () => {
-    // Ejemplo: si tu `buscarDocumentosPorTexto` acepta filtros, pásalos aquí.
-    // await buscar({ query, status: selectedStatus, normative_gap: selectedGap });
-    handleCloseFilters();
+  // Aplicar filtros
+  const applyFilters = () => {
+    closeFilters();
+    buscar();
   };
 
   // Limpiar filtros
@@ -133,11 +131,12 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
     setSelectedStatus([]);
     setSelectedDocType([]);
     setSelectedGap([]);
+    applyFilters();
   };
 
   useEffect(() => {
-    getDocumentGroups().then(groups => setDocumentGroups(groups));
-    obtenerDocumentosVencidos().then(docs => setRespuestaDocsVencidos(docs));
+    getDocumentGroups().then(setDocumentGroups);
+    obtenerDocumentosVencidos().then(setRespuestaDocsVencidos);
     marcarDocumentosVencidos();
     loadMetrics(); // Cargar métricas al montar
   }, []);
@@ -227,11 +226,10 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
     setSelectedGroup(null);
   };
 
-  const handleGroupCreated = async (groupId: number) => {
+  const handleGroupCreated = (groupId: number) => {
     try {
       // Recargar la lista de grupos para obtener el grupo recién creado
-      const updatedGroups = await getDocumentGroups();
-      setDocumentGroups(updatedGroups);
+      getDocumentGroups().then(setDocumentGroups);
       
       // El grupo se ha creado exitosamente, solo actualizar la lista
       console.log(`Grupo ${groupId} creado exitosamente`);
@@ -263,7 +261,8 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
     setSelectedGroupForInfo(null);
   };
 
-  if (documentGroups === null) return <Typography sx={{ p: 3 }}>Cargando...</Typography>;
+  if (documentGroups === null)
+    return <Typography sx={{ p: 3 }}>Cargando...</Typography>;
 
   return (
     <Box sx={{p: 3, bgcolor: "background.default", minHeight: "100dvh", paddingX: "6em" }}>
@@ -293,7 +292,7 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
       <Menu
         anchorEl={filtersAnchor}
         open={filtersOpen}
-        onClose={() => setFiltersAnchor(null)}
+        onClose={closeFilters}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
         transformOrigin={{ vertical: "top", horizontal: "right" }}
         PaperProps={{ sx: { p: 2, width: 320 } }}
@@ -386,13 +385,10 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
             <Divider />
 
             <Stack direction="row" gap={1} justifyContent="flex-end">
-              <Button
-                variant="text"
-                onClick={() => { setSelectedStatus([]); setSelectedGap([]); setFiltersAnchor(null); buscar(); }}
-              >
+              <Button variant="text" onClick={clearFilters}>
                 Limpiar
               </Button>
-              <Button onClick={() => { setFiltersAnchor(null); buscar(); }} color="secondary">
+              <Button onClick={applyFilters} color="secondary">
                 Aplicar
               </Button>
             </Stack>
@@ -425,7 +421,7 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
           </IconButton>
           <IconButton
           color="inherit"
-          onClick={(e) => setFiltersAnchor(e.currentTarget)}
+          onClick={openFilters}
           sx={{ bgcolor: "background.paper", border: 1, borderColor: "divider", "&:hover": { bgcolor: "action.hover" } }}
           aria-label="Abrir filtros"
         >
@@ -470,11 +466,12 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
               </TableHead>
               <TableBody>
                 {resultados.map((res, idx) => {
-                  let acciones = null;
-                  let alerta = null;
+                  const isPdf = (d: SemanticRow) => d.document_name && d.document_name.toLowerCase().endsWith('.pdf');
+
+                  let accion = null;
                   if (res) {
                     if (res.due_date === 1) {
-                      acciones = (
+                      accion = (
                         <Button
                           color="error"
                           size="small"
@@ -483,9 +480,8 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                           Actualizar urgente
                         </Button>
                       );
-                      alerta = <Alert severity="error" sx={{ mb: 1, width: '100%' }}>Documento vencido</Alert>;
                     } else if (res.due_date === 2) {
-                      acciones = (
+                      accion = (
                         <Button
                           color="warning"
                           size="small"
@@ -494,9 +490,8 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                           Renovar
                         </Button>
                       );
-                      alerta = <Alert severity="warning" sx={{ mb: 1, width: '100%' }}>Documento por vencer</Alert>;
                     } else {
-                      acciones = (
+                      accion = (
                         <Button
                           color="secondary"
                           size="small"
@@ -506,8 +501,9 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                         </Button>
                       );
                     }
+                    
                     if (res.normative_gap === 1) {
-                      acciones = (
+                      accion = (
                         <Tooltip title="El documento presenta observaciones normativas.">
                           <span>
                             <Button
@@ -536,43 +532,32 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                         <Typography variant="body2" color="text.secondary">{res.document_name}</Typography>
                       </TableCell>
                       <TableCell>
-                        <Stack direction="row" spacing={1} alignItems="center">
-                          {/* Estado vencimiento */}
-                          {(() => {
-                            const isPdf = (d: { document_name: string; }) => d.document_name && d.document_name.toLowerCase().endsWith('.pdf');
-                            // Para la búsqueda semántica, solo hay un documento por fila
-                            if (isPdf(res)) {
-                              if (res.due_date === 1) {
-                                return (
-                                  <Tooltip title={"Vencido: " + res.document_name}>
-                                    <Chip label={`Vencido`} color="error" size="small" variant="outlined" sx={{ borderWidth: 2, fontWeight: 600 }}/>
-                                  </Tooltip>
-                                );
-                              } else if (res.due_date === 2) {
-                                return (
-                                  <Tooltip title={"Por vencer: " + res.document_name}>
-                                    <Chip label={`Por Vencer`} color="warning" size="small" variant="outlined" sx={{ borderWidth: 2, fontWeight: 600 }} />
-                                  </Tooltip>
-                                );
-                              }
+                        {isPdf(res) && 
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            {/* Estado vencimiento */}
+                            {res.due_date === 1
+                            ? <Tooltip title={"Vencido: " + res.document_name}>
+                                <Chip label={`Vencido`} color="error" size="small" variant="outlined" sx={{ borderWidth: 2, fontWeight: 600 }}/>
+                              </Tooltip>
+                            : res.due_date === 2
+                            ? <Tooltip title={"Por vencer: " + res.document_name}>
+                                <Chip label={`Por Vencer`} color="warning" size="small" variant="outlined" sx={{ borderWidth: 2, fontWeight: 600 }} />
+                              </Tooltip>
+                            : null
                             }
-                            return null;
-                          })()}
-                          {/* Estado normativo */}
-                          {(() => {
-                            const isPdf = (d: { document_name: string; }) => d.document_name && d.document_name.toLowerCase().endsWith('.pdf');
-                            if (isPdf(res) && res.normative_gap === 1) {
-                              return (
-                                <Tooltip title={"En observación: " + res.document_name}>
-                                  <Chip label={`En observación`} color="warning" size="small" variant="outlined" sx={{ borderWidth: 2, fontWeight: 600 }} />
-                                </Tooltip>
-                              );
+
+                            {/* Estado normativo */}
+                            {res.normative_gap === 1 && 
+                              <Tooltip title={"En observación: " + res.document_name}>
+                                <Chip label={`En observación`} color="warning" size="small" variant="outlined" sx={{ borderWidth: 2, fontWeight: 600 }} />
+                              </Tooltip>
                             }
-                            return null;
-                          })()}
-                        </Stack>
+                          </Stack>
+                        }
                       </TableCell>
-                      <TableCell>{acciones}</TableCell>
+                      <TableCell>
+                        {accion}
+                      </TableCell>
                       <TableCell>
                         <Button onClick={() => navigate(`/grupos/${res.document_group_id}`)}>
                           Ver grupo
@@ -586,6 +571,7 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
           </TableContainer>
         </Box>
       )}
+
       {/* Mostrar la tabla original solo si no hay resultados de búsqueda semántica */}
       {resultados.length === 0 && (
         <Box sx={{ mt: 2 }}>
@@ -603,8 +589,9 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                 {documentGroups
                   .filter(g => !query || g.name.toLowerCase().includes(query.toLowerCase()))
                   .map(g => {
+                    const isPdf = (d: Document) => d.filename && d.filename.toLowerCase().endsWith('.pdf');
+
                     // Filtrar solo PDFs
-                    const isPdf = (d: { filename: string }) => d.filename && d.filename.toLowerCase().endsWith('.pdf');
                     const docsPdf = g.documents.filter(isPdf);
                     // Peor estado de vencimiento
                     const docsVencidos = docsPdf.filter(d => d.due_date === 1);
@@ -612,11 +599,10 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                     // Peor estado normativo
                     const docsObs = docsPdf.filter(d => d.normative_gap === 1);
 
-                    let accionesArr: React.ReactNode[] = [];
-                    let alerta = null;
+                    let acciones: React.ReactNode[] = [];
 
                     if (docsVencidos.length > 0) {
-                      accionesArr.push(
+                      acciones.push(
                         <Button
                           key="vencido"
                           color="error"
@@ -626,9 +612,8 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                           Actualizar urgente
                         </Button>
                       );
-                      alerta = <Alert severity="error" sx={{ mb: 1, width: '100%' }}>Documento vencido</Alert>;
                     } else if (docsPorVencer.length > 0) {
-                      accionesArr.push(
+                      acciones.push(
                         <Button
                           key="por-vencer"
                           color="warning"
@@ -638,9 +623,8 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                           Renovar
                         </Button>
                       );
-                      alerta = <Alert severity="warning" sx={{ mb: 1, width: '100%' }}>Documento por vencer</Alert>;
                     } else {
-                      accionesArr.push(
+                      acciones.push(
                         <Button
                           key="renovar"
                           color="secondary"
@@ -651,8 +635,9 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                         </Button>
                       );
                     }
+
                     if (docsObs.length > 0) {
-                      accionesArr.push(
+                      acciones.push(
                         <Tooltip key="observacion" title="El documento presenta observaciones normativas.">
                           <span>
                             <Button
@@ -668,7 +653,6 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                         </Tooltip>
                       );
                     }
-                    const acciones = <Stack direction="row" spacing={1}>{accionesArr}</Stack>;
 
                     return (
                       <TableRow key={g.id}>
@@ -718,45 +702,29 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                         <TableCell>
                           <Stack direction="row" spacing={1} alignItems="center">
                             {/* Peor estado de vencimiento: solo negativos */}
-                            {(() => {
-                              const isPdf = (d: any) => d.filename && d.filename.toLowerCase().endsWith('.pdf');
-                              const docsPdf = g.documents.filter(isPdf);
-                              const docsVencidos = docsPdf.filter(d => d.due_date === 1);
-                              const docsPorVencer = docsPdf.filter(d => d.due_date === 2);
-                              if (docsVencidos.length > 0) {
-                                return (
-                                  <Tooltip title={"Vencido: " + docsVencidos.map(d => d.filename).join(", ")}>
-                                    <Chip label={`Vencido (${docsVencidos.length})`} color="error" size="small" variant="outlined" sx={{ borderWidth: 2, fontWeight: 600 }} />
-                                  </Tooltip>
-                                );
-                              } else if (docsPorVencer.length > 0) {
-                                return (
-                                  <Tooltip title={"Por vencer: " + docsPorVencer.map(d => d.filename).join(", ")}>
-                                    <Chip label={`Por Vencer (${docsPorVencer.length})`} color="warning" size="small" variant="outlined" sx={{ borderWidth: 2, fontWeight: 600 }} />
-                                  </Tooltip>
-                                );
-                              } else {
-                                return null;
-                              }
-                            })()}
+                            {docsVencidos.length > 0
+                            ? <Tooltip title={"Vencido: " + docsVencidos.map(d => d.filename).join(", ")}>
+                                <Chip label={`Vencido (${docsVencidos.length})`} color="error" size="small" variant="outlined" sx={{ borderWidth: 2, fontWeight: 600 }} />
+                              </Tooltip>
+                            : docsPorVencer.length > 0
+                            ? <Tooltip title={"Por vencer: " + docsPorVencer.map(d => d.filename).join(", ")}>
+                                <Chip label={`Por Vencer (${docsPorVencer.length})`} color="warning" size="small" variant="outlined" sx={{ borderWidth: 2, fontWeight: 600 }} />
+                              </Tooltip>
+                            : null}
+
                             {/* Peor estado normativo: solo negativos */}
-                            {(() => {
-                              const isPdf = (d: { filename: string; }) => d.filename && d.filename.toLowerCase().endsWith('.pdf');
-                              const docsPdf = g.documents.filter(isPdf);
-                              const docsObs = docsPdf.filter(d => d.normative_gap === 1);
-                              if (docsObs.length > 0) {
-                                return (
-                                  <Tooltip title={"En observación: " + docsObs.map(d => d.filename).join(", ")}>
-                                    <Chip label={`En observación (${docsObs.length})`} color="warning" size="small" variant="outlined" sx={{ borderWidth: 2, fontWeight: 600 }} />
-                                  </Tooltip>
-                                );
-                              } else {
-                                return null;
-                              }
-                            })()}
+                            {docsObs.length > 0 &&
+                              <Tooltip title={"En observación: " + docsObs.map(d => d.filename).join(", ")}>
+                                <Chip label={`En observación (${docsObs.length})`} color="warning" size="small" variant="outlined" sx={{ borderWidth: 2, fontWeight: 600 }} />
+                              </Tooltip>
+                            }
                           </Stack>
                         </TableCell>
-                        <TableCell>{acciones}</TableCell>
+                        <TableCell>
+                          <Stack direction="row" spacing={1}>
+                            {acciones}
+                          </Stack>
+                        </TableCell>
                         <TableCell>
                           <Button onClick={() => navigate(`/grupos/${g.id}`)}>Ver grupo</Button>
                         </TableCell>
@@ -792,11 +760,12 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
         />
       )}
 
-      {/* Modal de administración de solicitudes pendientes */}
+      {/* Modal de administración de solicitudes pendientes
+      // TODO: no se está usando y se podría eliminar. También hay que mencionar el cambio en HDU09_IMPLEMENTATION.md
       <PendingRequestsModal
-        open={pendingRequestsModalOpen}
+        isOpen={pendingRequestsModalOpen}
         onClose={() => setPendingRequestsModalOpen(false)}
-      />
+      /> */}
 
       {/* Modal de información detallada del grupo */}
       {selectedGroupForInfo && (

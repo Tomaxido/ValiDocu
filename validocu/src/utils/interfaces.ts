@@ -238,3 +238,32 @@ export interface DashboardFilterOptions {
   users: Array<{ id: string; name: string; email: string }>;
   document_types: Array<{ id: number; name: string }>;
 }
+
+export interface AccessRequest {
+  id: number;
+  group_id: number;
+  requested_user_id: string;
+  requesting_user_id: string;
+  permission_type: number;
+  request_reason?: string;
+  status: number;
+  created_at: string;
+  updated_at: string;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+  admin_comment: string | null;
+  group: {
+    id: number;
+    name: string;
+  };
+  requested_user: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  requesting_user: {
+    id: string;
+    name: string;
+    email: string;
+  };
+}
