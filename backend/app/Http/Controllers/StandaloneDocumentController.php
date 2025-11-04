@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Http\Controllers\AnalysisController;
 use App\Models\DocumentGroup;
 use App\Models\Document;
 use Illuminate\Support\Facades\DB;
@@ -26,6 +27,12 @@ class StandaloneDocumentController extends Controller
             Log::info('Documents moved to group ' . $groupId, ['documents' => $data['document_ids']]);
         });
 
+        try {
+            app()->make(AnalysisController::class)->regenerateGroupSuggestions($groupId);
+        } catch (\Exception $e) {
+            Log::error("Error regenerando sugerencias para grupo {$groupId}: " . $e->getMessage());
+        }
+
         return response()->json(['ok' => true]);
     }
 
@@ -48,6 +55,12 @@ class StandaloneDocumentController extends Controller
         if (!empty($payload['document_ids'])) {
             Document::whereIn('id', $payload['document_ids'])
                 ->update(['document_group_id' => $group->id]);
+        }
+
+        try {
+            app()->make(AnalysisController::class)->regenerateGroupSuggestions($group->id);
+        } catch (\Exception $e) {
+            Log::error("Error regenerando sugerencias para grupo {$group->id}: " . $e->getMessage());
         }
 
         return response()->json($group, 201);
