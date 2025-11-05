@@ -449,7 +449,19 @@ export default function NewGroupModal({ isOpen, onClose, onUpload, onGroupCreate
       <DialogActions>
         <Button onClick={onClose}>Cancelar</Button>
         
-        {step === 0 ? (
+        {
+        !createGroup
+        ? (
+          <Button 
+            onClick={handleSubmit} 
+            disabled={fileList.length === 0}
+            variant="contained"
+          >
+            Subir documentos
+          </Button>
+        )
+        : step === 0
+        ? (
           <Button 
             onClick={handleNext} 
             disabled={fileList.length === 0 || (createGroup && !groupName)}
@@ -457,7 +469,8 @@ export default function NewGroupModal({ isOpen, onClose, onUpload, onGroupCreate
           >
             Continuar con configuración
           </Button>
-        ) : (
+        )
+        : (
           <>
             <Button onClick={handleBack}>
               Volver
