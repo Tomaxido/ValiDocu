@@ -115,10 +115,12 @@ class AnalysisController extends Controller
         // Obtener todos los documentos del grupo que tienen tipo asignado
         $documents = DB::table('documents')
             ->where('document_group_id', $groupId)
-            ->whereNotNull('tipo')
-            ->where('tipo', '>', 0)
+            ->whereNotNull('document_type_id')
+            ->where('document_type_id', '>', 0)
             ->pluck('id');
+
         Log::info("Documentos encontrados en el grupo {$groupId}: " . count($documents));
+
         foreach ($documents as $documentId) {
             try {
                 // Eliminar análisis y sugerencias existentes
@@ -141,25 +143,33 @@ class AnalysisController extends Controller
      */
     private function deleteDocumentSuggestions(int $documentId): void
     {
-        // Obtener IDs de análisis existentes
-        $analysisIds = DB::table('document_analyses')
+        // Obtener IDs de las versiones del documento
+        $versionIds = DB::table('document_versions')
             ->where('document_id', $documentId)
             ->pluck('id');
 
+        if ($versionIds->isEmpty()) {
+            Log::info("No se encontraron versiones para documento {$documentId}");
+            return;
+        }
+
+        // Obtener IDs de análisis relacionados con las versiones
+        $analysisIds = DB::table('document_analyses')
+            ->whereIn('document_version_id', $versionIds)
+            ->pluck('id');
+
         if ($analysisIds->isNotEmpty()) {
-            // Eliminar issues relacionados
+            // Eliminar issues relacionados con los análisis
             DB::table('analysis_issues')
                 ->whereIn('document_analysis_id', $analysisIds)
                 ->delete();
 
-            // Eliminar análisis (actualizado para usar document_version_id)
-            $versionIds = DB::table('document_versions')
-                ->where('document_id', $documentId)
-                ->pluck('id');
-                
+            // Eliminar los análisis
             DB::table('document_analyses')
                 ->whereIn('document_version_id', $versionIds)
                 ->delete();
+
+            Log::info("Eliminados " . count($analysisIds) . " análisis del documento {$documentId}");
         }
 
         // Resetear normative_gap de todas las versiones del documento
@@ -185,7 +195,7 @@ class AnalysisController extends Controller
             Log::info("Documento {$documentId} no tiene versión actual, omitiendo sugerencias");
             return;
         }
-        
+
         $si = DB::table('semantic_doc_index')->where('document_version_id', $currentVersion->id)->first(['json_global']);
         $layout = $si ? json_decode($si->json_global, true) : [];
 
@@ -287,18 +297,18 @@ class AnalysisController extends Controller
         // 3) Guardar issues en DB
         // ==========================================================
         Log::info('Issues: ' . json_encode($issues, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
-        
+
         // Obtener la versión actual del documento
         $currentVersion = DB::table('document_versions')
             ->where('document_id', $documentId)
             ->where('is_current', true)
             ->first();
-            
+
         if (!$currentVersion) {
             Log::warning("No se encontró versión actual para documento {$documentId}");
             return;
         }
-        
+
         $analysisId = DB::table('document_analyses')->insertGetId([
             'document_version_id' => $currentVersion->id,
             'status' => 'TODO',
@@ -341,17 +351,17 @@ class AnalysisController extends Controller
         if (!$doc) {
             return response()->json(['issues' => null]);
         }
-        
+
         // Obtener versión actual
         $currentVersion = DB::table('document_versions')
             ->where('document_id', $documentId)
             ->where('is_current', true)
             ->first();
-            
+
         if (!$currentVersion) {
             return response()->json(['issues' => null]);
         }
-        
+
         $analysis = DB::table('document_analyses')
             ->where('document_version_id', $currentVersion->id)
             ->orderByDesc('created_at')

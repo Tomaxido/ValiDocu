@@ -240,7 +240,7 @@ export default function Grupo({ currentEvent, setIsDocMenuOpen }: GrupoParams) {
   );
 
   useEffect(() => {
-    if (currentEvent !== null && grupoId !== undefined && currentEvent.group.id.toString() === grupoId)
+    if (currentEvent !== null && grupoId !== undefined && currentEvent.group !== null && currentEvent.group.id.toString() === grupoId)
       getGroupRoutine(grupoId);
   }, [currentEvent]);
 
