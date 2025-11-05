@@ -788,35 +788,37 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
             </Table>
           </TableContainer>
 
-          {/* Botón para agregar seleccionados a grupo */}
-          {looseDocuments.length > 0 && (
-            <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
-              <Button
-                variant="outlined"
-                onClick={toggleSelectAllLoose}
-                size="small"
-              >
-                {selectedLooseIds.length === looseDocuments.length ? "Deseleccionar todos" : "Seleccionar todos"}
-              </Button>
-
-              <Button
-                variant="contained"
-                color="primary"
-                disabled={selectedLooseIds.length === 0}
-                onClick={() => setAddToGroupOpen(true)}
-                startIcon={<Folder />}
-              >
-                Agregar seleccionados a grupo ({selectedLooseIds.length})
-              </Button>
-            </Box>
-          )}
-
           {/* Tabla de documentos sueltos */}
           {looseDocuments.length > 0 && (
             <Box sx={{ mt: 4 }}>
-              <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                Documentos Sueltos
-              </Typography>
+              {/* Título y acciones */}
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  Documentos Sueltos
+                </Typography>
+
+                {/* Botón para agregar seleccionados a grupo */}
+                <Box sx={{ display: "flex", gap: 1 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={toggleSelectAllLoose}
+                    size="small"
+                  >
+                    {selectedLooseIds.length === looseDocuments.length ? "Deseleccionar todos" : "Seleccionar todos"}
+                  </Button>
+
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    disabled={selectedLooseIds.length === 0}
+                    onClick={() => setAddToGroupOpen(true)}
+                    startIcon={<Folder />}
+                  >
+                    Agregar seleccionados a grupo ({selectedLooseIds.length})
+                  </Button>
+                </Box>
+              </Box>
+
               <TableContainer component={Paper} variant="outlined">
                 <Table>
                   <TableHead>
