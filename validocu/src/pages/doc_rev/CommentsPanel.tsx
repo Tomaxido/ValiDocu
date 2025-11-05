@@ -208,21 +208,24 @@ export default function CommentsPanel({
 
   return (
     <Box display="flex" flexDirection="column" gap={2}>
-      <Box display="flex" justifyContent="space-between" alignItems="center">
-        <Typography variant="h6" sx={{ color: '#495057', fontWeight: 600 }}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+        <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 600 }}>
           Comentarios
         </Typography>
         {!showInput && (
           <Button
-            variant="outlined"
+            variant="contained"
             size="small"
             onClick={() => setShowInput(true)}
+            startIcon={<SendIcon />}
             sx={{
-              borderColor: '#007bff',
-              color: '#007bff',
+              bgcolor: '#2e7d32',
+              color: 'white',
+              textTransform: 'none',
+              borderRadius: 2,
+              px: 2,
               '&:hover': {
-                borderColor: '#0056b3',
-                bgcolor: 'rgba(0, 123, 255, 0.04)',
+                bgcolor: '#1b5e20',
               },
             }}
           >
@@ -233,19 +236,21 @@ export default function CommentsPanel({
 
       {showInput && (
         <Paper
-          elevation={2}
+          elevation={0}
           sx={{
-            p: 2,
-            bgcolor: '#f8f9fa',
-            border: '2px solid #007bff',
+            p: 2.5,
+            bgcolor: 'background.paper',
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 2,
           }}
         >
           <Box display="flex" gap={1} alignItems="flex-start">
             <Avatar
               sx={{
-                width: 32,
-                height: 32,
-                bgcolor: '#007bff',
+                width: 36,
+                height: 36,
+                bgcolor: '#2e7d32',
               }}
             >
               <PersonIcon />
@@ -266,22 +271,33 @@ export default function CommentsPanel({
                   bgcolor: 'white',
                   '& .MuiOutlinedInput-root': {
                     '& fieldset': {
-                      borderColor: '#ced4da',
+                      borderColor: 'divider',
                     },
                     '&:hover fieldset': {
-                      borderColor: '#007bff',
+                      borderColor: 'primary.main',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#2e7d32',
                     },
                   },
                 }}
               />
-              <Box display="flex" gap={1} mt={1} justifyContent="flex-end">
+              <Box display="flex" gap={1} mt={1.5} justifyContent="flex-end">
                 <Button
+                  variant="contained"
                   size="small"
                   onClick={() => {
                     setShowInput(false);
                     setNewComment('');
                   }}
-                  sx={{ color: '#6c757d' }}
+                  sx={{ 
+                    bgcolor: '#37474f',
+                    color: 'white',
+                    textTransform: 'none',
+                    '&:hover': {
+                      bgcolor: '#263238',
+                    },
+                  }}
                 >
                   Cancelar
                 </Button>
@@ -292,9 +308,13 @@ export default function CommentsPanel({
                   disabled={!newComment.trim() || submitting}
                   startIcon={<SendIcon />}
                   sx={{
-                    bgcolor: '#007bff',
+                    bgcolor: '#2e7d32',
+                    textTransform: 'none',
                     '&:hover': {
-                      bgcolor: '#0056b3',
+                      bgcolor: '#1b5e20',
+                    },
+                    '&:disabled': {
+                      bgcolor: 'action.disabledBackground',
                     },
                   }}
                 >
@@ -308,7 +328,12 @@ export default function CommentsPanel({
                 setShowInput(false);
                 setNewComment('');
               }}
-              sx={{ color: '#6c757d' }}
+              sx={{ 
+                color: 'text.secondary',
+                '&:hover': {
+                  bgcolor: 'action.hover',
+                },
+              }}
             >
               <CloseIcon fontSize="small" />
             </IconButton>
@@ -316,19 +341,21 @@ export default function CommentsPanel({
         </Paper>
       )}
 
-      <Box sx={{ maxHeight: '400px', overflowY: 'auto' }}>
-        <Stack spacing={2}>
+      <Box sx={{ maxHeight: '400px', overflowY: 'auto', pr: 0.5 }}>
+        <Stack spacing={1.5}>
           {comments.length === 0 ? (
             <Paper
-              elevation={1}
+              elevation={0}
               sx={{
-                p: 3,
-                bgcolor: '#f8f9fa',
-                border: '1px solid #e9ecef',
+                p: 4,
+                bgcolor: 'background.default',
+                border: '1px dashed',
+                borderColor: 'divider',
+                borderRadius: 2,
                 textAlign: 'center',
               }}
             >
-              <Typography variant="body2" color="text.secondary" sx={{ color: '#6c757d' }}>
+              <Typography variant="body2" color="text.secondary">
                 No hay comentarios aún. ¡Sé el primero en comentar!
               </Typography>
             </Paper>
@@ -336,11 +363,18 @@ export default function CommentsPanel({
             comments.map((comment) => (
               <Paper
                 key={comment.id}
-                elevation={1}
+                elevation={0}
                 sx={{
                   p: 2,
-                  bgcolor: '#f8f9fa',
-                  border: '1px solid #e9ecef',
+                  bgcolor: 'background.paper',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 2,
+                  transition: 'all 0.2s',
+                  '&:hover': {
+                    borderColor: '#2e7d32',
+                    boxShadow: '0 2px 8px rgba(46, 125, 50, 0.08)',
+                  },
                 }}
               >
                 {editingCommentId === comment.id ? (
@@ -357,14 +391,22 @@ export default function CommentsPanel({
                       size="small"
                       sx={{
                         bgcolor: 'white',
-                        mb: 1,
+                        mb: 1.5,
+                        '& .MuiOutlinedInput-root': {
+                          '&.Mui-focused fieldset': {
+                            borderColor: '#2e7d32',
+                          },
+                        },
                       }}
                     />
                     <Box display="flex" gap={1} justifyContent="flex-end">
                       <Button
                         size="small"
                         onClick={handleCancelEdit}
-                        sx={{ color: '#6c757d' }}
+                        sx={{ 
+                          color: 'text.secondary',
+                          textTransform: 'none',
+                        }}
                       >
                         Cancelar
                       </Button>
@@ -374,9 +416,10 @@ export default function CommentsPanel({
                         onClick={() => handleSaveEdit(comment.id)}
                         disabled={!editText.trim() || submitting}
                         sx={{
-                          bgcolor: '#007bff',
+                          bgcolor: '#2e7d32',
+                          textTransform: 'none',
                           '&:hover': {
-                            bgcolor: '#0056b3',
+                            bgcolor: '#1b5e20',
                           },
                         }}
                       >
@@ -386,52 +429,72 @@ export default function CommentsPanel({
                   </Box>
                 ) : (
                   // Modo visualización
-                  <Box display="flex" alignItems="start" gap={2}>
+                  <Box display="flex" alignItems="start" gap={1.5}>
                     <Avatar
                       sx={{
-                        width: 32,
-                        height: 32,
-                        bgcolor: '#6c757d',
+                        width: 36,
+                        height: 36,
+                        bgcolor: isOwnComment(comment) ? '#2e7d32' : 'primary.main',
+                        fontSize: '0.875rem',
                       }}
                     >
-                      <PersonIcon />
+                      {comment.user.name.charAt(0).toUpperCase()}
                     </Avatar>
                     <Box flex={1}>
-                      <Box display="flex" justifyContent="space-between" alignItems="start">
+                      <Box display="flex" justifyContent="space-between" alignItems="start" mb={0.5}>
                         <Typography
-                          variant="body2"
-                          sx={{ color: '#495057', fontWeight: 600, mb: 0.5 }}
+                          variant="subtitle2"
+                          sx={{
+                            fontWeight: 600,
+                            color: 'text.primary',
+                          }}
                         >
                           {comment.user.name}
+                          {isOwnComment(comment) && (
+                            <Typography
+                              component="span"
+                              variant="caption"
+                              sx={{
+                                ml: 1,
+                                color: 'text.secondary',
+                                fontWeight: 400,
+                              }}
+                            >
+                              (Tú)
+                            </Typography>
+                          )}
                           {comment.is_edited && (
                             <Typography
                               component="span"
                               variant="caption"
-                              sx={{ ml: 1, color: '#6c757d', fontStyle: 'italic' }}
+                              sx={{ ml: 1, color: 'text.secondary', fontStyle: 'italic' }}
                             >
                               (editado)
                             </Typography>
                           )}
                         </Typography>
                         {isOwnComment(comment) && (
-                          <Box>
-                            <IconButton
-                              size="small"
-                              onClick={(e) => handleMenuOpen(e, comment.id)}
-                              sx={{ color: '#6c757d' }}
-                            >
-                              <MoreVertIcon fontSize="small" />
-                            </IconButton>
-                          </Box>
+                          <IconButton
+                            size="small"
+                            onClick={(e) => handleMenuOpen(e, comment.id)}
+                            sx={{ 
+                              color: 'text.secondary',
+                              '&:hover': {
+                                bgcolor: 'action.hover',
+                              },
+                            }}
+                          >
+                            <MoreVertIcon fontSize="small" />
+                          </IconButton>
                         )}
                       </Box>
                       <Typography
                         variant="body1"
-                        sx={{ color: '#495057', mb: 1, whiteSpace: 'pre-wrap' }}
+                        sx={{ color: 'text.primary', mb: 1, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}
                       >
                         {comment.text}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ color: '#6c757d' }}>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
                         {formatDateTime(comment.is_edited ? comment.updated_at : comment.created_at)}
                       </Typography>
                     </Box>
@@ -470,22 +533,46 @@ export default function CommentsPanel({
       </Menu>
 
       {/* Diálogo de confirmación de eliminación */}
-      <Dialog open={deleteDialogOpen} onClose={handleCancelDelete}>
-        <DialogTitle>Eliminar comentario</DialogTitle>
+      <Dialog 
+        open={deleteDialogOpen} 
+        onClose={handleCancelDelete}
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: 2,
+            },
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 600 }}>
+          Eliminar comentario
+        </DialogTitle>
         <DialogContent>
-          <Typography>
+          <Typography color="text.secondary">
             ¿Estás seguro de que deseas eliminar este comentario? Esta acción no se puede deshacer.
           </Typography>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCancelDelete} sx={{ color: '#6c757d' }}>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button 
+            onClick={handleCancelDelete} 
+            sx={{ 
+              color: 'text.secondary',
+              textTransform: 'none',
+            }}
+          >
             Cancelar
           </Button>
           <Button
             onClick={handleConfirmDelete}
-            color="error"
             variant="contained"
             disabled={submitting}
+            sx={{
+              bgcolor: 'error.main',
+              textTransform: 'none',
+              '&:hover': {
+                bgcolor: 'error.dark',
+              },
+            }}
           >
             Eliminar
           </Button>

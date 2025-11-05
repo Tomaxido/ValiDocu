@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode, useRef } from 'react';
-import { AppBar, Toolbar, Box, Link, IconButton, Menu, CircularProgress, Table, TableHead, TableBody, TableRow, TableCell, Badge } from '@mui/material';
+import { AppBar, Toolbar, Box, Link, IconButton, Menu, CircularProgress, Table, TableHead, TableBody, TableRow, TableCell, Badge, Snackbar, Alert } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
 import BrandMark from '../graphics/ValiDocuLogo';
@@ -7,8 +7,9 @@ import UserMenu from '../components/auth/UserMenu';
 import AccessRequestsIndicator from '../components/admin/AccessRequestsIndicator';
 import { useAuth } from '../contexts/AuthContext';
 import { BellIcon, CheckIcon, XIcon, BarChart3 } from 'lucide-react';
-import type { DocAnalysisNotification, ProcessedDocumentEvent } from '../utils/interfaces';
+import type { DocAnalysisNotification, ProcessedDocumentEvent, CommentCreatedEvent } from '../utils/interfaces';
 import { getUserNotifications, markNotificationsAsRead } from '../utils/api';
+import { useEchoPublic } from '@laravel/echo-react';
 
 interface Props {
   children: ReactNode;
@@ -27,6 +28,30 @@ export default function MainLayout({ children, currentEvent, isDocMenuOpen, setI
 
   const [notifications, setNotifications] = useState<DocAnalysisNotification[]>([]);
   const unreadNotifications = notifications.filter(n => !n.is_read);
+
+  // Estados para notificaciones de comentarios en tiempo real
+  const [commentNotificationOpen, setCommentNotificationOpen] = useState(false);
+  const [commentNotificationMessage, setCommentNotificationMessage] = useState('');
+
+  // Escuchar eventos globales de comentarios
+  useEchoPublic<CommentCreatedEvent>('comments', 'CommentCreated', (event) => {
+    console.log('🔔 [MainLayout] Comentario recibido globalmente:', event);
+    
+    // No mostrar notificación si el comentario es del usuario actual
+    if (String(event.comment.user.id) !== String(user?.id)) {
+      const fileName = event.notification?.document?.name || 'un documento';
+      const groupName = event.notification?.group?.name || 'un grupo';
+      const commentPreview = event.comment.text.substring(0, 50);
+      
+      setCommentNotificationMessage(
+        `${event.comment.user.name} comentó en "${fileName}" (${groupName}): "${commentPreview}${event.comment.text.length > 50 ? '...' : ''}"`
+      );
+      setCommentNotificationOpen(true);
+      
+      // Recargar notificaciones para actualizar el badge
+      getUserNotifications().then(setNotifications);
+    }
+  });
 
   useEffect(() => {
     // Cargar notificaciones al montar el componente
@@ -229,6 +254,23 @@ export default function MainLayout({ children, currentEvent, isDocMenuOpen, setI
       <Box component="main" sx={{ flex: 1, bgcolor: 'background.default' }}>
         {children}
       </Box>
+
+      {/* Snackbar para notificaciones de comentarios globales */}
+      <Snackbar
+        open={commentNotificationOpen}
+        autoHideDuration={6000}
+        onClose={() => setCommentNotificationOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert 
+          onClose={() => setCommentNotificationOpen(false)} 
+          severity="info"
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {commentNotificationMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
