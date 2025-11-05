@@ -90,6 +90,14 @@ class User extends Authenticatable
                            ->with(['documents', 'users']);
     }
 
+    /**
+     * Get all comments made by this user
+     */
+    public function comments()
+    {
+        return $this->hasMany(DocumentComment::class, 'user_id');
+    }
+
     public function permissions()
     {
         return Permission::query()

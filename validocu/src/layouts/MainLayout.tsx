@@ -168,7 +168,21 @@ export default function MainLayout({ children, currentEvent, isDocMenuOpen, setI
                 {notifications.length === 0
                 ? <p>No hay notificaciones.</p>
                 : notifications.map((notification, index) => {
-                  const { group, document, status } = notification.message;
+                  // Validar que la notificación tenga la estructura esperada
+                  if (!notification.message || typeof notification.message !== 'object') {
+                    return null;
+                  }
+                  
+                  const message = notification.message as any;
+                  
+                  // Verificar que tenga las propiedades necesarias para notificaciones de documentos
+                  if (!message.group || !message.document || !message.status) {
+                    // Es una notificación de otro tipo (ej: comentarios), ignorarla por ahora
+                    return null;
+                  }
+                  
+                  const { group, document, status } = message;
+                  
                   return (
                     <TableRow
                       key={index}

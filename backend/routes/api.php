@@ -11,6 +11,7 @@ use App\Http\Controllers\GroupConfigurationController;
 use App\Http\Controllers\GroupAccessRequestController;
 use App\Http\Controllers\DocumentAuditController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\DocumentCommentController;
 use App\Http\Controllers\DashboardController;
 
 Route::prefix('v1')->group(function () {
@@ -97,6 +98,15 @@ Route::prefix('v1')->group(function () {
     // Notificaciones del usuario
     Route::get('/notifications', [NotificationController::class, 'getUserNotifications'])->middleware(['auth:sanctum']);
     Route::post('/notifications/mark-as-read', [NotificationController::class, 'markNotificationsAsRead'])->middleware(['auth:sanctum']);
+    Route::get('/notifications/comments', [NotificationController::class, 'getCommentNotifications'])->middleware(['auth:sanctum']);
+    Route::get('/notifications/comments/unread-count', [NotificationController::class, 'getUnreadCommentCount'])->middleware(['auth:sanctum']);
+
+    // Comentarios de documentos
+    Route::get('/documents/versions/{documentVersionId}/comments', [DocumentCommentController::class, 'index'])->middleware(['auth:sanctum']);
+    Route::post('/documents/versions/{documentVersionId}/comments', [DocumentCommentController::class, 'store'])->middleware(['auth:sanctum']);
+    Route::put('/comments/{commentId}', [DocumentCommentController::class, 'update'])->middleware(['auth:sanctum']);
+    Route::delete('/comments/{commentId}', [DocumentCommentController::class, 'destroy'])->middleware(['auth:sanctum']);
+    Route::get('/documents/versions/{documentVersionId}/comments/stats', [DocumentCommentController::class, 'stats'])->middleware(['auth:sanctum']);
 
     // Dashboard Ejecutivo - HDU 13
     Route::prefix('dashboard')->middleware(['auth:sanctum'])->group(function () {

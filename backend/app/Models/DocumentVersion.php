@@ -89,6 +89,14 @@ class DocumentVersion extends Model
     }
 
     /**
+     * Get all comments for this version
+     */
+    public function comments(): HasMany
+    {
+        return $this->hasMany(DocumentComment::class, 'document_version_id');
+    }
+
+    /**
      * Scope to get only current versions
      */
     public function scopeCurrent($query)
