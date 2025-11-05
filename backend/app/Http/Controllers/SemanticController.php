@@ -342,8 +342,8 @@ class SemanticController extends Controller
                     dv.normative_gap AS normative_gap,
                     g.name AS group_name
                 FROM semantic_doc_index sdi
-                LEFT JOIN document_versions dv ON dv.id = sdi.document_version_id AND dv.is_current = true
-                LEFT JOIN documents d ON d.id = dv.document_id
+                INNER JOIN document_versions dv ON dv.id = sdi.document_version_id AND dv.is_current = true
+                INNER JOIN documents d ON d.id = dv.document_id
                 LEFT JOIN document_groups g ON g.id = sdi.document_group_id
                 $whereFiltersSql
                 LIMIT ?;
@@ -376,12 +376,13 @@ class SemanticController extends Controller
                         dv.filename AS document_name,
                         dv.due_date AS due_date,
                         dv.normative_gap AS normative_gap,
+                        dv.is_current,
                         d.document_type_id AS tipo,
                         g.name AS group_name,
                         1 - (sdi.embedding <=> ?::vector) AS score
                     FROM semantic_doc_index sdi
-                    LEFT JOIN document_versions dv ON dv.id = sdi.document_version_id AND dv.is_current = true
-                    LEFT JOIN documents d ON d.id = dv.document_id
+                    INNER JOIN document_versions dv ON dv.id = sdi.document_version_id AND dv.is_current = true
+                    INNER JOIN documents d ON d.id = dv.document_id
                     LEFT JOIN document_groups g ON g.id = sdi.document_group_id
                     $whereFiltersSql
                 ) AS sub
