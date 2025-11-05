@@ -65,7 +65,6 @@ import type {
 } from '../../utils/interfaces';
 import GroupConfigurationModal from './GroupConfigurationModal';
 import GroupConfigurationHistoryModal from './GroupConfigurationHistoryModal';
-import DocumentConfigurationPanel from '../shared/DocumentConfigurationPanel';
 
 interface Props {
   open: boolean;
