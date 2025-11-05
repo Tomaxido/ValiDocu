@@ -11,8 +11,8 @@ import {
   Alert,
 } from "@mui/material";
 import { Folder, Plus, Search as SearchIcon, Settings2, Lock, Users, Info, FileText } from "lucide-react";
-import { createGroup, getDocumentGroups, getLooseDocuments, obtenerDocumentosVencidos, marcarDocumentosVencidos, buscarSemanticaConFiltros, type SemanticRow } from "../../utils/api";
-import type { Document, DocumentGroup, ExpiredDocumentResponse, ProcessedDocumentEvent } from "../../utils/interfaces";
+import { createGroup, getDocumentGroups, getLooseDocuments, obtenerDocumentosVencidos, marcarDocumentosVencidos, buscarSemanticaConFiltros, getDashboardMetrics, type SemanticRow } from "../../utils/api";
+import type { Document, DocumentGroup, ExpiredDocumentResponse, ProcessedDocumentEvent, DashboardMetrics } from "../../utils/interfaces";
 import NewGroupModal from "./NewGroupModal";
 import GroupConfigurationModal from "../../components/group/GroupConfigurationModal";
 import RequestAccessModal from "../../components/group/RequestAccessModal";
@@ -20,6 +20,7 @@ import GroupDetailModal from "../../components/group/GroupDetailModal";
 import SnackbarDocsVencidos from "../../components/SnackbarDocsVencidos";
 import { getDocumentFilters, type Filters } from "../../utils/api";
 import AddToGroupModal from "../../components/AddToGroupModal";
+import MetricsCards from "../dashboard/MetricsCards";
 
 
 interface HomeParams {
@@ -39,6 +40,10 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
   const [buscando, setBuscando] = useState(false);
   const [busquedaRealizada, setBusquedaRealizada] = useState(false);
   const [respuestaDocsVencidos, setRespuestaDocsVencidos] = useState<ExpiredDocumentResponse | null>(null);
+  
+  // Estado para métricas del dashboard
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [metricsLoading, setMetricsLoading] = useState(true);
   
   // Estado para mensajes de alerta
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
@@ -105,7 +110,22 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
     // Recargar grupos y documentos sueltos para reflejar cambios
     getDocumentGroups().then(setDocumentGroups);
     getLooseDocuments().then(setLooseDocuments);
+    // Recargar métricas
+    loadMetrics();
   }, [currentEvent]);
+
+  // Cargar métricas
+  const loadMetrics = async () => {
+    try {
+      setMetricsLoading(true);
+      const data = await getDashboardMetrics();
+      setMetrics(data);
+    } catch (error) {
+      console.error('Error loading metrics:', error);
+    } finally {
+      setMetricsLoading(false);
+    }
+  };
 
   // Aplicar filtros
   const applyFilters = () => {
@@ -126,6 +146,7 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
     getLooseDocuments().then(setLooseDocuments);
     obtenerDocumentosVencidos().then(setRespuestaDocsVencidos);
     marcarDocumentosVencidos();
+    loadMetrics(); // Cargar métricas al montar
   }, []);
 
   // Effect para manejar mensajes de estado de navegación
@@ -292,6 +313,9 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
         <Typography variant="h5" fontWeight={700}>Unidad de Sprint 1</Typography>
       </Stack>
+
+      {/* Métricas del Dashboard */}
+      <MetricsCards metrics={metrics} loading={metricsLoading} />
 
       <Menu
         anchorEl={filtersAnchor}
@@ -474,7 +498,6 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                   const isLooseDocument = res.document_group_id === null;
 
                   let accion = null;
-                  let alerta = null;  // TODO: ¿eliminar?
                   if (res) {
                     if (res.due_date === 1) {
                       accion = (
@@ -492,7 +515,6 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                           Actualizar urgente
                         </Button>
                       );
-                      alerta = <Alert severity="error" sx={{ mb: 1, width: '100%' }}>Documento vencido</Alert>;
                     } else if (res.due_date === 2) {
                       accion = (
                         <Button
@@ -509,7 +531,6 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                           Renovar
                         </Button>
                       );
-                      alerta = <Alert severity="warning" sx={{ mb: 1, width: '100%' }}>Documento por vencer</Alert>;
                     } else {
                       accion = (
                         <Button
@@ -649,7 +670,6 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                     const docsObs = docsPdf.filter(d => d.normative_gap === 1);
 
                     let acciones: React.ReactNode[] = [];
-                    let alerta = null;  // TODO: ¿eliminar?
 
                     if (docsVencidos.length > 0) {
                       acciones.push(
@@ -662,7 +682,6 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                           Actualizar urgente
                         </Button>
                       );
-                      alerta = <Alert severity="error" sx={{ mb: 1, width: '100%' }}>Documento vencido</Alert>;
                     } else if (docsPorVencer.length > 0) {
                       acciones.push(
                         <Button
@@ -674,7 +693,6 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
                           Renovar
                         </Button>
                       );
-                      alerta = <Alert severity="warning" sx={{ mb: 1, width: '100%' }}>Documento por vencer</Alert>;
                     } else {
                       acciones.push(
                         <Button

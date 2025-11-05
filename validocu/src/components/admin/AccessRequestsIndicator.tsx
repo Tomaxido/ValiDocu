@@ -20,7 +20,7 @@ export default function AccessRequestsIndicator({ isAdmin }: Props) {
       <IconButton
         onClick={() => navigate('/admin/access-requests')}
         sx={{ 
-          color: 'inherit',
+          color: 'white',
           '&:hover': {
             backgroundColor: 'rgba(255, 255, 255, 0.1)',
           }
@@ -32,7 +32,7 @@ export default function AccessRequestsIndicator({ isAdmin }: Props) {
           max={99}
           invisible={count === 0}
         >
-          <Shield size={20} />
+          <Shield size={24} />
         </Badge>
       </IconButton>
     </Tooltip>

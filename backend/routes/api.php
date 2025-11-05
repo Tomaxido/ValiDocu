@@ -12,6 +12,7 @@ use App\Http\Controllers\GroupAccessRequestController;
 use App\Http\Controllers\DocumentAuditController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\StandaloneDocumentController;
+use App\Http\Controllers\DashboardController;
 
 Route::prefix('v1')->group(function () {
 
@@ -100,6 +101,18 @@ Route::prefix('v1')->group(function () {
     Route::get('/notifications', [NotificationController::class, 'getUserNotifications'])->middleware(['auth:sanctum']);
     Route::post('/notifications/mark-as-read', [NotificationController::class, 'markNotificationsAsRead'])->middleware(['auth:sanctum']);
 
+    // Documentos sueltos - HDU 12
     Route::post('/standalone-documents/add-to-group/{group_id}', [StandaloneDocumentController::class, 'addToExistingGroup'])->middleware(['auth:sanctum']);
     Route::post('/standalone-documents/add-to-group', [StandaloneDocumentController::class, 'addToNewGroup'])->middleware(['auth:sanctum']); // ya debería existir; adaptar store para aceptar document_ids
+
+    // Dashboard Ejecutivo - HDU 13
+    Route::prefix('dashboard')->middleware(['auth:sanctum'])->group(function () {
+        Route::get('/metrics', [DashboardController::class, 'getMetrics']);
+        Route::get('/charts/documents-by-status', [DashboardController::class, 'getDocumentsByStatus']);
+        Route::get('/charts/documents-by-type', [DashboardController::class, 'getDocumentsByType']);
+        Route::get('/charts/time-saved-trend', [DashboardController::class, 'getTimeSavedTrend']);
+        Route::get('/charts/user-performance', [DashboardController::class, 'getUserPerformance']);
+        Route::get('/charts/group-performance', [DashboardController::class, 'getGroupPerformance']);
+        Route::get('/filters/available', [DashboardController::class, 'getAvailableFilters']);
+    });
 });
