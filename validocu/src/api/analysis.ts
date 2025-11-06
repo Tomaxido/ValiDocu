@@ -1,7 +1,7 @@
 // TODO: este archivo /src/api/analysis.ts debería estar unido a /src/utils/api.ts
 
 // Ajusta la BASE_URL si usas proxy o .env
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+const BASE_URL = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:8000';
 
 export type EvidenceItem = {
   label?: string;

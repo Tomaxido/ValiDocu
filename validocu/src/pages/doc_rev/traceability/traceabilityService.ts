@@ -6,7 +6,7 @@ import type {
 } from './types';
 
 // Configuración de la URL base de la API
-const API_BASE_URL = import.meta.env?.VITE_API_URL || 'http://localhost:8000/api/v1';
+const API_BASE_URL = import.meta.env?.VITE_BACKEND_URL || 'http://localhost:8000/api/v1';
 
 // Función helper para hacer peticiones autenticadas
 async function authenticatedFetch(url: string, options: RequestInit = {}) {

@@ -1,5 +1,5 @@
 // Ajusta la BASE_URL si usas proxy o .env
-const BASE_URL = import.meta.env.VITE_API_BASE ?? "http://localhost:8000/api/v1";
+const BASE_URL = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8000/api/v1";
 
 export async function downloadDocumentSummaryExcel(groupID: number): Promise<void> {
   const url = `${BASE_URL}/documents/${groupID}/summary-excel`;
