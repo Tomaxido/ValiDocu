@@ -7,7 +7,7 @@ import UserMenu from '../components/auth/UserMenu';
 import AccessRequestsIndicator from '../components/admin/AccessRequestsIndicator';
 import { useAuth } from '../contexts/AuthContext';
 import { BellIcon, CheckIcon, XIcon, BarChart3 } from 'lucide-react';
-import type { DocAnalysisNotification, ProcessedDocumentEvent, CommentCreatedEvent } from '../utils/interfaces';
+import type { ProcessedDocumentEvent, CommentCreatedEvent, Notification } from '../utils/interfaces';
 import { getUserNotifications, markNotificationsAsRead } from '../utils/api';
 import { useEchoPublic } from '@laravel/echo-react';
 
@@ -26,7 +26,7 @@ export default function MainLayout({ children, currentEvent, isDocMenuOpen, setI
   // Verificar si el usuario tiene rol de admin
   const isAdmin = user?.roles?.some(role => role.slug === 'admin' || role.name === 'admin' || role.name === 'Administrador') || false;
 
-  const [notifications, setNotifications] = useState<DocAnalysisNotification[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const unreadNotifications = notifications.filter(n => !n.is_read);
 
   // Estados para notificaciones de comentarios en tiempo real
@@ -197,16 +197,11 @@ export default function MainLayout({ children, currentEvent, isDocMenuOpen, setI
                   if (!notification.message || typeof notification.message !== 'object') {
                     return null;
                   }
-                  
-                  const message = notification.message as any;
-                  
-                  // Verificar que tenga las propiedades necesarias para notificaciones de documentos
-                  if (!message.group || !message.document || !message.status) {
-                    // Es una notificación de otro tipo (ej: comentarios), ignorarla por ahora
+
+                  if (notification.type !== 'doc_analysis')
                     return null;
-                  }
                   
-                  const { group, document, status } = message;
+                  const { group, document, status } = notification.message;
                   
                   return (
                     <TableRow

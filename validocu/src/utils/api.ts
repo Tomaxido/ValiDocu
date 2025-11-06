@@ -1,4 +1,4 @@
-import type { BoxAnnotation, Document, DocumentGroup, ExpiredDocumentResponse, SemanticGroup, DocAnalysisNotification, CommentNotification, DashboardFilters, DashboardMetrics, ChartData, UserPerformance, GroupPerformance, DashboardFilterOptions, AccessRequest } from "./interfaces";
+import type { BoxAnnotation, Document, DocumentGroup, ExpiredDocumentResponse, SemanticGroup, CommentNotification, DashboardFilters, DashboardMetrics, ChartData, UserPerformance, GroupPerformance, DashboardFilterOptions, AccessRequest, Notification } from "./interfaces";
 import { authService } from "../api/auth";
 
 // let baseURL = "";
@@ -402,7 +402,7 @@ export async function checkGroupAccess(groupId: string): Promise<{ hasAccess: bo
   }
 }
 
-export async function getUserNotifications(): Promise<DocAnalysisNotification[]> {
+export async function getUserNotifications(): Promise<Notification[]> {
   try {
     return await getJSON('/api/v1/notifications');
   } catch (error) {
@@ -411,7 +411,7 @@ export async function getUserNotifications(): Promise<DocAnalysisNotification[]>
   }
 }
 
-export async function markNotificationsAsRead(notifications: DocAnalysisNotification[]): Promise<void> {
+export async function markNotificationsAsRead(notifications: Notification[]): Promise<void> {
   try {
     await postJSON('/api/v1/notifications/mark-as-read', { notifications });
   } catch (error) {

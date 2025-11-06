@@ -182,6 +182,7 @@ export interface DocumentVersionProcessedEvent {
 export interface DocAnalysisNotification {
   id: number;
   user_id: string; // UUID como string
+  type: 'doc_analysis';
   message: {
     group: DocumentGroup | null;
     document: Document;
@@ -213,6 +214,8 @@ export interface CommentNotification {
   created_at: string;
   updated_at: string;
 }
+
+export type Notification = DocAnalysisNotification | CommentNotification;
 
 // Evento de WebSocket cuando se crea un comentario
 export interface CommentCreatedEvent {
