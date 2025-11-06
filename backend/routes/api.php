@@ -101,12 +101,12 @@ Route::prefix('v1')->group(function () {
     // Notificaciones del usuario
     Route::get('/notifications', [NotificationController::class, 'getUserNotifications'])->middleware(['auth:sanctum']);
     Route::post('/notifications/mark-as-read', [NotificationController::class, 'markNotificationsAsRead'])->middleware(['auth:sanctum']);
+    Route::get('/notifications/comments', [NotificationController::class, 'getCommentNotifications'])->middleware(['auth:sanctum']);
+    Route::get('/notifications/comments/unread-count', [NotificationController::class, 'getUnreadCommentCount'])->middleware(['auth:sanctum']);
 
     // Documentos sueltos - HDU 12
     Route::post('/standalone-documents/add-to-group/{group_id}', [StandaloneDocumentController::class, 'addToExistingGroup'])->middleware(['auth:sanctum']);
     Route::post('/standalone-documents/add-to-group', [StandaloneDocumentController::class, 'addToNewGroup'])->middleware(['auth:sanctum']); // ya debería existir; adaptar store para aceptar document_ids
-    Route::get('/notifications/comments', [NotificationController::class, 'getCommentNotifications'])->middleware(['auth:sanctum']);
-    Route::get('/notifications/comments/unread-count', [NotificationController::class, 'getUnreadCommentCount'])->middleware(['auth:sanctum']);
 
     // Dashboard Ejecutivo - HDU 13
     Route::prefix('dashboard')->middleware(['auth:sanctum'])->group(function () {
