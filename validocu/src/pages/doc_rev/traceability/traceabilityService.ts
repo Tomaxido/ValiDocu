@@ -6,7 +6,7 @@ import type {
 } from './types';
 
 // Configuración de la URL base de la API
-const API_BASE_URL = import.meta.env?.VITE_BACKEND_URL || 'http://localhost:8000/api/v1';
+const API_BASE_URL = import.meta.env?.VITE_BACKEND_URL || 'http://localhost:8000';
 
 // Función helper para hacer peticiones autenticadas
 async function authenticatedFetch(url: string, options: RequestInit = {}) {
@@ -67,7 +67,7 @@ export class TraceabilityService {
   }> {
     try {
       const response: ApiResponse<DocumentTimelineResponse> = await authenticatedFetch(
-        `/documents/${documentId}/timeline`
+        `/api/v1/documents/${documentId}/timeline`
       );
 
       if (!response.success) {
@@ -91,7 +91,7 @@ export class TraceabilityService {
   static async getDocumentVersionHistory(documentId: string): Promise<DocumentVersionHistoryResponse> {
     try {
       const response: ApiResponse<DocumentVersionHistoryResponse> = await authenticatedFetch(
-        `/documents/${documentId}/version-history`
+        `/api/v1/documents/${documentId}/version-history`
       );
 
       if (!response.success) {
@@ -128,7 +128,7 @@ export class TraceabilityService {
   }> {
     try {
       const response: ApiResponse<any> = await authenticatedFetch(
-        `/documents/${documentId}/activity-stats`
+        `/api/v1/documents/${documentId}/activity-stats`
       );
 
       if (!response.success) {
@@ -168,7 +168,7 @@ export class TraceabilityService {
       });
 
       const response: ApiResponse<any> = await authenticatedFetch(
-        `/audit-logs?${queryParams.toString()}`
+        `/api/v1/audit-logs?${queryParams.toString()}`
       );
 
       if (!response.success) {
@@ -193,7 +193,7 @@ export class TraceabilityService {
     action_labels: Record<string, string>;
   }> {
     try {
-      const response: ApiResponse<any> = await authenticatedFetch('/audit/actions');
+      const response: ApiResponse<any> = await authenticatedFetch('/api/v1/audit/actions');
 
       if (!response.success) {
         throw new Error(response.message || 'Error al obtener acciones');
@@ -216,7 +216,7 @@ export class TraceabilityService {
   }> {
     try {
       const response: ApiResponse<any> = await authenticatedFetch(
-        `/documents/${documentId}/versions/${versionId}/download`
+        `/api/v1/documents/${documentId}/versions/${versionId}/download`
       );
 
       if (!response.success) {
