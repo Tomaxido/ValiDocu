@@ -311,7 +311,7 @@ export default function Home({ currentEvent, setIsDocMenuOpen }: HomeParams) {
 
       {/* Header */}
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-        <Typography variant="h5" fontWeight={700}>Unidad de Sprint 1</Typography>
+        <Typography variant="h5" fontWeight={700}>Unidad de Sprint 3</Typography>
       </Stack>
 
       {/* Métricas del Dashboard */}
