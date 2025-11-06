@@ -6,11 +6,19 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\AnalysisController;
 use App\Models\DocumentGroup;
 use App\Models\Document;
+use App\Services\GroupValidationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class StandaloneDocumentController extends Controller
 {
+    protected GroupValidationService $groupValidationService;
+
+    public function __construct(GroupValidationService $groupValidationService)
+    {
+        $this->groupValidationService = $groupValidationService;
+    }
+
     public function addToExistingGroup(Request $request, int $groupId)
     {
         $data = $request->validate([
@@ -45,16 +53,30 @@ class StandaloneDocumentController extends Controller
             'document_ids' => 'nullable|array',
             'document_ids.*' => 'integer|exists:documents,id',
         ]);
+        $user = $request->user();
 
         $group = DocumentGroup::create([
             'name' => $payload['name'],
+            'status' => 0,
             'is_private' => $payload['is_private'],
-            'created_by' => $request->user()->id ?? null,
+            'created_by' => $user->id,
+        ]);
+
+        // Añadir el usuario autenticado como propietario del grupo
+        $group->users()->attach($user->id, [
+            'active' => 1, // puede ver (predeterminado para quien lo crea)
+            'managed_by' => $user->id, // quien lo aprobó (él mismo)
+            'can_edit' => 1 // el creador siempre puede editar
         ]);
 
         if (!empty($payload['document_ids'])) {
             Document::whereIn('id', $payload['document_ids'])
                 ->update(['document_group_id' => $group->id]);
+        }
+
+        // Inicializar configuración por defecto si no existe
+        if (!$this->groupValidationService->hasGroupConfiguration($group->id)) {
+            $this->groupValidationService->initializeGroupConfiguration($group->id);
         }
 
         try {
@@ -63,6 +85,6 @@ class StandaloneDocumentController extends Controller
             Log::error("Error regenerando sugerencias para grupo {$group->id}: " . $e->getMessage());
         }
 
-        return response()->json($group, 201);
+        return response()->json(["group" => $group], 201);
     }
 }

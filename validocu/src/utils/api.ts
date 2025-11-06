@@ -433,9 +433,10 @@ export async function addDocumentsToGroup(groupId: number, documentIds: number[]
   }
 }
 
-export async function createGroupWithDocuments(name: string, isPrivate: boolean, documentIds: number[]): Promise<any> {
+export async function createGroupWithDocuments(name: string, isPrivate: boolean, documentIds: number[]): Promise<DocumentGroup> {
   try {
-    await postJSON(`/api/v1/standalone-documents/add-to-group`, { name, is_private: isPrivate, document_ids: documentIds });
+    const res = await postJSON(`/api/v1/standalone-documents/add-to-group`, { name, is_private: isPrivate, document_ids: documentIds });
+    return res.group;
   } catch (error) {
     console.error("Error creating group:", error);
     throw error;

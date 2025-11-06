@@ -205,11 +205,11 @@ export default function AddToGroupModal({
     if (!newGroupName.trim()) return;
     setCreating(true);
     try {
-      const res = await createGroupWithDocuments(newGroupName.trim(), false, documentIds);
-      const groupId = res?.group_id || res?.id || null;
-      if (groupId && step === 1 && Object.keys(selectedConfiguration || {}).length > 0) {
+      const group = await createGroupWithDocuments(newGroupName.trim(), false, documentIds);
+      console.log(group.id, step, selectedConfiguration);
+      if (group.id && step === 1 && Object.keys(selectedConfiguration || {}).length > 0) {
         try {
-          await updateGroupConfiguration(Number(groupId), selectedConfiguration);
+          await updateGroupConfiguration(Number(group.id), selectedConfiguration);
         } catch (cfgErr) {
           console.error("Error saving group configuration:", cfgErr);
           // no bloqueamos el flujo principal
