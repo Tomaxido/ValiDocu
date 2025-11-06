@@ -267,7 +267,7 @@ export default function DocInfoPanel({
         display: "flex",
         flexDirection: "column",
         gap: 1,
-        overflow: "hidden",
+        overflow: "auto",
         bgcolor: "background.paper",
       }}
     >

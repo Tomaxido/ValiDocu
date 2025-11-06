@@ -341,7 +341,7 @@ export default function CommentsPanel({
         </Paper>
       )}
 
-      <Box sx={{ maxHeight: '400px', overflowY: 'auto', pr: 0.5 }}>
+      <Box sx={{ pr: 0.5 }}>
         <Stack spacing={1.5}>
           {comments.length === 0 ? (
             <Paper
