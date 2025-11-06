@@ -424,6 +424,9 @@ export default function Grupo({ currentEvent, setIsDocMenuOpen }: GrupoParams) {
               duration: 250,
               easing: theme.transitions.easing.easeInOut,
             }),
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%'
           })}
         >
           <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 1, flexDirection: 'column' }}>
@@ -512,8 +515,9 @@ export default function Grupo({ currentEvent, setIsDocMenuOpen }: GrupoParams) {
           <Divider sx={{ mb: 1 }} />
           <Typography variant="subtitle2" sx={{ mb: 1 }}>Listado de documentos</Typography>
 
-          <List dense disablePadding>
-            {groupedDocs.map((grouped) => {
+          <Box sx={{ overflowY: 'auto', flex: 1 }}>
+            <List dense disablePadding>
+              {groupedDocs.map((grouped) => {
               const active = selectedDoc?.id === grouped.pdf?.id;
               return (
                 <ListItemButton
@@ -547,6 +551,7 @@ export default function Grupo({ currentEvent, setIsDocMenuOpen }: GrupoParams) {
               );
             })}
           </List>
+          </Box>
         </Box>
       </Paper>
 
