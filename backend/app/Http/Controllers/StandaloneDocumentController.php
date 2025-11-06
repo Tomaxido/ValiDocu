@@ -31,6 +31,30 @@ class StandaloneDocumentController extends Controller
                 ->update([
                     'document_group_id' => $groupId,
                 ]);
+            // Actualizar tabla semantic_doc_index para los documentos movidos y actualizar valor de document_group_id
+            DB::table('semantic_doc_index')
+                ->whereIn('document_version_id', function ($query) use ($data) {
+                    $query->select('dv.id')
+                        ->from('document_versions as dv')
+                        ->join('documents as d', 'd.id', '=', 'dv.document_id')
+                        ->whereIn('d.id', $data['document_ids'])
+                        ->where('dv.is_current', true);
+                })
+                ->update([
+                    'document_group_id' => $groupId,
+                ]);
+            // Lo mismo para semantic_index
+            DB::table('semantic_index')
+                ->whereIn('document_version_id', function ($query) use ($data) {
+                    $query->select('dv.id')
+                        ->from('document_versions as dv')
+                        ->join('documents as d', 'd.id', '=', 'dv.document_id')
+                        ->whereIn('d.id', $data['document_ids'])
+                        ->where('dv.is_current', true);
+                })
+                ->update([
+                    'document_group_id' => $groupId,
+                ]);
             // opcional: log, auditar, despachar jobs para re-análisis
             Log::info('Documents moved to group ' . $groupId, ['documents' => $data['document_ids']]);
         });
@@ -72,6 +96,30 @@ class StandaloneDocumentController extends Controller
         if (!empty($payload['document_ids'])) {
             Document::whereIn('id', $payload['document_ids'])
                 ->update(['document_group_id' => $group->id]);
+            // Actualizar tabla semantic_doc_index para los documentos movidos y actualizar valor de document_group_id
+            DB::table('semantic_doc_index')
+                ->whereIn('document_version_id', function ($query) use ($payload) {
+                    $query->select('dv.id')
+                        ->from('document_versions as dv')
+                        ->join('documents as d', 'd.id', '=', 'dv.document_id')
+                        ->whereIn('d.id', $payload['document_ids'])
+                        ->where('dv.is_current', true);
+                })
+                ->update([
+                    'document_group_id' => $group->id,
+                ]);
+            // Lo mismo para semantic_index
+            DB::table('semantic_index')
+                ->whereIn('document_version_id', function ($query) use ($payload) {
+                    $query->select('dv.id')
+                        ->from('document_versions as dv')
+                        ->join('documents as d', 'd.id', '=', 'dv.document_id')
+                        ->whereIn('d.id', $payload['document_ids'])
+                        ->where('dv.is_current', true);
+                })
+                ->update([
+                    'document_group_id' => $group->id,
+                ]);
         }
 
         // Inicializar configuración por defecto si no existe
