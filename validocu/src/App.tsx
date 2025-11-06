@@ -46,13 +46,10 @@ export default function App() {
             onClose={() => setIsNotificationOpen(false)}
           >
             {currentEvent === null ? <Alert /> : <Alert
-              severity={currentEvent.document.status === 2 ? "error" : "success"}
+              severity={currentEvent.document.status === 2 ? "warning" : "success"}
               variant="filled"
             >
-              {currentEvent.document.status === 2
-              ? `Error al analizar documento '${currentEvent.document.filename}'${currentEvent.group ? ` en grupo '${currentEvent.group.name}'.` : '.'}`
-              : `Documento '${currentEvent.document.filename}' analizado exitosamente${currentEvent.group ? ` en grupo '${currentEvent.group.name}'.` : '.'}`
-              }
+              Documento '{currentEvent.document.filename}' analizado y {currentEvent.document.status === 2 ? "con brechas normativas" : "conforme"}{currentEvent.group ? ` en grupo '${currentEvent.group.name}'.` : '.'}
             </Alert>
             }
             
