@@ -13,6 +13,7 @@ use App\Http\Controllers\DocumentAuditController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\StandaloneDocumentController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DocumentCommentController;
 
 Route::prefix('v1')->group(function () {
 
@@ -104,6 +105,8 @@ Route::prefix('v1')->group(function () {
     // Documentos sueltos - HDU 12
     Route::post('/standalone-documents/add-to-group/{group_id}', [StandaloneDocumentController::class, 'addToExistingGroup'])->middleware(['auth:sanctum']);
     Route::post('/standalone-documents/add-to-group', [StandaloneDocumentController::class, 'addToNewGroup'])->middleware(['auth:sanctum']); // ya debería existir; adaptar store para aceptar document_ids
+    Route::get('/notifications/comments', [NotificationController::class, 'getCommentNotifications'])->middleware(['auth:sanctum']);
+    Route::get('/notifications/comments/unread-count', [NotificationController::class, 'getUnreadCommentCount'])->middleware(['auth:sanctum']);
 
     // Dashboard Ejecutivo - HDU 13
     Route::prefix('dashboard')->middleware(['auth:sanctum'])->group(function () {
@@ -115,4 +118,11 @@ Route::prefix('v1')->group(function () {
         Route::get('/charts/group-performance', [DashboardController::class, 'getGroupPerformance']);
         Route::get('/filters/available', [DashboardController::class, 'getAvailableFilters']);
     });
+
+    // Comentarios de documentos - HDU 14
+    Route::get('/documents/versions/{documentVersionId}/comments', [DocumentCommentController::class, 'index'])->middleware(['auth:sanctum']);
+    Route::post('/documents/versions/{documentVersionId}/comments', [DocumentCommentController::class, 'store'])->middleware(['auth:sanctum']);
+    Route::put('/comments/{commentId}', [DocumentCommentController::class, 'update'])->middleware(['auth:sanctum']);
+    Route::delete('/comments/{commentId}', [DocumentCommentController::class, 'destroy'])->middleware(['auth:sanctum']);
+    Route::get('/documents/versions/{documentVersionId}/comments/stats', [DocumentCommentController::class, 'stats'])->middleware(['auth:sanctum']);
 });

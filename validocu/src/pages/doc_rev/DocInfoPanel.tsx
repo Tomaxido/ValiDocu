@@ -20,6 +20,14 @@ import {
   type MissingFieldsResponse
 } from "../../api/analysis";
 import SuggestionsModal from "./SuggestionsModal";
+import CommentsPanel from "./CommentsPanel";
+import {
+  getDocumentComments,
+  createComment,
+  updateComment,
+  deleteComment,
+  type Comment,
+} from "../../api/comments";
 
 
 
@@ -111,6 +119,10 @@ export default function DocInfoPanel({
   const [pendingCount, setPendingCount] = useState(0);
   const [docSummary, setDocSummary] = useState<string | null>(null);
   const [missingFields, setMissingFields] = useState<MissingFieldsResponse | null>(null);
+  
+  // Estado para los comentarios (se cargarán desde la API)
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -124,7 +136,25 @@ export default function DocInfoPanel({
   useEffect(() => {
     reAnalyze();
     loadMissingFields();
+    loadComments(); // Cargar comentarios cuando cambia el documento
   }, [selectedDoc]);
+
+  const loadComments = async () => {
+    if (!selectedDoc.id) return;
+    
+    setLoadingComments(true);
+    try {
+      // Asumiendo que selectedDoc.id es el document_version_id
+      // Si tienes una forma diferente de obtener el version_id, ajústalo aquí
+      const fetchedComments = await getDocumentComments(selectedDoc.id);
+      setComments(fetchedComments);
+    } catch (error) {
+      console.error('Error loading comments:', error);
+      setComments([]);
+    } finally {
+      setLoadingComments(false);
+    }
+  };
 
   const loadMissingFields = async () => {
     try {
@@ -176,6 +206,54 @@ export default function DocInfoPanel({
     } finally {
       setLoading(false);
     }
+  };
+
+  // Función para añadir un nuevo comentario
+  const handleAddComment = async (text: string) => {
+    try {
+      const newComment = await createComment(selectedDoc.id, text);
+      setComments((prev) => [...prev, newComment]); // Añadir al final
+    } catch (error) {
+      console.error('Error creating comment:', error);
+      throw error; // Re-lanzar para que CommentsPanel pueda manejarlo
+    }
+  };
+
+  // Función para editar un comentario
+  const handleEditComment = async (commentId: string, text: string) => {
+    try {
+      const updatedComment = await updateComment(commentId, text);
+      setComments((prev) =>
+        prev.map((c) => (c.id === commentId ? updatedComment : c))
+      );
+    } catch (error) {
+      console.error('Error updating comment:', error);
+      throw error;
+    }
+  };
+
+  // Función para eliminar un comentario
+  const handleDeleteComment = async (commentId: string) => {
+    try {
+      await deleteComment(commentId);
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+      throw error;
+    }
+  };
+
+  // Función para manejar comentarios recibidos por WebSocket
+  const handleCommentReceived = (newComment: Comment) => {
+    console.log('📥 Nuevo comentario recibido en DocInfoPanel:', newComment);
+    // Verificar si el comentario ya existe (evitar duplicados)
+    setComments((prev) => {
+      const exists = prev.some(c => c.id === newComment.id);
+      if (exists) {
+        return prev;
+      }
+      return [...prev, newComment];
+    });
   };
 
   return (
@@ -286,6 +364,17 @@ export default function DocInfoPanel({
             })()}
           </Box>
         ) : <span style={{ color: '#aaa' }}>No disponible</span>}
+      </Box>
+
+      {/* ====== Panel de Comentarios ====== */}
+      <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+        <CommentsPanel 
+          comments={comments} 
+          onAddComment={handleAddComment}
+          onEditComment={handleEditComment}
+          onDeleteComment={handleDeleteComment}
+          onCommentReceived={handleCommentReceived}
+        />
       </Box>
 
       {/* ====== Modal con toda la lógica de sugerencias ====== */}

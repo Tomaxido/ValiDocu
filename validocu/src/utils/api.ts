@@ -1,4 +1,4 @@
-import type { BoxAnnotation, Document, DocumentGroup, ExpiredDocumentResponse, SemanticGroup, DocAnalysisNotification, DashboardFilters, DashboardMetrics, ChartData, UserPerformance, GroupPerformance, DashboardFilterOptions, AccessRequest } from "./interfaces";
+import type { BoxAnnotation, Document, DocumentGroup, ExpiredDocumentResponse, SemanticGroup, DocAnalysisNotification, CommentNotification, DashboardFilters, DashboardMetrics, ChartData, UserPerformance, GroupPerformance, DashboardFilterOptions, AccessRequest } from "./interfaces";
 import { authService } from "../api/auth";
 
 // let baseURL = "";
@@ -420,6 +420,10 @@ export async function markNotificationsAsRead(notifications: DocAnalysisNotifica
   }
 }
 
+// ============================================
+// Documentos sueltos - HDU 12
+// ============================================
+
 export async function addDocumentsToGroup(groupId: number, documentIds: number[]): Promise<void> {
   try {
     await postJSON(`/api/v1/standalone-documents/add-to-group/${groupId}`, { document_ids: documentIds });
@@ -554,6 +558,37 @@ export async function getDashboardFilterOptions(): Promise<DashboardFilterOption
     return response.data;
   } catch (error) {
     console.error("Error fetching dashboard filter options:", error);
+    throw error;
+  }
+}
+
+// ============================================
+// Comentarios - HDU 14
+// ============================================
+
+/**
+ * Get comment notifications for the current user
+ */
+export async function getCommentNotifications(): Promise<CommentNotification[]> {
+  try {
+    const response = await getJSON('/api/v1/notifications/comments');
+    return response.notifications;
+  } catch (error) {
+    console.error("Error fetching comment notifications:", error);
+    throw error;
+  }
+}
+
+
+/**
+ * Get unread comment notifications count
+ */
+export async function getUnreadCommentCount(): Promise<number> {
+  try {
+    const response = await getJSON('/api/v1/notifications/comments/unread-count');
+    return response.count;
+  } catch (error) {
+    console.error("Error fetching unread comment count:", error);
     throw error;
   }
 }

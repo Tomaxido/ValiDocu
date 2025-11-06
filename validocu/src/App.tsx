@@ -29,7 +29,7 @@ export default function App() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isDocMenuOpen, setIsDocMenuOpen] = useState(false);
   
-  // TODO: usar useEcho y averiguar cómo usar canales privados
+  // Escuchar eventos de documentos procesados
   useEchoPublic<ProcessedDocumentEvent>('documents', 'DocumentsProcessed', event => {
     if (event === null) return;
     setIsNotificationOpen(true);

@@ -192,6 +192,68 @@ export interface DocAnalysisNotification {
   updated_at: string;
 }
 
+// Notificación de comentario
+export interface CommentNotification {
+  id: number;
+  user_id: string; // UUID como string
+  type: 'comment';
+  message: {
+    comment_id: number;
+    document_version_id: number;
+    document_id: number;
+    group_id: number;
+    group_name: string;
+    document_name: string;
+    document_type: string;
+    comment_text: string;
+    author_name: string;
+    author_id: string;
+  };
+  is_read: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// Evento de WebSocket cuando se crea un comentario
+export interface CommentCreatedEvent {
+  comment: {
+    id: string;
+    text: string;
+    user: {
+      id: string;
+      name: string;
+      email: string;
+    };
+    is_edited: boolean;
+    created_at: string;
+    updated_at: string;
+    time_ago: string;
+  };
+  document_version: {
+    id: number;
+    document_id: number;
+    version_number: number;
+  };
+  notification: {
+    type: 'comment';
+    message: string;
+    group: {
+      id: number;
+      name: string;
+    };
+    document: {
+      id: number;
+      name: string;
+      type: string;
+    };
+    author: {
+      id: string;
+      name: string;
+    };
+  };
+  timestamp: string;
+}
+
 // Interfaces para Dashboard Ejecutivo - HDU 13
 export interface DashboardFilters {
   date_from?: string;
